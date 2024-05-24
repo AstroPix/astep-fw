@@ -228,10 +228,10 @@ class astepRun:
         if self._asic_start:
             if bias_cfg is not None:
                 for key in bias_cfg:
-                    self.asic[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
+                    self.asics[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
             if idac_cfg is not None:
                 for key in idac_cfg:
-                    self.asic[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
+                    self.asics[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
             if vdac_cfg is not None:
                 for key in vdac_cfg:
                     self.asics[layer].asic_config[f'config_{chip}']['vdacs'][key][1]=vdac_cfg[key]
