@@ -1,6 +1,7 @@
 async-timeout~=4.0
 bitstring~=3.1
 tqdm~=4.64
+python>=3.10
 pyyaml~=6.0
 pyserial
 ttkwidgets

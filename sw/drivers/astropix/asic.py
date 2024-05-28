@@ -122,9 +122,9 @@ class Asic():
         
     @property
     def num_chips(self):
-        """Get/set number of chips in telescope setup
+        """Get/set number of chips in chain setup
 
-        :returns: Number of chips in telescope setup
+        :returns: Number of chips in chain setup
         """
         return self._num_chips
 
@@ -132,7 +132,7 @@ class Asic():
     def num_chips(self, chips):
         self._num_chips = chips
 
-    def enable_inj_row(self, row: int, inplace:bool=False):
+    def enable_inj_row(self, chip:int, row: int, inplace:bool=False):
         """
         Enable injection in specified row
 
@@ -141,10 +141,10 @@ class Asic():
         inplace:bool - True - Updates asic after updating pixel mask
         """
         if row < self.num_rows:
-            self.asic_config['recconfig'][f'col{row}'][1] = self.asic_config['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b000_00000_00000_00000_00000_00000_00000_00001
+            self.asic_config[f'config_{chip}']['recconfig'][f'col{row}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b000_00000_00000_00000_00000_00000_00000_00001
         if inplace: self.asic_update()
 
-    def enable_inj_col(self, col: int, inplace:bool=False):
+    def enable_inj_col(self, chip:int, col: int, inplace:bool=False):
         """
         Enable injection in specified column
 
@@ -153,31 +153,34 @@ class Asic():
         inplace:bool - True - Updates asic after updating pixel mask
         """
         if col < self.num_cols:
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b010_00000_00000_00000_00000_00000_00000_00000
+            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b010_00000_00000_00000_00000_00000_00000_00000
         if inplace: self.asic_update()
 
-    def enable_ampout_col(self, col: int, inplace:bool=False):
+    def enable_ampout_col(self, chip:int, col:int, inplace:bool=False):
         """
         Enables analog output, Select Col for analog mux and disable other cols
 
         Takes:
-        col:int - Column to enable
+        chip:int - chip to enable analog out in daisy chain
+        col:int - column in row0 for analog output
         inplace:bool - True - Updates asic after updating pixel mask
         """
+
         #Disable all analog pixels
         for i in range(self.num_cols):
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'][f'col{col}'][1] & 0b011_11111_11111_11111_11111_11111_11111_11111
+            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] & 0b011_11111_11111_11111_11111_11111_11111_11111
 
         #Enable analog pixel in column <col>
-        self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'][f'col{col}'][1] | 0b100_00000_00000_00000_00000_00000_00000_00000
+        self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] | 0b100_00000_00000_00000_00000_00000_00000_00000
         
         if inplace: self.asic_update()
 
-    def enable_pixel(self, col: int, row: int, inplace:bool=False):
+    def enable_pixel(self, chip:int, col: int, row: int, inplace:bool=False):
         """
         Turns on comparator in specified pixel
 
         Takes:
+        chip: int - chip in the daisy chain
         col: int - Column of pixel
         row: int - Row of pixel
         inplace:bool - True - Updates asic after updating pixel mask
@@ -185,23 +188,26 @@ class Asic():
         assert row >= 0 and row < self.num_rows , f"Row outside of accepted range 0 <= row < {self.num_rows}"
         assert col >= 0 and col < self.num_cols , f"Row outside of accepted range 0 <= row < {self.num_cols}"
         if(row < self.num_rows and col < self.num_cols):
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & ~(2 << row)
+            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & ~(2 << row)
 
         if inplace: self.asic_update()
 
-    def disable_pixel(self, col: int, row: int, inplace:bool=False):
+    def disable_pixel(self, chip:int, col: int, row: int, inplace:bool=False):
         """
         Disable comparator in specified pixel
 
         Takes:
+        chip: int - chip in the daisy chain
         col: int - Column of pixel
         row: int - Row of pixel
         inplace:bool - True - Updates asic after updating pixel mask
         """
         if(row < self.num_rows and col < self.num_cols):
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | (2 << row)
+            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | (2 << row)
         if inplace: self.asic_update()
 
+
+    #AS: update below this
 
     def disable_inj_row(self, row: int):
         """Disable row injection switch
@@ -256,8 +262,9 @@ class Asic():
         try:
             return BitArray(uint=value, length=nbits)
         except ValueError:
-            logger.error('Allowed Values 0 - %d', 2**nbits-1)
-            return None
+            logger.error('Bad setting - Allowed Values 0 - %d', 2**nbits-1)
+            #return None
+            sys.exit(1)
 
     def load_conf_from_yaml(self, filename: str, **kwargs) -> None:
         """Load ASIC config from yaml
@@ -274,14 +281,17 @@ class Asic():
             except yaml.YAMLError as exc:
                 logger.error(exc)
 
-        # Get Telescope settings
+        
+        # Get Chain settings
         try:
-            self.num_chips = dict_from_yml[self.chip].get('chain')['length']
+            self.num_chips_yml = dict_from_yml[self.chip].get('chain')['length']
 
             logger.info("%s%d DaisyChain with %d chips found!", self.chipname, self.chipversion, self.num_chips)
         except (KeyError, TypeError):
             logger.debug("%s%d DaisyChain Length config not found!", self.chipname, self.chipversion)
-
+            logger.debug("Use %s%d DaisyChain Length %i from chipsPerRow run parameter", self.chipname, self.chipversion, self.num_chips)
+        
+ 
         # Get chip geometry
         try:
             self.num_cols = dict_from_yml[self.chip].get('geometry')['cols']
@@ -293,21 +303,13 @@ class Asic():
             #sys.exit(1)
 
         # Get chip configs
-        if self.num_chips > 1:
-            for chip_number in range(self.num_chips):
-                try:
-                    self.asic_config[f'config_{chip_number}'] = dict_from_yml.get(self.chip)[f'config_{chip_number}']
-                    logger.info("Telescope chip_%d config found!", chip_number)
-                except KeyError:
-                    logger.error("Telescope chip_%d config not found!", chip_number)
-                    #sys.exit(1)
-        else:
+        for chip_number in range(self.num_chips):
             try:
-                self.asic_config = dict_from_yml.get(self.chip)['config']
-                logger.info("%s%d config found!", self.chipname, self.chipversion)
+                self.asic_config[f'config_{chip_number}'] = dict_from_yml.get(self.chip)[f'config_{chip_number}']
+                logger.info("Chain chip_%d config found!", chip_number)
             except KeyError:
-                logger.error("%s%d config not found!", self.chipname, self.chipversion)
-                #sys.exit(1)
+                logger.error("Chain chip_%d config not found!", chip_number)
+                sys.exit(1)
 
 
     def gen_config_vector(self, msbfirst: bool = False) -> BitArray:
@@ -318,38 +320,23 @@ class Asic():
         """
         bitvector = BitArray()
 
-        if self.num_chips > 1:
-            for chip in range(self.num_chips-1, -1, -1):
-                chipBitvector = BitArray()
-                for key in self.asic_config[f'config_{chip}']:
-                    for values in self.asic_config[f'config_{chip}'][key].values():
-                        if(key=='vdacs'):
-                            bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
-                            bitvector_vdac_reversed.reverse()
-                            chipBitvector.append(bitvector_vdac_reversed)
-                        else:
-                            chipBitvector.append(self.__int2nbit(values[1], values[0]))
-
-                logger.info("Generated chip_%d config successfully!", chip)
-            
-                if not msbfirst:
-                    chipBitvector.reverse()
-
-                bitvector.append(chipBitvector)
-    
-        else:
-            for key in self.asic_config:
-                for values in self.asic_config[key].values():
-                    #bitvector.append(self.__int2nbit(values[1], values[0]))
+        for chip in range(self.num_chips-1, -1, -1): #configure far end of daisy chain first
+            chipBitvector = BitArray()
+            for key in self.asic_config[f'config_{chip}']:
+                for values in self.asic_config[f'config_{chip}'][key].values():
                     if(key=='vdacs'):
                         bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
                         bitvector_vdac_reversed.reverse()
-                        bitvector.append(bitvector_vdac_reversed)
+                        chipBitvector.append(bitvector_vdac_reversed)
                     else:
-                        bitvector.append(self.__int2nbit(values[1], values[0]))
-
+                        chipBitvector.append(self.__int2nbit(values[1], values[0]))
+        
             if not msbfirst:
-                bitvector.reverse()
+                chipBitvector.reverse()
+
+            bitvector.append(chipBitvector)
+
+            logger.info("Generated chip_%d config successfully!", chip)
 
         logger.debug(bitvector)
 

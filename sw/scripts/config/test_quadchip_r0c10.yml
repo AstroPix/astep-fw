@@ -4,24 +4,22 @@
 # It is important, that the order of configbits under the config section, corresponds to the actual order in the chip
 #
 # astropix<version>:
-#   chain:
-#        length: <number of chips in daisy chain>
 #   geometry:
 #       cols: <number of cols>
 #       rows: <number of rows>
-#   config_*:
+#   config:
 #       <group-name>:
 #           <configbit-name>: [<number of bits>, <value>]
 #   ...
 #
 ---
 astropix3:
-    chain:
-        length: 1
+    telescope:
+        nchips: 1
     geometry:
         cols: 35
         rows: 35
-    config_0:
+    config:
         digitalconfig:
             interrupt_pushpull: [1, 0b1]
             en_inj:             [18, 0b0]
@@ -63,10 +61,10 @@ astropix3:
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 171]
 
         recconfig:
-            col0:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
+            col0:               [38, 0b011_11111_11111_11111_11111_11111_11111_11111]
             col1:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col2:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col3:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
@@ -76,7 +74,7 @@ astropix3:
             col7:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col8:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col9:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
-            col10:              [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
+            col10:              [38, 0b111_11111_11111_11111_11111_11111_11111_11101] #0b<analog><inj>_<inj>
             col11:              [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col12:              [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
             col13:              [38, 0b001_11111_11111_11111_11111_11111_11111_11110]

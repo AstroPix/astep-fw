@@ -95,14 +95,14 @@ class BoardDriver():
         self.asics.clear()
         asic = Asic(rfg = self.rfg, row = 0)
         asic.chipversion = (await self.readFirmwareID()) & 0x0F
-        asic.load_conf_from_yaml(configFile)
+        print(configFile)
         self.asics.append(asic)
 
         return asic
 
         
 
-    def setupASICS(self,version : int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None ):
+    def setupASICS(self, version : int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None):
         assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
         if version == 2: 
             self.geccoGetVoltageBoard().dacvalues =  (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])

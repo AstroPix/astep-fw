@@ -16,14 +16,15 @@ logging.getLogger().addHandler(fh)
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-pixel = [0, 14]
+layer, chip = 0,0
+pixel = [layer, chip, 0, 15] #layer, chip, row, column
 
 print("creating object")
 astro = astepRun(inject=pixel)
 
 async def main():
     print("opening fpga")
-    await astro.open_fpga()
+    await astro.open_fpga(cmod=False, uart=False)
 
     print("setup clocks")
     await astro.setup_clocks()
@@ -32,9 +33,8 @@ async def main():
     await astro.enable_spi()
     
     print("initializing asic")
-    #await astro.asic_init(yaml="test_quadchip_new", analog_col=[0,pixel[1]], chipsPerRow=2)
-    await astro.asic_init(yaml="test_quadchip", analog_col=pixel[1])
-    print(f"Header: {astro.get_log_header()}")
+    await astro.asic_init(yaml="test_quadchip", analog_col=[layer, chip ,pixel[3]])
+    print(f"Header: {astro.get_log_header(layer, chip)}")
 
     print("initializing voltage")
     await astro.init_voltages() ## th in mV
@@ -43,21 +43,21 @@ async def main():
     #await astro.functionalityCheck(holdBool=True)
 
     print("update threshold")
-    await astro.update_pixThreshold(100)
+    await astro.update_pixThreshold(layer, chip, 100)
 
     print("enable pixel")
-    await astro.enable_pixel(pixel[0], pixel[1])
+    await astro.enable_pixel(layer, chip, pixel[2], pixel[3])
 
     #print("init injection")
     #await astro.init_injection(inj_voltage=300)
 
     print("final configs")
-    print(f"Header: {astro.get_log_header()}")
-    await astro.asic_configure()
+    print(f"Header: {astro.get_log_header(layer, chip)}")
+    await astro.asic_configure(layer)
     
     print("setup readout")
     #pass layer number
-    await astro.setup_readout(0, autoread=0) #disable autoread
+    await astro.setup_readout(layer, autoread=0) #disable autoread
 
     #print("start injection")
     #await astro.start_injection()
