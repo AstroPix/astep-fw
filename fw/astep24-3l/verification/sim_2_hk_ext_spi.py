@@ -23,10 +23,10 @@ import astep24_3l_sim
 async def test_hk_ext_spi_adc(dut):
 
     ## Init Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
-   
+    driver = await astep24_3l_sim.getDriver(dut)
+
     ## Create VIP SPi Slave
     slave = vip.spi.VSPISlave(clk = dut.ext_spi_clk, csn = dut.ext_adc_spi_csn,mosi=dut.ext_spi_mosi,miso = dut.ext_adc_spi_miso,misoSize=1,cpol=1)
     slave.start_monitor()
@@ -36,6 +36,9 @@ async def test_hk_ext_spi_adc(dut):
     await driver.houseKeeping.writeADCDACBytes([0xAB,0xCD])
     await Timer(20, units="us")
 
+    assert (await slave.getByte()) == 0xAB
+    assert (await slave.getByte()) == 0xCD
+
     ## Read buffer
     adcBytesCount = await driver.houseKeeping.getADCBytesCount()
     assert(adcBytesCount == 2)
@@ -43,8 +46,7 @@ async def test_hk_ext_spi_adc(dut):
     assert(len(adcBytes) ==2)
     await Timer(5, units="us")
 
-    assert (await slave.getByte()) == 0xAB
-    assert (await slave.getByte()) == 0xCD
+    
 
     await Timer(50, units="us")
 
@@ -53,9 +55,9 @@ async def test_hk_ext_spi_adc(dut):
 async def test_hk_ext_spi_dac(dut):
 
     ## Init Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
    
     ## Create VIP SPi Slave
     slave = vip.spi.VSPISlave(clk = dut.ext_spi_clk, csn = dut.ext_dac_spi_csn,mosi=dut.ext_spi_mosi,miso = dut.ext_adc_spi_miso,misoSize=1,cpol=0)

@@ -31,12 +31,11 @@ async def test_layers_spi_chipselect(dut):
         assert(dut.layer_1_spi_csn.value == l1)
         assert(dut.layer_2_spi_csn.value == l2)
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## At reset, CS should be one
     check_cs(1,1,1,1)
@@ -87,13 +86,11 @@ async def test_layers_spi_chipselect(dut):
 @cocotb.test(timeout_time = 1 , timeout_unit = "ms")
 async def test_layer_0_spi_mosi(dut):
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
-   
+    driver = await astep24_3l_sim.getDriver(dut)
+
     ## Create SPI Slave
     slave = vip.spi.VSPISlave(clk = dut.layer_0_spi_clk, csn = dut.layer_0_spi_csn,mosi=dut.layer_0_spi_mosi,miso=dut.layer_0_spi_miso)
     slave.start_monitor()
@@ -121,9 +118,9 @@ async def test_layer_0_spi_mosi(dut):
 async def test_layers_spi_mosi(dut):
 
     ## Setup
-    driver = astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create SPI Slaves
     spiSlaves = []
@@ -164,12 +161,10 @@ async def test_layers_spi_mosi(dut):
 @cocotb.test(timeout_time = 1 , timeout_unit = "ms")
 async def test_layer_0_spi_miso_disable(dut):
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create SPI Slave
     slave = vip.spi.VSPISlave(clk = dut.layer_0_spi_clk, csn = dut.layer_0_spi_csn,mosi=dut.layer_0_spi_mosi,miso=dut.layer_0_spi_miso)

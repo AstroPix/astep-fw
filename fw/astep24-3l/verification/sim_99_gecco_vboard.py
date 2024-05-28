@@ -16,12 +16,10 @@ import astep24_3l_sim
 @cocotb.test(timeout_time = 10 , timeout_unit = "ms")
 async def test_update_vb(dut):
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     #rfg.core.debug()
 

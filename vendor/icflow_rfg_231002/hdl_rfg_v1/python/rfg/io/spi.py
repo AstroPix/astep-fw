@@ -51,6 +51,7 @@ class SPIBytesDecoder():
                     frame_start = False 
                     currentLength = 0
             else:
+                logger.info("Got IDLE Byte %d",byte)
                 pass
                 #logger.info("SAFE Reached requested %d bytes",self.currentExpectedLength)
                 #frame_start = False 
@@ -65,19 +66,20 @@ class SPIBytesDecoder():
         while not finished:
             byte = await self.receive_bytes_queue.get()
             if not frame_start and byte != 0xBC:
-                logger.info("Found Start of Frame for readout queue %d",byte)
+                logger.info(f"Found Start of Frame for readout queue {hex(byte)}, expect {self.currentExpectedLength} bytes")
                 currentQueue = byte
                 frame_start = True
             elif frame_start and currentLength < self.currentExpectedLength:
                 currentLength += 1
-                logger.info("Read payload byte %x",byte)
+                logger.info(f"Read payload byte {hex(byte)},{currentLength}/{self.currentExpectedLength}")
                 self.decoded_bytes_queue.put(byte)
-                if currentLength is self.currentExpectedLength:
+                if currentLength == self.currentExpectedLength:
                     logger.info("Reached requested %d bytes",self.currentExpectedLength)
                     frame_start = False 
                     currentLength = 0
                     finished = True
             else:
+                logger.info("Got IDLE Byte %d",byte)
                 pass
             #logger.info("SAFE Reached requested %d bytes",self.currentExpectedLength)
             #frame_start = False 

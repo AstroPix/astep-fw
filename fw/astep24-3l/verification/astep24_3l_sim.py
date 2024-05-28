@@ -4,6 +4,7 @@ import os
 
 
 import  rfg.discovery
+import  rfg.cocotb.cocotb_spi
 from    rfg.cocotb.cocotb_uart import UARTIO
 from    rfg.cocotb.cocotb_spi  import SPIIO
 
@@ -12,6 +13,7 @@ from   drivers.boards.board_driver import BoardDriver
 from   drivers.gecco.voltageboard import VoltageBoard
 from   drivers.gecco.injectionboard import InjectionBoard
 
+from cocotb.triggers import Timer,RisingEdge
 
 class SimBoard(BoardDriver): 
 
@@ -32,6 +34,13 @@ class SimBoard(BoardDriver):
 
     def getFPGACoreFrequency(self):
         return 60000000
+
+async def getDriver(dut):
+
+    if os.getenv("ASTEP_HOST_UART",False) is not False:
+        return getUARTDriver(dut)
+    else:
+        return await getSPIDriver(dut)
 
 def getUARTDriver(dut):
 
@@ -57,3 +66,26 @@ def getUARTDriver(dut):
     return boardDriver
 
     
+async def getSPIDriver(dut):
+
+    ## Load RF and Setup UARTIO
+    firmwareRF = rfg.discovery.loadOneFSPRFGOrFail()
+
+    ## SPI
+    #########
+    rfg_io = SPIIO(dut)
+    await Timer(10, units="us")
+
+    #rfg.cocotb.cocotb_spi.debug()
+
+    ## Sof Reset
+    #await rfg_io.softReset()
+
+    firmwareRF.withIODriver(rfg_io)
+    await rfg_io.open()
+    await Timer(10, units="us")
+
+    boardDriver = SimBoard(firmwareRF)
+
+
+    return boardDriver

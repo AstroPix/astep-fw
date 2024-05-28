@@ -21,10 +21,10 @@ import astep24_3l_sim
 async def test_layer_0_single_frame_noautoread(dut):
 
     ## Driver, asic, clock+reset
-    driver = astep24_3l_sim.getUARTDriver(dut)
     asic = vip.astropix3.Astropix3Model(dut = dut, prefix = "layer_0" , chipID = 1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Drive a frame from the ASIC with autoread disabled, it should timeout
     try:
@@ -46,6 +46,7 @@ async def test_layer_0_single_frame_noautoread(dut):
     await generator.join()
 
     ## Check That one Frame was seen
+    await Timer(50, units="us")
     assert  await driver.readoutGetBufferSize() == 12
     await Timer(50, units="us")
 
@@ -53,10 +54,10 @@ async def test_layer_0_single_frame_noautoread(dut):
 async def test_layer_0_double_frame_noautoread(dut):
 
     ## Driver, asic, clock+reset
-    driver = astep24_3l_sim.getUARTDriver(dut)
     asic = vip.astropix3.Astropix3Model(dut = dut, prefix = "layer_0" , chipID = 1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Drive a frame from the ASIC with autoread disabled, it should timeout
     try:
@@ -78,6 +79,7 @@ async def test_layer_0_double_frame_noautoread(dut):
     await generator.join()
 
     ## Check That two Frames were seen
+    await Timer(50, units="us")
     assert  await driver.readoutGetBufferSize() == 24
 
     ## Readout and print
@@ -90,10 +92,10 @@ async def test_layer_0_double_frame_noautoread(dut):
 async def test_layer_0_single_frame_autoread(dut):
 
     ## Driver, asic, clock+reset
-    driver = astep24_3l_sim.getUARTDriver(dut)
     asic = vip.astropix3.Astropix3Model(dut = dut, prefix = "layer_0" , chipID = 1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     assert await driver.readoutGetBufferSize() == 0
 
@@ -121,9 +123,6 @@ async def test_3_layers_single_frame(dut):
     """Send A single frame to all layers after each other"""
 
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Create ASIC Models
     asics = []
     asics.append(vip.astropix3.Astropix3Model(dut = dut, prefix = "layer_0" , chipID = 1))
@@ -133,6 +132,7 @@ async def test_3_layers_single_frame(dut):
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     #########
 

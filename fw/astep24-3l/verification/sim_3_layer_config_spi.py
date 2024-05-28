@@ -31,9 +31,6 @@ SPI_SR_BROADCAST    = 0x7E
 async def test_layers_config_spi_chip0(dut):
     """"""
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Set SPI Slave monitor 
     slave = vip.spi.VSPISlave(clk = dut.layer_0_spi_clk, csn = dut.layer_0_spi_csn,mosi=dut.layer_0_spi_mosi,miso=dut.layer_0_spi_miso)
     slave.start_monitor()
@@ -41,6 +38,7 @@ async def test_layers_config_spi_chip0(dut):
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create ASIC config
     driver.setupASICS(version = 3, rows = 3 , chipsPerRow = 2, configFile = "./files/config_v3_mc.yml")
@@ -75,15 +73,13 @@ async def test_layers_config_spi_chip0(dut):
 async def test_layers_config_spi_chip0_checkbits(dut):
     """"""
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
-
     ## Set SPI Slave monitor
     astropix = vip.astropix3.Astropix3Model(dut,"layer_0",0)
     
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create ASIC config
     driver.setupASICS(version = 3, rows = 3 , chipsPerRow = 2, configFile = "./files/config_v3_mc.yml")
@@ -110,10 +106,7 @@ async def test_layers_config_spi_chip0_checkbits(dut):
 async def test_layers_config_spi_chips_checkbits(dut):
     """Sends config in target chip, broadcast to check config bits send"""
 
-    dut._log.setLevel(logging.DEBUG)
-
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
+    #dut._log.setLevel(logging.DEBUG)
 
     ## Set SPI Slave monitor
     astropix = vip.astropix3.Astropix3Model(dut,"layer_0",0)
@@ -121,6 +114,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create ASIC config
     driver.setupASICS(version = 3, rows = 3 , chipsPerRow = 2, configFile = "./files/config_v3_mc.yml")
@@ -192,21 +186,21 @@ async def test_layers_config_spi_chips_checkbits(dut):
     await Timer(150, units="us")
 
 
-@cocotb.test(timeout_time = 3 , timeout_unit = "ms",skip=True)
+@cocotb.test(timeout_time = 3 , timeout_unit = "ms",skip=False)
 async def test_layer_0_config_sr_multichip(dut):
     """Configures using SR on layer 0 with a multichip chain"""
 
-    rfg.core.debug()
+    #rfg.core.debug()
 
-    ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
+    ## Set SPI Slave monitor
+    astropix = vip.astropix3.Astropix3Model(dut,"layer_0",0)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create ASIC config
-
     driver.setupASICS(version = 3, rows = 1 , chipsPerRow = 2, configFile = "./files/config_v3_mc.yml")
 
     asic = driver.getAsic(row = 0)
@@ -218,6 +212,9 @@ async def test_layer_0_config_sr_multichip(dut):
     fallingEdgeTask = cocotb.start_soon( wait_for_load() )
     await asic.writeConfigSR(ckdiv = 2)
     await Join(fallingEdgeTask)
+
+    ## Check number of bits received on SR
+    
     #await asyncio.gather(asic.writeConfigSR(ckdiv = 2))
     #,FallingEdge(dut._id(f"layers_sr_out_ld0", extended=False))
     #await asic.writeConfigSR(ckdiv = 2)

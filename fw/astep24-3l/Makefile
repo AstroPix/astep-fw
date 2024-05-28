@@ -33,14 +33,14 @@ gecco-astropix3: gecco-astropix3.fw
 ############
 verify: export PYTHONPATH := $(shell pwd)/verification/:$(BASE)/fw/common/verification:$(PYTHONPATH)
 verify: clean_sim verification/.icflow/sim/design.txt
-	@cd verification/ && icf_cctb
+	@cd verification/ && clear && icf_cctb
 	@junit-cli-report-viewer verification/.icflow/sim/results.xml
 
 
 %.verify: export PYTHONPATH := $(shell pwd)/verification:$(BASE)/fw/common/verification:$(PYTHONPATH)
 %.verify: clean_sim verification/.icflow/sim/design.txt
 	@echo "Verifying $(basename $@) with args $(CCTB_ARGS) and path $(shell echo \${PYTHONPATH})"
-	@cd verification/ && IC_SIM_TB=$(basename $@) icf_cctb $(CCTB_ARGS)
+	@cd verification/  &&  IC_SIM_TB=$(basename $@) icf_cctb $(CCTB_ARGS)
 	@cd verification/.icflow/sim && npm run report
 
 

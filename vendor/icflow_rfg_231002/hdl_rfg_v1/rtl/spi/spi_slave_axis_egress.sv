@@ -43,7 +43,7 @@
     generate
         if (USE_CHIP_SELECT) begin 
             if (MISO_SIZE == 1) begin 
-                if (MSB_FIRST) begin
+                if (MSB_FIRST == 1) begin
                     assign spi_miso[0] = !spi_csn ? {egress_byte[7]} : 1'bz;
                 end
                 else begin 
@@ -52,7 +52,7 @@
                 
             end
             else begin 
-                if (MSB_FIRST) begin
+                if (MSB_FIRST == 1) begin
                     assign spi_miso[1:0] = !spi_csn ? {egress_byte[7:6]} : 2'bzz;
                 end
                 else begin 
@@ -61,7 +61,7 @@
             end
         end else begin 
             if (MISO_SIZE == 1) begin 
-                if (MSB_FIRST) begin
+                if (MSB_FIRST == 1) begin
                     assign spi_miso[0] = egress_byte[7];
                 end
                 else begin 
@@ -70,7 +70,7 @@
                 
             end
             else begin 
-                if (MSB_FIRST) begin
+                if (MSB_FIRST == 1) begin
                     assign spi_miso[1:0] = egress_byte[7:6];
                 end
                 else begin 
@@ -110,7 +110,7 @@
         if (MISO_SIZE == 1) begin 
             egress_bit_counter <= egress_bit_counter +1;
 
-            if (MSB_FIRST)
+            if (MSB_FIRST == 1)
                 egress_byte <= {egress_byte[6:0],1'b0};
             else 
                 egress_byte <= {1'b0,egress_byte[7:1]};
@@ -118,14 +118,14 @@
         end else begin 
             egress_bit_counter <= egress_bit_counter +2;
 
-            if (MSB_FIRST)
+            if (MSB_FIRST == 1)
                 egress_byte <= {egress_byte[5:0],2'b00};
             else 
                 egress_byte <= {2'b00,egress_byte[7:2]};
         end
  
         // Load next byte
-        if (/*egress_bit_counter_last*/egress_bit_counter==0) begin 
+        if (/*egress_bit_counter_last*/egress_bit_counter_last==0) begin 
             if (s_axis_tvalid) begin 
                 egress_byte <= s_axis_tdata;
             end

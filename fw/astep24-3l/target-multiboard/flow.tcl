@@ -67,8 +67,6 @@ proc read_design_files {} {
     add_files_no_simulation $commonSrcDir/rtl/layers/
     add_files_no_simulation $commonSrcDir/rtl/spi/
 
-    add_files_no_simulation $commonSrcDir/rtl/asic_model/
-
     add_files_no_simulation $commonSrcDir/rtl/utilities/
 }
 
@@ -116,7 +114,17 @@ proc read_syn_ip {} {
         }
     }
 
+    ## Update Buffer sizes
+    ########
+
+    # Readout buffer -> 4kB
+    set_property -dict [list CONFIG.FIFO_DEPTH 4096] [get_ips fifo_axis_1clk_1kB]
+
+    # Layers SPI Fifo -> 1kB
+    set_property -dict [list CONFIG.FIFO_DEPTH 1024] [get_ips fifo_axis_2clk_spi_layer]
+    
     ## On CMOD, update core clock to 20.00000
+    ########
     if {$target_board=="astropix-cmod"} {
         set_property -dict [list CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {20.000} ] [get_ips top_clocking_core_io_uart]
     }

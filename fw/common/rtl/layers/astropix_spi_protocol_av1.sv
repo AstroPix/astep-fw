@@ -57,6 +57,7 @@ module astropix_spi_protocol_av1 #(
     wire slave_byte_available   = s_axis_tvalid;
 
     byte_t receive_frame_length; 
+    byte_t receive_frame_length_frozen; 
 
     byte_t forward_byte_buffer;
 
@@ -133,6 +134,7 @@ module astropix_spi_protocol_av1 #(
                         protocol_state              <= HEADER_LENGTH;
 
                         receive_frame_length        <= s_axis_tdata[2:0];
+                        receive_frame_length_frozen <= s_axis_tdata[2:0];
 
                         // Length: ID + FRAME LENGTH + 4 TS bytes
                         frame_buffer                <= s_axis_tdata;
@@ -239,14 +241,14 @@ module astropix_spi_protocol_av1 #(
                     if (master_byte_valid) begin 
                         protocol_state  <= TIMESTAMP2;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[24:16];
+                        m_axis_tdata    <= forward_frozen_timestamp[23:16];
                     end
                 end
                 TIMESTAMP2: begin 
                     if (master_byte_valid) begin 
                         protocol_state  <= TIMESTAMP3;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[31:25];
+                        m_axis_tdata    <= forward_frozen_timestamp[31:24];
                         m_axis_tlast    <= 1'b1;
                     end
                 end

@@ -111,7 +111,7 @@ class VSPISlave():
 
                         ## Push to Queue if byte reached
                         if bitCounter == 8:
-                            logger.info("Received Byte %x",currentByte)
+                            logger.debug("Received Byte %x",currentByte)
                             await self.mosiQueue.put(currentByte)
                             currentByte = 0
                             bitCounter = 0
@@ -131,7 +131,7 @@ class VSPISlave():
 
 class VSPIMaster():
 
-    clockPeriod = 10
+    clockPeriod = 5
     
 
     miso_queue : Queue | None = Queue()
@@ -170,9 +170,9 @@ class VSPIMaster():
     async def send_frame(self,toSend : bytes, use_chip_select : bool = False, no_readout : bool = False):
 
         ## Start frame
-        if use_chip_select :
-            self.csn.value = 0
-        await Timer(200,units="ns")
+        #if use_chip_select :
+        #    self.csn.value = 0
+        #await Timer(200,units="ns")
         
         for byte in toSend:
             clocking = cocotb.start_soon(self.clock_one_byte())
@@ -197,6 +197,6 @@ class VSPIMaster():
         #print("Dir: ",dir(self.dut))
         if "err_overrun" in dir(self.dut) and self.dut.err_overrun.value == 1 :
             result = ResultCodes.OVERRUN
-        self.csn.value = 1
+        #self.csn.value = 1
         await Timer(200,units="ns")
         return result

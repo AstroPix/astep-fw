@@ -279,6 +279,9 @@ class BoardDriver():
     async def writeBytesToLayer(self,layer : int , bytes: bytearray,flush:bool = False):
         await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
 
+    async def getLayerMOSIBytesCount(self,layer:int):
+        return await getattr(self.rfg,f"read_layer_{layer}_mosi_write_size")()
+
     async def getLayerStatIDLECounter(self,layer:int):
         return await getattr(self.rfg, f"read_layer_{layer}_stat_idle_counter")()
 
