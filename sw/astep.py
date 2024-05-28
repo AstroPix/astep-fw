@@ -210,7 +210,10 @@ class astepRun:
                 sys.exit(1)
         else:     
             try:
+                #disable MISO line to ensure all config is written, enable chip select
+                await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
                 await self.boardDriver.getAsic(row = layer).writeConfigSPI()
+                await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
                 sys.exit(1)      

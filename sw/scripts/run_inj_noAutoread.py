@@ -18,13 +18,13 @@ logger = logging.getLogger(__name__)
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
-layer, chip = 0,1
-pixel = [layer, chip, 0, 15] #layer, chip, row, column
+layer, chip = 0,0
+pixel = [layer, chip, 0, 10] #layer, chip, row, column
 configViaSR = False #if False, config with SPI
-inj_voltage = 300 #injection amplitude in mV
+inj_voltage = 500 #injection amplitude in mV
 threshold = 200 #global comparator threshold level in mV
 runTime = 5 #duration of run in s
-chipsPerRow = 2 #number of arrays per SPI bus to configure
+chipsPerRow = 1 #number of arrays per SPI bus to configure
 #######################################################
 
 
@@ -48,8 +48,8 @@ async def main():
     print("initializing voltage")
     await astro.init_voltages(vthreshold=threshold) ## th in mV
 
-    print("FUNCTIONALITY CHECK")
-    await astro.functionalityCheck(holdBool=True)
+    #print("FUNCTIONALITY CHECK")
+    #await astro.functionalityCheck(holdBool=True)
 
     #print("update threshold")
     #await astro.update_pixThreshold(layer, chip, 100)
@@ -67,7 +67,7 @@ async def main():
     
         print("setup readout")
         #pass layer number
-        await astro.setup_readout(layer, autoread=0) #disable autoread
+        await astro.setup_readout(l, autoread=0) #disable autoread
 
     print("start injection")
     await astro.checkInjBits()
