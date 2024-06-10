@@ -195,22 +195,46 @@ class astepRun:
     async def enable_pixel(self, layer:int, chip:int, row: int, col: int):
        self.asics[layer].enable_pixel(chip, col, row)
 
+    # Set chip routing
+    async def set_routing(self, layer):
+            await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
+            #await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
+            self._wait_progress(2)
+
     # The method to write data to the asic. 
     async def asic_update(self, layer):
         """This method resets the chip then writes the configuration"""
         await self.boardDriver.resetLayer(layer = layer )
         if self.SR:
             try:
+                await self.set_routing(layer)
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
+                await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer].num_chips} chips. Check chipsPerRow from asic_init")
                 sys.exit(1)
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
-                await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
-                await self.boardDriver.getAsic(row = layer).writeConfigSPI()
+                await self.set_routing(layer)
+                for chip in range(self.asics[layer].num_chips):
+                    await self.boardDriver.getAsic(row = layer).writeConfigSPIv2(targetChip=chip)
+                    #await self.boardDriver.resetLayer(layer, waitTime=2)
+                    #self._wait_progress(2)
                 await self.boardDriver.layersDeselectSPI(flush=True)
+                #Flush data from sensor
+                print("Flush chip before data collection")
+                status = await self.boardDriver.rfg.read_layer_0_status()
+                interruptn = status & 0x1
+                while interruptn == 0:
+                    print("interrupt low")
+                    await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+                    nmbBytes = await self.boardDriver.readoutGetBufferSize()
+                    if nmbBytes > 0:
+                            await self.boardDriver.readoutReadBytes(1024)
+                    status = await self.boardDriver.rfg.read_layer_0_status()
+                    interruptn = status & 0x1
+                    #always deselect/select CS between targetchips
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
                 sys.exit(1)      
