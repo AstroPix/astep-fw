@@ -669,7 +669,7 @@ class astepRun:
                     f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
                     f"TS: {timestamp}\t"
                     f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us) \n"
-                    f"FPGA TS: {binascii.hexlify(hit[7:11])} ({int.from_bytes(hit[7:11], 'little')})\n"           
+                    f"FPGA TS: {binascii.hexlify(hit[7:11])} ({int.from_bytes(hit[7:11], byteorder="little")})\n"           
                     )
                 except IndexError:
                   print(
@@ -693,7 +693,7 @@ class astepRun:
                 'tot_lsb': tot_lsb,
                 'tot_total': tot_total,
                 'tot_us': ((tot_total * self.sampleclock_period_ns)/1000.0),
-                'fpga_ts': int.from_bytes(hit[7:11], sys.byteorder)
+                'fpga_ts': int.from_bytes(hit[7:11], 'little')
                 }
             hit_list.append(hits)
 
