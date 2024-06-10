@@ -165,14 +165,14 @@ class astepRun:
             sys.exit(1)
 
         # Test to see whether the yml file can be read
-        '''
+    
         try:
-            self.asics[0].disable_pixel(0,0,0)
             self.asics[0].enable_pixel(0,0,0)
+            self.asics[0].disable_pixel(0,0,0)
         except KeyError: #could not find expected dictionary in yml file
             logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
             sys.exit(1)
-        '''
+    
 
         # Set analog output
         '''

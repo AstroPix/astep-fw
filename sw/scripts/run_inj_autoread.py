@@ -34,7 +34,7 @@ async def main():
     await astro.enable_spi()
     
     print("initializing asic")
-    await astro.asic_init(yaml="config_quad_v3_opt", chipsPerRow = 1) #analog_col=[layer, chip ,pixel[3]], chipsPerRow = 1)
+    await astro.asic_init(yaml="config_quad_v3_opt", analog_col=[layer, chip ,pixel[3]], chipsPerRow = 1)
     print(f"Header: {astro.get_log_header(layer, chip)}") #give layer, chip
 
     if not cmod:
