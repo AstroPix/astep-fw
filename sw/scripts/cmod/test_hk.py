@@ -20,7 +20,7 @@ print(f"Firmware Version: {str(version)}")
 ## ADC test
 print("TESTING ADC")
 asyncio.run(driver.houseKeeping.selectADC())
-asyncio.run(driver.houseKeeping.writeADCDACBytes([0xAB,0xCD]))
+asyncio.run(driver.houseKeeping.writeADCDACBytes([0x04,0x00]))
 print("Writing ADC bytes [0xAB,0xCD]")
 adcBytesCount = asyncio.run(driver.houseKeeping.getADCBytesCount())
 print(f"Got ACD bytes count = {adcBytesCount}")
@@ -32,6 +32,7 @@ print(f"Got ADC bytes {adcBytes}")
 ## DAC test
 print("TESTING DAC")
 asyncio.run(driver.houseKeeping.selectDAC())
-asyncio.run(driver.houseKeeping.writeADCDACBytes([0x01,0xAA]) )
-print("Writing DAC bytes [0x01,0xAA]")
+asyncio.run(driver.houseKeeping.writeADCDACBytes([0x00,0x00]) )
+print("Writing DAC bytes [0x07,0xFF]")
+
 """
