@@ -165,14 +165,17 @@ class astepRun:
             sys.exit(1)
 
         # Test to see whether the yml file can be read
+        '''
         try:
             self.asics[0].disable_pixel(0,0,0)
             self.asics[0].enable_pixel(0,0,0)
         except KeyError: #could not find expected dictionary in yml file
             logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
             sys.exit(1)
+        '''
 
         # Set analog output
+        '''
         try:
             ana_layer = analog_col[0]
             ana_chip = analog_col[1]
@@ -180,8 +183,13 @@ class astepRun:
         except IndexError:
             logger.error("To enable analog output, must pass the layer, chip, and column values")
             sys.exit(1)
+        '''
         if analog_col is not None:
             try:
+                ana_layer = analog_col[0]
+                ana_chip = analog_col[1]
+                ana_col = analog_col[2]
+
                 #Enable analog pixel from given chip in the daisy chain
                 logger.info(f"enabling analog output in column {ana_col} of chip {ana_chip} in layer {ana_layer}")
                 self.asics[ana_layer].enable_ampout_col(ana_chip, ana_col, inplace=False)
@@ -609,8 +617,11 @@ class astepRun:
         #Break full readout into separate data packets as defined by how many bytes are contained in each hit from the FW, use to fill array 'list_hits'
         b=0
         while b<len(readout):
+            #print(f"readout[b] {readout[b]}")
             packet_len = int(readout[b])
-            if packet_len>16:
+            print(f"b {b}")
+            #print(f"packet length {packet_len}")
+            if packet_len != 10: #changed it from >16 to get hit packet exactly starts with 10 packet length 
                 logger.debug("Probably didn't find a hit here - go to next byte")
                 b+=1
             else: #got a hit

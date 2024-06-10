@@ -34,27 +34,27 @@ async def main():
     await astro.enable_spi()
     
     print("initializing asic")
-    await astro.asic_init(yaml="test_quadchip", analog_col=[layer, chip ,pixel[3]], chipsPerRow = 1)
+    await astro.asic_init(yaml="config_quad_v3_opt", chipsPerRow = 1) #analog_col=[layer, chip ,pixel[3]], chipsPerRow = 1)
     print(f"Header: {astro.get_log_header(layer, chip)}") #give layer, chip
 
     if not cmod:
         print("initializing voltage")
-        await astro.init_voltages() ## th in mV
+        await astro.init_voltages(vthreshold=100) ## th in mV
 
     print("FUNCTIONALITY CHECK")
     await astro.functionalityCheck(holdBool=True)
 
-    print("update threshold")
-    await astro.update_pixThreshold(layer,chip,100) #give layer, chip, threshold in mV
+    #print("update threshold")
+    #await astro.update_pixThreshold(layer,chip,100) #give layer, chip, threshold in mV
 
     print("enable pixel")
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
     print("init injection")
     #await astro.checkInjBits()
-    await astro.init_injection(layer, chip, inj_voltage=300)
+    await astro.init_injection(layer, chip, inj_voltage=600)
     #await astro.checkInjBits()
-    await astro.update_injection(layer, chip, inj_voltage=100)
+    #await astro.update_injection(layer, chip, inj_voltage=600)
 
     print("final configs")
     print(f"Header: {astro.get_log_header(layer,chip)}")
@@ -68,19 +68,21 @@ async def main():
     await astro.start_injection()
 
     t0 = time.time()
-    inc = -2
-    while (time.time() < t0+5):
-        
+    print(f"start time: {t0}")
+    inc = 0
+    while (time.time() < t0+0.5):
+        print(f"current time: {time.time()}")
         buff, readout = await(astro.get_readout())
         #if buff>4:
         if not sum(readout[0:2])==510: #avoid printing out if first 2 bytes are "ff ff" (string is just full of ones)
             inc += 1
             if inc<0:
+                print(f"skippin event")
                 continue
             hit = readout[:buff]
             print(binascii.hexlify(hit))
             #print(hex(readout[:buff]))
-            astro.decode_readout_autoread(hit, inc) 
+            astro.decode_readout(hit, inc) 
         
         #await(astro.print_status_reg())
 
