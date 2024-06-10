@@ -19,12 +19,13 @@ logger = logging.getLogger(__name__)
 #######################################################
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,0
-pixel = [layer, chip, 0, 10] #layer, chip, row, column
+pixel = [layer, chip, 0, 15] #layer, chip, row, column
 configViaSR = False #if False, config with SPI
-inj_voltage = 500 #injection amplitude in mV
-threshold = 200 #global comparator threshold level in mV
+inj_voltage = 300 #injection amplitude in mV
+threshold = 100 #global comparator threshold level in mV
 runTime = 5 #duration of run in s
 chipsPerRow = 1 #number of arrays per SPI bus to configure
+gecco = True
 #######################################################
 
 
@@ -33,7 +34,9 @@ astro = astepRun(inject=pixel,SR=configViaSR)
 
 async def main():
     print("opening fpga")
-    await astro.open_fpga(cmod=False, uart=False)
+    cmod = False if gecco else True
+    uart = False if gecco else True
+    await astro.open_fpga(cmod=cmod, uart=uart)
 
     print("setup clocks")
     await astro.setup_clocks()
@@ -42,11 +45,12 @@ async def main():
     await astro.enable_spi()
     
     print("initializing asic")
-    await astro.asic_init(yaml="test_quadchip_new", analog_col=[layer, chip ,pixel[3]], chipsPerRow=chipsPerRow)
+    await astro.asic_init(yaml="test_quadchip_new", chipsPerRow=chipsPerRow, analog_col=[layer, chip ,pixel[3]])
     print(f"Header: {astro.get_log_header(layer, chip)}")
 
-    print("initializing voltage")
-    await astro.init_voltages(vthreshold=threshold) ## th in mV
+    if gecco:
+        print("initializing voltage")
+        await astro.init_voltages(vthreshold=threshold) ## th in mV
 
     #print("FUNCTIONALITY CHECK")
     #await astro.functionalityCheck(holdBool=True)
@@ -57,8 +61,9 @@ async def main():
     print("enable pixel")
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
-    print("init injection")
-    await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
+    if gecco:
+        print("init injection")
+        await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
 
     print("final configs")
     for l in range(layer+1):
@@ -69,10 +74,13 @@ async def main():
         #pass layer number
         await astro.setup_readout(l, autoread=0) #disable autoread
 
-    print("start injection")
-    await astro.checkInjBits()
-    await astro.start_injection()
-    await astro.checkInjBits()
+    #write layer bytes with some zeros - send 1/2 the amount that you want to read
+
+    if gecco:
+        print("start injection")
+        await astro.checkInjBits()
+        #await astro.start_injection()
+        await astro.checkInjBits()
 
     """
     t0 = time.time()
@@ -92,10 +100,11 @@ async def main():
         #await(astro.print_status_reg())
     """
     astro._wait_progress(runTime)
-    print("stop injection")
-    await astro.checkInjBits()
-    await astro.stop_injection()
-    await astro.checkInjBits()
+    if gecco:
+        print("stop injection")
+        await astro.checkInjBits()
+        #await astro.stop_injection()
+        await astro.checkInjBits()
 
 
     print("read out buffer")
