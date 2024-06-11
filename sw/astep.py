@@ -218,25 +218,25 @@ class astepRun:
                 #disable MISO line to ensure all config is written, enable chip select
                 for chip in range(self.asics[layer].num_chips):
                     await self.boardDriver.getAsic(row = layer).writeConfigSPIv2(targetChip=chip)
-                    #await self.boardDriver.resetLayer(layer, waitTime=2)
-                    #self._wait_progress(2)
+                    await self.boardDriver.layersDeselectSPI(flush=True)
+                    await self.boardDriver.layersSelectSPI(flush=True)
                 await self.boardDriver.layersDeselectSPI(flush=True)
-                #Flush data from sensor
-                print("Flush chip before data collection")
-                status = await self.boardDriver.rfg.read_layer_0_status()
-                interruptn = status & 0x1
-                while interruptn == 0:
-                    print("interrupt low")
-                    await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-                    nmbBytes = await self.boardDriver.readoutGetBufferSize()
-                    if nmbBytes > 0:
-                            await self.boardDriver.readoutReadBytes(1024)
-                    status = await self.boardDriver.rfg.read_layer_0_status()
-                    interruptn = status & 0x1
-                    #always deselect/select CS between targetchips
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
-                sys.exit(1)      
+                sys.exit(1)    
+
+        #Flush data from sensor
+        print("Flush chip before data collection")
+        status = await self.boardDriver.rfg.read_layer_0_status()
+        interruptn = status & 0x1
+        while interruptn == 0:
+            print("interrupt low")
+            await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+            nmbBytes = await self.boardDriver.readoutGetBufferSize()
+            if nmbBytes > 0:
+                    await self.boardDriver.readoutReadBytes(1024)
+            status = await self.boardDriver.rfg.read_layer_0_status()
+            interruptn = status & 0x1  
 
 
     # Methods to update the internal variables. Please don't do it manually
