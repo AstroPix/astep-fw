@@ -506,9 +506,11 @@ class Asic():
         await self.rfg.flush()
 
 
-    async def writeSPIRoutingFrame(self):
-        #await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING] + [0x00]*self._num_chips*4,True) #original version - extra 0's keep clock running long enough to transfer all the info through but chip doesn't work with this
-        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING], True)
+    async def writeSPIRoutingFrame(self, SR=False):
+        if SR:
+            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING] + [0x00]*self._num_chips*4,True) #original version - extra 0's keep clock running long enough to transfer all the info through but chip doesn't work with this
+        else:
+            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING], True)
 
     def createSPIConfigFramev2(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0)  -> bytearray:
         """

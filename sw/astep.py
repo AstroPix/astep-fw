@@ -198,7 +198,7 @@ class astepRun:
     # Set chip routing
     async def set_routing(self, layer):
             await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
-            await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
+            await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame(self.SR)
             self._wait_progress(2)
 
     # The method to write data to the asic. 
