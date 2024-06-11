@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,0
 pixel = [layer, chip, 0, 15] #layer, chip, row, column
-configViaSR = False #if False, config with SPI
+configViaSR = True #if False, config with SPI
 inj_voltage = 300 #injection amplitude in mV
 threshold = 100 #global comparator threshold level in mV
 runTime = 5 #duration of run in s
-chipsPerRow = 1 #number of arrays per SPI bus to configure
+chipsPerRow = 2 #number of arrays per SPI bus to configure
 gecco = True
 #######################################################
 
@@ -79,7 +79,7 @@ async def main():
     if gecco:
         print("start injection")
         await astro.checkInjBits()
-        #await astro.start_injection()
+        await astro.start_injection()
         await astro.checkInjBits()
 
     """
@@ -103,7 +103,7 @@ async def main():
     if gecco:
         print("stop injection")
         await astro.checkInjBits()
-        #await astro.stop_injection()
+        await astro.stop_injection()
         await astro.checkInjBits()
 
 
