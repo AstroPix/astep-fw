@@ -45,7 +45,7 @@ async def main():
     await astro.enable_spi()
     
     print("initializing asic")
-    await astro.asic_init(yaml="test_quadchip_new", chipsPerRow=chipsPerRow, analog_col=[layer, chip ,pixel[3]])
+    await astro.asic_init(yaml="test_quadchip_new", chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
     print(f"Header: {astro.get_log_header(layer, chip)}")
 
     if gecco:
