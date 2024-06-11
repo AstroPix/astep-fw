@@ -198,16 +198,16 @@ class astepRun:
     # Set chip routing
     async def set_routing(self, layer):
             await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
-            #await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
+            await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
             self._wait_progress(2)
 
     # The method to write data to the asic. 
     async def asic_update(self, layer):
         """This method resets the chip then writes the configuration"""
         await self.boardDriver.resetLayer(layer = layer )
+        await self.set_routing(layer)
         if self.SR:
             try:
-                await self.set_routing(layer)
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
                 await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
@@ -216,7 +216,6 @@ class astepRun:
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
-                await self.set_routing(layer)
                 for chip in range(self.asics[layer].num_chips):
                     await self.boardDriver.getAsic(row = layer).writeConfigSPIv2(targetChip=chip)
                     #await self.boardDriver.resetLayer(layer, waitTime=2)
