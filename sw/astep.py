@@ -649,6 +649,7 @@ class astepRun:
             #if (sum(hit) == 1020) or (int(hit[0])+int(hit[1]) == 510): #HARDCODED MAX BUFFER or 'HIT' OF ONLY 1'S- WILL NEED TO REVISIT
             #    continue 
             try:
+                layer       = int(hit[1])
                 id          = int(hit[2]) >> 3
                 payload     = int(hit[2]) & 0b111
                 location    = int(hit[3])  & 0b111111
@@ -657,6 +658,8 @@ class astepRun:
                 tot_msb     = int(hit[5]) & 0b1111
                 tot_lsb     = int(hit[6])   
                 tot_total   = (tot_msb << 8) + tot_lsb
+                tot_us      = (tot_total * self.sampleclock_period_ns)/1000.0
+                fpga_ts     = int.from_bytes(hit[7:11], 'little')
             except IndexError: #hit cut off at end of stream
                 id, payload, location, col = -1, -1, -1, -1
                 timestamp, tot_msb, tot_lsb, tot_total = -1, -1, -1, -1
@@ -665,27 +668,23 @@ class astepRun:
             if printer:
                 try:
                   print(
-                    f"{i} Packet len: {int(hit[0])}\t Layer ID: {int(hit[1])}\n"
+                    f"{i} Packet len: {int(hit[0])}\t Layer ID: {layer}\n"
                     f"ChipId: {id}\tPayload: {payload}\t"
                     f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
                     f"TS: {timestamp}\t"
-                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us) \n"
-                    f"FPGA TS: {binascii.hexlify(hit[7:11])} ({int.from_bytes(hit[7:11], 'little')})\n"           
+                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({tot_us} us \n"
+                    f"FPGA TS: {fpga_ts})\n"           
                     )
                 except IndexError:
                   print(
-                    #f"{i} Header: {int(hit[0])}\t {int(hit[1])}\n"
-                    #f"ChipId: {id}\tPayload: {payload}\t"
-                    #f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
-                    #f"TS: {timestamp}\t"
-                    #f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us)\n"
                     f"HIT TOO SHORT TO BE DECODED - {binascii.hexlify(hit)}"           
                     )
 
             # hits are sored in dictionary form
             hits = {
                 'readout': i,
-                'Chip ID': id,
+                'layer': layer,
+                'chipID': id,
                 'payload': payload,
                 'location': location,
                 'isCol': (True if col else False),
@@ -693,21 +692,13 @@ class astepRun:
                 'tot_msb': tot_msb,
                 'tot_lsb': tot_lsb,
                 'tot_total': tot_total,
-                'tot_us': ((tot_total * self.sampleclock_period_ns)/1000.0),
-                'fpga_ts': int.from_bytes(hit[7:11], 'little')
+                'tot_us': tot_us,
+                'fpga_ts': fpga_ts
                 }
             hit_list.append(hits)
 
         # Much simpler to convert to df in the return statement vs df.concat
         return pd.DataFrame(hit_list)
-
-    """
-    # To be called when initalizing the asic, clears the FPGAs memory 
-    def dump_fpga(self):
-        #Reads out hit buffer and disposes of the output. Does not return or take arguments. 
-        readout = self.get_readout()
-        del readout
-    """
 
 ###################### INTERNAL METHODS ###########################
 
