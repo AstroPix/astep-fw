@@ -1,11 +1,27 @@
 import asyncio
 from astep import astepRun
-import time
+import pandas as pd
 import binascii
+import time
 import logging
 
+#######################################################
+############## USER DEFINED VARIABLES #################
+layer, chip = 0,0
+pixel = [layer, chip, 0, 10] #layer, chip, row, column
+configViaSR = False #if False, config with SPI
+inj_voltage = 300 #injection amplitude in mV
+threshold = 100 #global comparator threshold level in mV
+runTime = 5 #duration of run in s
+chipsPerRow = 2 #number of arrays per SPI bus to configure
+gecco = True
+logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
+saveOutput = True
+saveName = "data/test_autoread"
+#######################################################
+
 print("setup logger")
-logname = "run.log"
+logname = saveName+"_run.log"
 formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
 fh = logging.FileHandler(logname)
 fh.setFormatter(formatter)
@@ -13,79 +29,105 @@ sh = logging.StreamHandler()
 sh.setFormatter(formatter)
 logging.getLogger().addHandler(sh) 
 logging.getLogger().addHandler(fh)
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logLevel)
 logger = logging.getLogger(__name__)
 
-layer, chip = 0,0
-pixel = [layer, chip, 0, 15] #layer, chip, row, column
-cmod = False
+if saveOutput:
+    bitpath = saveName+".log"
+    bitfile = open(bitpath,'w')      
+    csvpath = saveName+".csv"
 
-print("creating object")
-astro = astepRun(inject=pixel)
+logger.debug("creating object")
+astro = astepRun(inject=pixel,SR=configViaSR)
 
 async def main():
-    print("opening fpga")
-    await astro.open_fpga(cmod=cmod, uart=False)
+    logger.debug("opening fpga")
+    cmod = False if gecco else True
+    uart = False if gecco else True
+    await astro.open_fpga(cmod=cmod, uart=uart)
 
-    print("setup clocks")
+    logger.debug("setup clocks")
     await astro.setup_clocks()
 
-    print("setup spi")
+    logger.debug("setup spi")
     await astro.enable_spi()
     
-    print("initializing asic")
-    await astro.asic_init(yaml="test_quadchip", analog_col=[layer, chip ,pixel[3]], chipsPerRow = 1)
-    print(f"Header: {astro.get_log_header(layer, chip)}") #give layer, chip
+    logger.debug("initializing asic")
+    await astro.asic_init(yaml="test_quadchip_new", chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
+    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
-    if not cmod:
-        print("initializing voltage")
-        await astro.init_voltages() ## th in mV
+    if gecco:
+        logger.debug("initializing voltage")
+        await astro.init_voltages(vthreshold=threshold) ## th in mV
 
-    print("FUNCTIONALITY CHECK")
-    await astro.functionalityCheck(holdBool=True)
+    #loger.debug("FUNCTIONALITY CHECK")
+    #await astro.functionalityCheck(holdBool=True)
 
-    print("update threshold")
-    await astro.update_pixThreshold(layer,chip,100) #give layer, chip, threshold in mV
+    #logger.debug("update threshold")
+    #await astro.update_pixThreshold(layer, chip, 100)
 
-    print("enable pixel")
+    logger.debug("enable pixel")
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
-    print("init injection")
-    #await astro.checkInjBits()
-    await astro.init_injection(layer, chip, inj_voltage=300)
-    #await astro.checkInjBits()
-    await astro.update_injection(layer, chip, inj_voltage=100)
+    if gecco:
+        logger.debug("init injection")
+        await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
 
-    print("final configs")
-    print(f"Header: {astro.get_log_header(layer,chip)}")
-    await astro.asic_configure(layer)
+    logger.debug("final configs")
+    for l in range(layer+1):
+        logger.debug(f"Header: {astro.get_log_header(l, chip)}")
+        await astro.asic_configure(l)
     
-    print("setup readout")
-    #pass layer number
-    await astro.setup_readout(layer) 
+        logger.debug("setup readout")
+        #pass layer number
+        await astro.setup_readout(l, autoread=1) #enable autoread
 
-    print("start injection")
-    await astro.start_injection()
+    if gecco:
+        logger.debug("start injection")
+        await astro.checkInjBits()
+        await astro.start_injection()
+        await astro.checkInjBits()
 
     t0 = time.time()
-    inc = -2
-    while (time.time() < t0+5):
-        
+    inc = 0
+    dataStream = b''
+    while (time.time() < t0+runTime):
         buff, readout = await(astro.get_readout())
-        #if buff>4:
-        if not sum(readout[0:2])==510: #avoid printing out if first 2 bytes are "ff ff" (string is just full of ones)
-            inc += 1
-            if inc<0:
-                continue
-            hit = readout[:buff]
-            print(binascii.hexlify(hit))
-            #print(hex(readout[:buff]))
-            astro.decode_readout_autoread(hit, inc) 
+        if buff>0:
+            readout_data = readout[:buff]
+            logger.info(binascii.hexlify(readout_data))
+            logger.info(f"{buff} bytes in buffer")
+            dataStream+=readout_data
+            bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+            inc+=1
+    df = astro.decode_readout(dataStream,0)
+
+    if gecco:
+        logger.debug("stop injection")
+        await astro.checkInjBits()
+        await astro.stop_injection()
+        await astro.checkInjBits()
+
+
+    if saveOutput: 
+        bitfile.close()
         
-        #await(astro.print_status_reg())
-
-    print("stop injection")
-    await astro.stop_injection()
-
+        csvframe =pd.DataFrame(columns = [
+                'readout',
+                'layer',
+                'chipID',
+                'payload',
+                'location',
+                'isCol',
+                'timestamp',
+                'tot_msb',
+                'tot_lsb',
+                'tot_total',
+                'tot_us',
+                'fpga_ts'
+        ]) 
+        csv_out = pd.concat([csvframe, df])
+        csv_out.to_csv(csvpath)
+        
 
 asyncio.run(main())
