@@ -297,9 +297,9 @@ module astep24_3l_multitarget_top (
 
     `elsif TARGET_CMOD
     assign led = led_internal[1:0];
-    assign led0_r = led_internal[2];
-    assign led0_g = led_internal[3];
-    assign led0_b = led_internal[4];
+    assign led0_r = !led_internal[2];
+    assign led0_g = !led_internal[3];
+    assign led0_b = !led_internal[4];
     `endif 
 
     // Single Layer / MultiLayer assigns
