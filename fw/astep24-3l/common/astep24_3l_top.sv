@@ -328,7 +328,18 @@ module astep24_3l_top(
         .layer_2_mosi_write_size(layer_2_mosi_write_size),
         .layer_2_mosi_write_size_write(1'b1),
       
+        .layers_cfg_frame_tag_counter_ctrl(),
+        .layers_cfg_frame_tag_counter_ctrl_force_count(layers_cfg_frame_tag_counter_ctrl_force_count),
+        .layers_cfg_frame_tag_counter_ctrl_enable(layers_cfg_frame_tag_counter_ctrl_enable),
+
+        .layers_cfg_frame_tag_counter_trigger(),
+        .layers_cfg_frame_tag_counter_trigger_interrupt(layers_cfg_frame_tag_counter_trigger_interrupt),
+        .layers_cfg_frame_tag_counter_trigger_enable(layers_cfg_frame_tag_counter_ctrl_enable),
+        .layers_cfg_frame_tag_counter_trigger_match(),
+
         .layers_cfg_frame_tag_counter(layers_cfg_frame_tag_counter),
+        .layers_cfg_frame_tag_counter_enable(layers_cfg_frame_tag_counter_ctrl_enable && (layers_cfg_frame_tag_counter_trigger_interrupt || layers_cfg_frame_tag_counter_ctrl_force_count)),
+
         .layers_cfg_nodata_continue(layers_cfg_nodata_continue),
 
         .layers_sr_out(),
