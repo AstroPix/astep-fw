@@ -58,15 +58,9 @@ if {[llength $hkDividedPin]>0} {
 set layer_spi_min_period 50
 set layer_spi_io_delay [expr $layer_spi_min_period * 0.25]
 
-## Common csn 
-set_output_delay -max -clock layers_spi_divided $layer_spi_io_delay  [get_ports layers_spi_csn ]
-set_output_delay -min -clock layers_spi_divided 1                    [get_ports layers_spi_csn ]
+## Common csn - remove timing, signal is sw driven
+set_false_path -to [get_ports layers_spi_csn ]
 
-## Layer SPI common version
-#set_output_delay -max -clock spi_rfg_divided $layer_spi_io_delay    [get_ports spi_layer*_mosi ]
-#set_output_delay -min -clock spi_rfg_divided 1                      [get_ports spi_layer*_mosi ]
-#set_input_delay  -max -clock spi_rfg_divided  $layer_spi_io_delay   [get_ports spi_layer*_miso* ] -clock_fall
-#set_input_delay  -min -clock spi_rfg_divided  1                     [get_ports spi_layer*_miso* ] -clock_fall
 
 ## Layers SPI Constraints
 for {set i 0} {$i < 3} {incr i} {
@@ -90,8 +84,11 @@ for {set i 0} {$i < 3} {incr i} {
 
 ## ADC + DAC
 if {[llength [get_ports -quiet ext_spi*]]>0} {
-    set_output_delay -max -clock hk_spi_divided $layer_spi_io_delay  [get_ports {ext_spi_mosi  ext_spi_dac_csn ext_spi_adc_csn} ]
-    set_output_delay -min -clock hk_spi_divided 1                    [get_ports {ext_spi_mosi  ext_spi_dac_csn ext_spi_adc_csn}]
+
+    # CSN is sw driven, deactivate timing
+    set_false_path -to [get_ports {ext_spi_dac_csn ext_spi_adc_csn} ]
+    set_output_delay -max -clock hk_spi_divided $layer_spi_io_delay  [get_ports {ext_spi_mosi}  ]
+    set_output_delay -min -clock hk_spi_divided 1                    [get_ports {ext_spi_mosi}]
 
     set_input_delay  -max -clock hk_spi_divided  $layer_spi_io_delay [get_ports ext_spi_adc_miso ] -clock_fall
     set_input_delay  -min -clock hk_spi_divided  1                   [get_ports ext_spi_adc_miso ] -clock_fall

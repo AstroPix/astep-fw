@@ -13,3 +13,6 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets spi_clk_IBUF]
 # Exclude core to sample clock timing - there's no logic here appart from enable/disale gating from RFG
 # Removed spurious timing errors
 set_false_path -from [get_clocks clk_core_top_clocking_core_io_uart] -to [get_clocks clk_sample_top_clocking_core_io_uart]
+
+## IO False paths
+###################
