@@ -166,27 +166,24 @@ class astepRun:
 
         # Test to see whether the yml file can be read
         try:
-            self.asics[0].disable_pixel(0,0,0)
             self.asics[0].enable_pixel(0,0,0)
+            self.asics[0].disable_pixel(0,0,0)
         except KeyError: #could not find expected dictionary in yml file
             logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
             sys.exit(1)
 
         # Set analog output
-        try:
-            ana_layer = analog_col[0]
-            ana_chip = analog_col[1]
-            ana_col = analog_col[2]
-        except IndexError:
-            logger.error("To enable analog output, must pass the layer, chip, and column values")
-            sys.exit(1)
         if analog_col is not None:
+            #move pre3vious try here
             try:
+                ana_layer = analog_col[0]
+                ana_chip = analog_col[1]
+                ana_col = analog_col[2]
                 #Enable analog pixel from given chip in the daisy chain
                 logger.info(f"enabling analog output in column {ana_col} of chip {ana_chip} in layer {ana_layer}")
                 self.asics[ana_layer].enable_ampout_col(ana_chip, ana_col, inplace=False)
             except (IndexError, KeyError):
-                logger.error(f"Cannot enable analog pixel in chip {ana_chip} - chip does not exist")
+                logger.error(f"Cannot enable analog pixel in chip {ana_chip} - chip does not exist. Ensure layer, chip, and column values all passed")
                 sys.exit(1)
 
         # Turns on injection if so desired 
@@ -198,22 +195,50 @@ class astepRun:
     async def enable_pixel(self, layer:int, chip:int, row: int, col: int):
        self.asics[layer].enable_pixel(chip, col, row)
 
+    # Set chip routing
+    async def set_routing(self, layer):
+            await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
+            await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
+            await self.boardDriver.layersDeselectSPI(flush=True)
+            self._wait_progress(1)
+            await self.boardDriver.layersSelectSPI(flush=True)
+
     # The method to write data to the asic. 
     async def asic_update(self, layer):
         """This method resets the chip then writes the configuration"""
         await self.boardDriver.resetLayer(layer = layer )
+        await self.set_routing(layer)
         if self.SR:
             try:
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
+                await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer].num_chips} chips. Check chipsPerRow from asic_init")
                 sys.exit(1)
         else:     
             try:
-                await self.boardDriver.getAsic(row = layer).writeConfigSPI()
+                #disable MISO line to ensure all config is written, enable chip select
+                for chip in range(self.asics[layer].num_chips):
+                    await self.boardDriver.getAsic(row = layer).writeConfigSPIv2(targetChip=chip)
+                    await self.boardDriver.layersDeselectSPI(flush=True)
+                    await self.boardDriver.layersSelectSPI(flush=True)
+                await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
-                sys.exit(1)      
+                sys.exit(1)    
+
+        #Flush data from sensor
+        print("Flush chip before data collection")
+        status = await self.boardDriver.rfg.read_layer_0_status()
+        interruptn = status & 0x1
+        while interruptn == 0:
+            print("interrupt low")
+            await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+            nmbBytes = await self.boardDriver.readoutGetBufferSize()
+            if nmbBytes > 0:
+                    await self.boardDriver.readoutReadBytes(1024)
+            status = await self.boardDriver.rfg.read_layer_0_status()
+            interruptn = status & 0x1  
 
 
     # Methods to update the internal variables. Please don't do it manually
@@ -228,10 +253,10 @@ class astepRun:
         if self._asic_start:
             if bias_cfg is not None:
                 for key in bias_cfg:
-                    self.asic[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
+                    self.asics[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
             if idac_cfg is not None:
                 for key in idac_cfg:
-                    self.asic[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
+                    self.asics[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
             if vdac_cfg is not None:
                 for key in vdac_cfg:
                     self.asics[layer].asic_config[f'config_{chip}']['vdacs'][key][1]=vdac_cfg[key]
@@ -493,11 +518,13 @@ class astepRun:
 
 ############################ Decoder ##############################
     async def setup_readout(self, layer:int, autoread:int = 1):
+        """
         #Clear FPGA buffer
         await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread = False, hold = True, flush = True)
         time.sleep(3)
         await(self.boardDriver.readoutReadBytes(4096))
-        #Take take layer out of reset and hold, enable "FW-driven readout"
+        """
+        #Take take layer out of reset and hold
         await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = autoread, hold=False, flush = True )
    
     async def get_readout(self, counts:int = 4096):
@@ -511,98 +538,16 @@ class astepRun:
         print(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
         #logger.info(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
 
-    def decode_readout_autoread(self, readout:bytearray, i:int, printer: bool = True, nmb_bytes:int = 11):
-        #Decodes streamed readout for when 'autoread' is enabled
-
-        #Required argument:
-        #readout: Bytearray - readout from sensor, not the printed Hex values
-        #i: int - Readout number
-
-        #Optional:
-        #printer: bool - Print decoded output to terminal
-
-        #Returns dataframe
-
-        #!!! Warning, richard 11/10/23 -> The Astep FW returns all bits properly ordered, don't reverse bits when using this firmware!
-
-        list_hits = [readout[i:i+nmb_bytes] for i in range(0,len(readout),nmb_bytes)]
-        hit_list = []
-        for hit in list_hits:
-            # Generates the values from the bitstream
-            if (sum(hit) == 1020) or (int(hit[0])+int(hit[1]) == 510): #HARDCODED MAX BUFFER or 'HIT' OF ONLY 1'S- WILL NEED TO REVISIT
-                continue 
-            try:
-                id          = int(hit[2]) >> 3
-                payload     = int(hit[2]) & 0b111
-                location    = int(hit[3])  & 0b111111
-                col         = 1 if (int(hit[3]) >> 7 ) & 1 else 0
-                timestamp   = int(hit[4])
-                tot_msb     = int(hit[5]) & 0b1111
-                tot_lsb     = int(hit[6])   
-                tot_total   = (tot_msb << 8) + tot_lsb
-            except IndexError: #hit cut off at end of stream
-                id, payload, location, col = -1, -1, -1, -1
-                timestamp, tot_msb, tot_lsb, tot_total = -1, -1, -1, -1
-
-            #wrong_id        = 0 if (id) == 0 else '\x1b[0;31;40m{}\x1b[0m'.format(id)
-            #wrong_payload   = 4 if (payload) == 4 else'\x1b[0;31;40m{}\x1b[0m'.format(payload)   
-            
-            # will give terminal output if desiered
-            if printer:
-                try:
-                  print(
-                    f"{i} Header: {int(hit[0])}\t {int(hit[1])}\n"
-                    f"ChipId: {id}\tPayload: {payload}\t"
-                    f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
-                    f"TS: {timestamp}\t"
-                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us)\n"
-                    f"Trailing: {int(hit[7])}\t{int(hit[8])}\t{int(hit[9])}\t{int(hit[10])}\n"           
-                    )
-                except IndexError:
-                  print(
-                    f"{i} Header: {int(hit[0])}\t {int(hit[1])}\n"
-                    f"ChipId: {id}\tPayload: {payload}\t"
-                    f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
-                    f"TS: {timestamp}\t"
-                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us)\n"
-                    f"SHORT HIT"           
-                    )
-
-            # hits are sored in dictionary form
-            # Look into dataframe
-            hits = {
-                'readout': i,
-                'Chip ID': id,
-                'payload': payload,
-                'location': location,
-                'isCol': (True if col else False),
-                'timestamp': timestamp,
-                'tot_msb': tot_msb,
-                'tot_lsb': tot_lsb,
-                'tot_total': tot_total,
-                'tot_us': ((tot_total * self.sampleclock_period_ns)/1000.0),
-                'hittime': time.time()
-                }
-            hit_list.append(hits)
-
-        # Much simpler to convert to df in the return statement vs df.concat
-        return pd.DataFrame(hit_list)
-    
-    def decode_readout(self, readout:bytearray, i:int, printer: bool = True, nmb_bytes:int = 11):
+    def decode_readout(self, readout:bytearray, i:int, printer: bool = True):
         #Decodes readout
-
         #Required argument:
         #readout: Bytearray - readout from sensor, not the printed Hex values
         #i: int - Readout number
-
         #Optional:
         #printer: bool - Print decoded output to terminal
-
         #Returns dataframe
-
         #!!! Warning, richard 11/10/23 -> The Astep FW returns all bits properly ordered, don't reverse bits when using this firmware!
 
-        #list_hits = [readout[i:i+nmb_bytes] for i in range(0,len(readout),nmb_bytes)]
         list_hits =[]
         hit_list = []
 
@@ -624,6 +569,7 @@ class astepRun:
             #if (sum(hit) == 1020) or (int(hit[0])+int(hit[1]) == 510): #HARDCODED MAX BUFFER or 'HIT' OF ONLY 1'S- WILL NEED TO REVISIT
             #    continue 
             try:
+                layer       = int(hit[1])
                 id          = int(hit[2]) >> 3
                 payload     = int(hit[2]) & 0b111
                 location    = int(hit[3])  & 0b111111
@@ -632,6 +578,8 @@ class astepRun:
                 tot_msb     = int(hit[5]) & 0b1111
                 tot_lsb     = int(hit[6])   
                 tot_total   = (tot_msb << 8) + tot_lsb
+                tot_us      = (tot_total * self.sampleclock_period_ns)/1000.0
+                fpga_ts     = int.from_bytes(hit[7:11], 'little')
             except IndexError: #hit cut off at end of stream
                 id, payload, location, col = -1, -1, -1, -1
                 timestamp, tot_msb, tot_lsb, tot_total = -1, -1, -1, -1
@@ -640,27 +588,23 @@ class astepRun:
             if printer:
                 try:
                   print(
-                    f"{i} Packet len: {int(hit[0])}\t Layer ID: {int(hit[1])}\n"
+                    f"{i} Packet len: {int(hit[0])}\t Layer ID: {layer}\n"
                     f"ChipId: {id}\tPayload: {payload}\t"
                     f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
                     f"TS: {timestamp}\t"
-                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us) \n"
-                    f"FPGA TS: {binascii.hexlify(hit[7:11])} ({int.from_bytes(hit[7:11], 'little')})\n"           
+                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({tot_us} us \n"
+                    f"FPGA TS: {fpga_ts}\n"           
                     )
                 except IndexError:
                   print(
-                    #f"{i} Header: {int(hit[0])}\t {int(hit[1])}\n"
-                    #f"ChipId: {id}\tPayload: {payload}\t"
-                    #f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
-                    #f"TS: {timestamp}\t"
-                    #f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({(tot_total * self.sampleclock_period_ns)/1000.0} us)\n"
                     f"HIT TOO SHORT TO BE DECODED - {binascii.hexlify(hit)}"           
                     )
 
             # hits are sored in dictionary form
             hits = {
                 'readout': i,
-                'Chip ID': id,
+                'layer': layer,
+                'chipID': id,
                 'payload': payload,
                 'location': location,
                 'isCol': (True if col else False),
@@ -668,21 +612,13 @@ class astepRun:
                 'tot_msb': tot_msb,
                 'tot_lsb': tot_lsb,
                 'tot_total': tot_total,
-                'tot_us': ((tot_total * self.sampleclock_period_ns)/1000.0),
-                'fpga_ts': int.from_bytes(hit[7:11], sys.byteorder)
+                'tot_us': tot_us,
+                'fpga_ts': fpga_ts
                 }
             hit_list.append(hits)
 
         # Much simpler to convert to df in the return statement vs df.concat
         return pd.DataFrame(hit_list)
-
-    """
-    # To be called when initalizing the asic, clears the FPGAs memory 
-    def dump_fpga(self):
-        #Reads out hit buffer and disposes of the output. Does not return or take arguments. 
-        readout = self.get_readout()
-        del readout
-    """
 
 ###################### INTERNAL METHODS ###########################
 
