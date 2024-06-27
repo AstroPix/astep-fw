@@ -592,7 +592,7 @@ class astepRun:
                     f"ChipId: {id}\tPayload: {payload}\t"
                     f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
                     f"TS: {timestamp}\t"
-                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({tot_us} us \n"
+                    f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} Total: {tot_total} ({tot_us} us) \n"
                     f"FPGA TS: {fpga_ts}\n"           
                     )
                 except IndexError:
