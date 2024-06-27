@@ -164,6 +164,7 @@ proc run_bit {board version defines constraints_file} {
     array set supported_boards [list \
         astropix-nexys  [list xc7a200tsbg484-1 digilentinc.com:nexys_video:part0:1.2 [list RFG_FW_ID=32'h0000AB0${chipversion} TARGET_NEXYS] ] \
         astropix-cmod   [list xc7a35tcpg236-1  digilentinc.com:cmod_a7-35t:part0:1.2 [list RFG_FW_ID=32'h0000AC0${chipversion} TARGET_CMOD] ] \
+        astropix-cmodr2   [list xc7a35tcpg236-1  digilentinc.com:cmod_a7-35t:part0:1.2 [list RFG_FW_ID=32'h0000AC0${chipversion} TARGET_CMOD] ] \
     ]
 
 
