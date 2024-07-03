@@ -164,7 +164,7 @@ proc run_bit {board version defines constraints_file} {
     array set supported_boards [list \
         astropix-nexys  [list xc7a200tsbg484-1 digilentinc.com:nexys_video:part0:1.2 [list RFG_FW_ID=32'h0000AB0${chipversion} TARGET_NEXYS] ] \
         astropix-cmod   [list xc7a35tcpg236-1  digilentinc.com:cmod_a7-35t:part0:1.2 [list RFG_FW_ID=32'h0000AC0${chipversion} TARGET_CMOD] ] \
-        astropix-cmodr2   [list xc7a35tcpg236-1  digilentinc.com:cmod_a7-35t:part0:1.2 [list RFG_FW_ID=32'h0000AC0${chipversion} TARGET_CMOD] ] \
+        astropix-cmodr2   [list xc7a35tcpg236-1  digilentinc.com:cmod_a7-35t:part0:1.2 [list RFG_FW_ID=32'h0000AC1${chipversion} TARGET_CMOD] ] \
     ]
 
 
@@ -290,7 +290,7 @@ proc run_bit {board version defines constraints_file} {
         
         set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design] 
         write_bitstream -force -bin_file bitstreams/${design_name}_${buildVersion} 
-        if {$board=="astropix-cmod"} {
+        if {[string match *cmod* $board]} {
              write_cfgmem  -force -format mcs -size 32 -interface SPIx1 -loadbit [list up 0x00000000 bitstreams/${design_name}_${buildVersion}.bit  ] -file bitstreams/${design_name}_${buildVersion}.mcs
         } else {
              write_cfgmem  -force -format mcs -size 32 -interface SPIx4 -loadbit [list up 0x00000000 bitstreams/${design_name}_${buildVersion}.bit  ] -file bitstreams/${design_name}_${buildVersion}.mcs
