@@ -58,9 +58,9 @@ astropix3:
             vprec:              [6, 60]
             vnrec:              [6, 30]
 
-        vdacs:
+        vdacs: # vdac = voltage / 1.8 * 1024
             blpix:              [10, 568] # 1V = 568
-            thpix:              [10, 682] # 100 mV threshold = 625
+            thpix:              [10, 577] # 100 mV threshold = 625
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
