@@ -228,17 +228,18 @@ class astepRun:
                 sys.exit(1)    
 
         #Flush data from sensor
-        print("Flush chip before data collection")
+        logger.info("Flush chip before data collection")
         status = await self.boardDriver.rfg.read_layer_0_status()
         interruptn = status & 0x1
         while interruptn == 0:
-            print("interrupt low")
+            logger.info("interrupt low")
             await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
             nmbBytes = await self.boardDriver.readoutGetBufferSize()
             if nmbBytes > 0:
                     await self.boardDriver.readoutReadBytes(1024)
             status = await self.boardDriver.rfg.read_layer_0_status()
             interruptn = status & 0x1  
+        logger.info("interrupt recovered, ready to collect data")
 
 
     # Methods to update the internal variables. Please don't do it manually
