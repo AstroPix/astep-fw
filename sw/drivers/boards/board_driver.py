@@ -108,8 +108,6 @@ class BoardDriver():
 
         return asic
 
-        
-
     def setupASICS(self, version : int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None):
         assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
         if version == 2: 
