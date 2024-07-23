@@ -219,7 +219,7 @@ class astepRun:
             try:
                 #disable MISO line to ensure all config is written, enable chip select
                 for chip in range(self.asics[layer].num_chips):
-                    await self.boardDriver.getAsic(row = layer).writeConfigSPIv2(targetChip=chip)
+                    await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
                     await self.boardDriver.layersDeselectSPI(flush=True)
                     await self.boardDriver.layersSelectSPI(flush=True)
                 await self.boardDriver.layersDeselectSPI(flush=True)
