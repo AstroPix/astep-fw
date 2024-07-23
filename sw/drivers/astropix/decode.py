@@ -30,8 +30,6 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
     #decode hit contents
     for hit in list_hits:
         # Generates the values from the bitstream
-        #if (sum(hit) == 1020) or (int(hit[0])+int(hit[1]) == 510): #HARDCODED MAX BUFFER or 'HIT' OF ONLY 1'S- WILL NEED TO REVISIT
-        #    continue 
         try:
             layer       = int(hit[1])
             id          = int(hit[2]) >> 3
