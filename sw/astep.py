@@ -516,7 +516,7 @@ class astepRun:
         return f"Digital: {digitalconfig}\n" +f"Biasblock: {biasconfig}\n" + f"iDAC: {idacconfig}\n"+ vdac_str + f"Receiver: {arrayconfig}" 
 
 
-############################ Data Collection ##############################
+############################ Data Collection / Processing ##############################
     async def setup_readout(self, layer:int, autoread:int = 1):
         """
         #Clear FPGA buffer
@@ -538,6 +538,17 @@ class astepRun:
         print(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
         #logger.info(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
 
+    async def dataParse_autoread(self, data, buffer_lst, bitfile:str = None):
+        allData = b''
+        for i, buff in enumerate(buffer_lst):
+            if buff>0:
+                readout_data = data[i][:buff]
+                logger.info(binascii.hexlify(readout_data))
+                allData+=readout_data
+                if bitfile:
+                    bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+
+        return allData
 
 ############################ Decoder ##############################
 
