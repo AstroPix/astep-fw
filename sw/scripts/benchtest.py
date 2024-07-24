@@ -5,6 +5,7 @@ import binascii
 import logging
 import time
 import argparse
+import os
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
@@ -18,22 +19,15 @@ chipsPerRow = 2 #number of arrays per SPI bus to configure
 autoread = True 
 gecco = True
 logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
-saveName = "data/saveTest"
 injection = True
 debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
 #######################################################
 
-async def main(args):
-
-    """
-    # Ensures output directory exists
-    if os.path.exists(args.outdir) == False:
-        os.mkdir(args.outdir)
-    """
+async def main(args, saveName):
 
     # Define outputs
-    bitpath = saveName+".txt"
-    csvpath = saveName+".csv"
+    bitpath = args.outdir+saveName+".txt"
+    csvpath = args.outdir+saveName+".csv"
     if not args.dumpOutput:
         bitfile = open(bitpath,'w')    
 
@@ -166,13 +160,12 @@ async def main(args):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection')
-    """
-    parser.add_argument('-n', '--name', default='', required=False,
-                    help='Option to give additional name to output files upon running')
 
-    parser.add_argument('-o', '--outdir', default='.', required=False,
-                    help='Output Directory for all datafiles')
-    """
+    parser.add_argument('-n', '--name', default='', required=False,
+                    help='Option to give additional name to output files upon running. Default: NONE')
+
+    parser.add_argument('-o', '--outdir', default='data/', required=False,
+                    help='Output Directory for all datafiles. Default: data/')
 
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
     parser.add_argument('-d', '--dumpOutput', action='store_true', 
@@ -210,6 +203,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    #Checks for outdir path
+    #check 'outdir' argument and add '/' if necessary
+    if args.outdir[-1]!="/":
+            args.outdir+="/"
+    # Ensures output directory exists
+    if os.path.exists(args.outdir) == False:
+        os.mkdir(args.outdir)
+
     """
     # Sets the loglevel
     ll = args.loglevel
@@ -225,9 +226,13 @@ if __name__ == "__main__":
         loglevel = logging.CRITICAL
     """
     
+    #Define output save name for all files
+    fname="" if not args.name else args.name+"_"
+    saveName = fname + time.strftime("%Y%m%d-%H%M%S") 
+
     # Logging 
     print("setup logger")
-    logname = saveName+"_run.log"
+    logname = args.outdir+saveName+"_run.log"
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
     fh.setFormatter(formatter)
@@ -239,4 +244,4 @@ if __name__ == "__main__":
     global logger 
     logger = logging.getLogger(__name__)
 
-    asyncio.run(main(args))
+    asyncio.run(main(args, saveName))
