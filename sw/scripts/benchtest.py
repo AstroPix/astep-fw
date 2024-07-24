@@ -4,6 +4,7 @@ import pandas as pd
 import binascii
 import logging
 import time
+import argparse
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
@@ -17,35 +18,28 @@ chipsPerRow = 2 #number of arrays per SPI bus to configure
 autoread = True 
 gecco = True
 logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
-saveOutput = True
-saveName = "data/new"
+saveName = "data/saveTest"
 injection = True
 debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
 #######################################################
 
-#always save log
-print("setup logger")
-logname = saveName+"_run.log"
-formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
-fh = logging.FileHandler(logname)
-fh.setFormatter(formatter)
-sh = logging.StreamHandler()
-sh.setFormatter(formatter)
-logging.getLogger().addHandler(sh) 
-logging.getLogger().addHandler(fh)
-logging.getLogger().setLevel(logLevel)
-logger = logging.getLogger(__name__)
+async def main(args):
 
-#optionally save *txt of raw data and decoded data in CSV
-if saveOutput:
+    """
+    # Ensures output directory exists
+    if os.path.exists(args.outdir) == False:
+        os.mkdir(args.outdir)
+    """
+
+    # Define outputs
     bitpath = saveName+".txt"
     csvpath = saveName+".csv"
-    bitfile = open(bitpath,'w')     
+    if not args.dumpOutput:
+        bitfile = open(bitpath,'w')    
 
-logger.debug("creating object")
-astro = astepRun(inject=pixel,SR=configViaSR)
+    logger.debug("creating object")
+    astro = astepRun(inject=pixel,SR=configViaSR)
 
-async def main():
     logger.debug("opening fpga")
     cmod = False if gecco else True
     uart = False if gecco else True
@@ -89,8 +83,6 @@ async def main():
         #pass layer number
         await astro.setup_readout(l, autoread=int(autoread)) 
 
-    #write layer bytes with some zeros - send 1/2 the amount that you want to read
-
     if gecco and injection:
         logger.debug("start injection")
         #await astro.checkInjBits()
@@ -114,7 +106,7 @@ async def main():
                     logger.info(binascii.hexlify(readout_data))
                     logger.info(f"{buff} bytes in buffer")
                     dataStream+=readout_data
-                    if saveOutput:
+                    if not args.dumpOutput:
                         bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
             else:
                 dataStream_lst.append(readout)
@@ -122,9 +114,10 @@ async def main():
 
         if not debug:
             #AFTER data collection, parse the raw data and save to file
-            txtOut = bitfile if saveOutput else None
+            txtOut = None if args.dumpOutput else bitfile
             dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
-            bitfile.write(str(binascii.hexlify(dataStream)))
+            if not args.dumpOutput:
+                bitfile.write(str(binascii.hexlify(dataStream)))
 
         #wait to decode until the very end so that all readouts can be appended together and headers re-attached
         #loose info about which hit comes from which readout buffer
@@ -148,12 +141,11 @@ async def main():
         logger.info(binascii.hexlify(readout_data))
         logger.info(f"{buff} bytes in buffer")
         df = astro.decode_readout(readout_data, 0)
-        if saveOutput:
+        if not args.dumpOutput:
             bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
-
-    if saveOutput:               
-        bitfile.close()
-        
+         
+    if not args.dumpOutput:    
+        bitfile.close()  
         csvframe = [
                 'readout',
                 'layer',
@@ -171,5 +163,80 @@ async def main():
         df.columns = csvframe
         df.to_csv(csvpath)
         
+if __name__ == "__main__":
 
-asyncio.run(main())
+    parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection')
+    """
+    parser.add_argument('-n', '--name', default='', required=False,
+                    help='Option to give additional name to output files upon running')
+
+    parser.add_argument('-o', '--outdir', default='.', required=False,
+                    help='Output Directory for all datafiles')
+    """
+
+    ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
+    parser.add_argument('-d', '--dumpOutput', action='store_true', 
+                default=False, required=False, 
+                help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: FALSE')
+
+    """
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
+                    help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
+    
+    parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
+                    help =  'Turn on injection in the given row and column. Default: No injection')
+
+    parser.add_argument('-v','--vinj', action='store', default = None, type=float,
+                    help = 'Specify injection voltage (in mV). DEFAULT 300 mV')
+
+    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
+                    help = 'Turn on analog output in the given column. Default: Column 0.')
+
+    parser.add_argument('-t', '--threshold', type = float, action='store', default=None,
+                    help = 'Threshold voltage for digital ToT (in mV). DEFAULT 100mV')
+    
+    parser.add_argument('-E', '--errormax', action='store', type=int, default='100', 
+                    help='Maximum index errors allowed during decoding. DEFAULT 100')
+
+    parser.add_argument('-r', '--maxruns', type=int, action='store', default=None,
+                    help = 'Maximum number of readouts')
+
+    parser.add_argument('-M', '--maxtime', type=float, action='store', default=None,
+                    help = 'Maximum run time (in minutes)')
+
+    parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
+                    help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
+    """
+
+    args = parser.parse_args()
+
+    """
+    # Sets the loglevel
+    ll = args.loglevel
+    if ll == 'D':
+        loglevel = logging.DEBUG
+    elif ll == 'I':
+        loglevel = logging.INFO
+    elif ll == 'E':
+        loglevel = logging.ERROR
+    elif ll == 'W':
+        loglevel = logging.WARNING
+    elif ll == 'C':
+        loglevel = logging.CRITICAL
+    """
+    
+    # Logging 
+    print("setup logger")
+    logname = saveName+"_run.log"
+    formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
+    fh = logging.FileHandler(logname)
+    fh.setFormatter(formatter)
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+    logging.getLogger().addHandler(sh) 
+    logging.getLogger().addHandler(fh)
+    logging.getLogger().setLevel(logLevel)
+    global logger 
+    logger = logging.getLogger(__name__)
+
+    asyncio.run(main(args))
