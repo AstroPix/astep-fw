@@ -266,6 +266,7 @@ class astepRun:
             #await self.asic_update()
         else: raise RuntimeError("Asic has not been initalized")
 
+    #close connection with FPGA
     def close_connection(self) -> None :
         """
         Closes the FPGA board driver connection
@@ -275,15 +276,18 @@ class astepRun:
 
 
 ################## Voltageboard Methods ############################
+    #convert a voltage value to a DAC value
     def get_internal_vdac(self, v_in, v_ref:float = 1.8, nbits:float = 10):
         return int(v_in * 2**nbits / v_ref)
         
+    #Change a pixel threshold value in the global dictionary of configs
     async def update_pixThreshold(self, layer:int, chip:int, vThresh:int): 
         #vThresh = comparator threshold provided in mV
         dacThresh = self.get_internal_vdac(vThresh/1000.) #convert from mV to V
         dacBL = self.asics[layer].asic_config[f'config_{chip}']['vdacs']['blpix'][1]
         await self.update_asic_config(layer, chip, vdac_cfg={'thpix':dacBL+dacThresh})
 
+    #initialize voltages with GECCO HW (voltagecard)
     async def init_voltages(self, vcal:float = .989, vsupply: float = 2.7, vthreshold:float = None, dacvals: tuple[int, list[float]] = None):
         """
         Configures the voltage board
@@ -336,7 +340,7 @@ class astepRun:
         # Send config to the chip
         await self.vboard.update()
 
-    # Setup Injections
+    # Setup Injections with GECCO HW (injection card)
     async def init_injection(self, layer:int, chip:int, inj_voltage:float = None, inj_period:int = 100, clkdiv:int = 300, initdelay: int = 100, cycle: float = 0, pulseperset: int = 1, dac_config:tuple[int, list[float]] = None, onchip:bool = True):
         """
         Configure injections
@@ -400,8 +404,8 @@ class astepRun:
             print("SET INJ WITH REGISTERS")
             await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)
 
-        #self._geccoBoard = False
 
+    #update injection settings via injectionboard after object is already created
     async def update_injection(self, layer:int, chip:int, inj_voltage:float = None, inj_period:int = None, clkdiv:int = None, initdelay: int = None, cycle: float = None, pulseperset: int = None):
         """
         Update injections after injector object is created
@@ -417,6 +421,8 @@ class astepRun:
         pulseperset: int
         """
         
+        ## DAN - WIP. I don't think this method works yet
+
         if inj_voltage is not None:
             # elifs check to ensure we are not injecting a negative value because we don't have that ability
             if inj_voltage < 0:
@@ -441,7 +447,7 @@ class astepRun:
             self.injector.pulseperset = pulseperset
         
 
-    # These start and stop injecting voltage. 
+    # Start injection
     async def start_injection(self):
         """
         Starts Injection.
@@ -453,7 +459,8 @@ class astepRun:
             #print("INJ_WDATA AFTER START")
             #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
         else:
-            print("STARTING WITH REGISTERS")
+            print("STARTING WITH REGISTERS") 
+            ## DAN - unfinished beginning of controlling injection with registers instead of injection card. Necessary for CMOD and parallel in 'stop_injection' method
             layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
             if layers_inj_val>0: #injection not running
                 await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
@@ -461,6 +468,7 @@ class astepRun:
                 await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
         logger.info("Began injection")
 
+    # Stop injection
     async def stop_injection(self):
         """
         Stops Injection.
@@ -479,19 +487,10 @@ class astepRun:
 
 
 ########################### Input and Output #############################
-    # This method checks the chip to see if a hit has been logged
 
-    """
-    def hits_present(self):
-        #Looks at interrupt, Returns bool, True if present
-        if (int.from_bytes(self.nexys.read_register(70),"big") == 0):
-            return True
-        else:
-            return False
-    """
+    #Returns header for use in a log file with all settings.
+    #Get config dictionaries from yaml
     def get_log_header(self, layer:int,chip:int):
-        #Returns header for use in a log file with all settings.
-        #Get config dictionaries from yaml
 
         vdac_str=""
         digitalconfig = {}
@@ -517,27 +516,25 @@ class astepRun:
 
 
 ############################ Data Collection / Processing ##############################
+    #Properly set up layer config for data collection
     async def setup_readout(self, layer:int, autoread:int = 1):
-        """
-        #Clear FPGA buffer
-        await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread = False, hold = True, flush = True)
-        time.sleep(3)
-        await(self.boardDriver.readoutReadBytes(4096))
-        """
         #Take take layer out of reset and hold
         await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = autoread, hold=False, flush = True )
    
+   #Read FPGA buffer and return buffer length and data stored within it
     async def get_readout(self, counts:int = 4096):
         bufferSize = await(self.boardDriver.readoutGetBufferSize())
         readout = await(self.boardDriver.readoutReadBytes(counts))
         return bufferSize, readout
    
+   #Print status register
     async def print_status_reg(self):
         status = await(self.boardDriver.rfg.read_layer_0_status())
         ctrl = await(self.boardDriver.rfg.read_layer_0_cfg_ctrl())
         print(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
         #logger.info(f"Layer Status:  {hex(status)},interruptn={status & 0x1},decoding={(status >> 1) & 0x1},reset={(ctrl>>1) & 0x1},hold={(ctrl) & 0x1},buffer={await (self.boardDriver.readoutGetBufferSize())}")
 
+    #Parse raw data readouts to remove railing. Moved to postprocessing method to avoid SW slowdown when using autoread
     async def dataParse_autoread(self, data, buffer_lst, bitfile:str = None):
         allData = b''
         for i, buff in enumerate(buffer_lst):
@@ -551,9 +548,8 @@ class astepRun:
         return allData
 
 ############################ Decoder ##############################
-
+    #Send data for decoding from raw
     def decode_readout(self, readout:bytearray, i:int, printer: bool = True):
-
         return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
 
 ###################### INTERNAL METHODS ###########################
@@ -580,6 +576,7 @@ class astepRun:
         for _ in tqdm(range(seconds), desc=f'Wait {seconds} s'):
             time.sleep(1)
 
+    #Check of general functionality esp of SPI lines, as inspired from documentation
     async def functionalityCheck(self, holdBool:bool = True):
         #Take take layer out of reset but keep in hold
         await self.boardDriver.setLayerConfig(layer = 0 , reset = False , hold = holdBool, autoread = False , flush = True)
@@ -595,6 +592,7 @@ class astepRun:
         framesCount = await self.boardDriver.rfg.read_layer_0_stat_frame_counter()
         print(f"Actual Frame counter: {framesCount}")
 
+    #Print values of registers associated with enable/disable injection
     async def checkInjBits(self):
         io_ctrl_val = await self.boardDriver.rfg.read_io_ctrl()
         print(f"io_ctrl value = {io_ctrl_val} = {bin(io_ctrl_val)}")
