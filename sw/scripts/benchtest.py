@@ -18,8 +18,9 @@ autoread = True
 gecco = True
 logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
 saveOutput = True
-saveName = "data/test"
+saveName = "data/new"
 injection = True
+debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
 #######################################################
 
 #always save log
@@ -75,6 +76,7 @@ async def main():
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
     if gecco and injection:
+        ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
         logger.debug("init injection")
         await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
 
@@ -91,36 +93,52 @@ async def main():
 
     if gecco and injection:
         logger.debug("start injection")
-        await astro.checkInjBits()
+        #await astro.checkInjBits()
         await astro.start_injection()
-        await astro.checkInjBits()
+        #await astro.checkInjBits()
 
     #collect data
     if autoread:    
         t0 = time.time()
         dataStream = b''
-        df = pd.DataFrame()
+        dataStream_lst = []
+        bufferLength_lst = []
+
+        # WARNING - live string parsing causes SW-induced slowdown and results in lower overall data rate. Enabled in "debug" mode
+        # Efficient data collection strategy = collect full buffers during running and process after the run. Default when not in "debug" mode
         while (time.time() < t0+runTime):
             buff, readout = await(astro.get_readout())
-            if buff>0:
-                readout_data = readout[:buff]
-                logger.info(binascii.hexlify(readout_data))
-                logger.info(f"{buff} bytes in buffer")
-                dataStream+=readout_data
-                if saveOutput:
-                    bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+            if debug:
+                if buff>0:
+                    readout_data = readout[:buff]
+                    logger.info(binascii.hexlify(readout_data))
+                    logger.info(f"{buff} bytes in buffer")
+                    dataStream+=readout_data
+                    if saveOutput:
+                        bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+            else:
+                dataStream_lst.append(readout)
+                bufferLength_lst.append(buff)
+
+        if not debug:
+            #AFTER data collection, parse the raw data and save to file
+            txtOut = bitfile if saveOutput else None
+            dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
+            bitfile.write(str(binascii.hexlify(dataStream)))
+
         #wait to decode until the very end so that all readouts can be appended together and headers re-attached
         #loose info about which hit comes from which readout buffer
-            ## DAN - consider this
+            ## DAN - consider whether readout buffer number is worth saving. 
+            ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
         df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
     else:
         astro._wait_progress(runTime)
 
     if gecco and injection:
         logger.debug("stop injection")
-        await astro.checkInjBits()
+        #await astro.checkInjBits()
         await astro.stop_injection()
-        await astro.checkInjBits()
+        #await astro.checkInjBits()
 
     #if was not autoreading, process the info that was collected
     if not autoread:
