@@ -154,9 +154,13 @@ async def main(args, saveName):
                 'tot_us',
                 'fpga_ts'
         ]
-        df.columns = csvframe
-        df.to_csv(csvpath)
-        
+        try:
+            df.columns = csvframe
+            df.to_csv(csvpath)
+        except ValueError: #no data returned so empty DF of decoded hits
+            logger.Error(f"No data recorded - no CSV generated")
+            raise
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection')
@@ -165,7 +169,7 @@ if __name__ == "__main__":
                     help='Option to give additional name to output files upon running. Default: NONE')
 
     parser.add_argument('-o', '--outdir', default='data/', required=False,
-                    help='Output Directory for all datafiles. Default: data/')
+                    help='Output Directory for all datafiles, as a subdir within data/. Default: data/')
 
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
     parser.add_argument('-d', '--dumpOutput', action='store_true', 
@@ -204,6 +208,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #Checks for outdir path
+    if args.outdir != "data/":
+            args.outdir = "data/"+args.outdir
     #check 'outdir' argument and add '/' if necessary
     if args.outdir[-1]!="/":
             args.outdir+="/"
