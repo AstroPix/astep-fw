@@ -16,7 +16,6 @@ inj_voltage = 300 #injection amplitude in mV
 threshold = 200 #global comparator threshold level in mV
 runTime = 5 #duration of run in s
 chipsPerRow = 2 #number of arrays per SPI bus to configure
-autoread = True 
 gecco = True
 logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
 injection = True
@@ -75,7 +74,7 @@ async def main(args, saveName):
     
         logger.debug("setup readout")
         #pass layer number
-        await astro.setup_readout(l, autoread=int(autoread)) 
+        await astro.setup_readout(l, autoread=int(autoread_int)) 
 
     if gecco and injection:
         logger.debug("start injection")
@@ -84,7 +83,9 @@ async def main(args, saveName):
         #await astro.checkInjBits()
 
     #collect data
-    if autoread:    
+    if args.noAutoread:
+        astro._wait_progress(runTime)
+    else:    
         t0 = time.time()
         dataStream = b''
         dataStream_lst = []
@@ -118,8 +119,6 @@ async def main(args, saveName):
             ## DAN - consider whether readout buffer number is worth saving. 
             ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
         df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
-    else:
-        astro._wait_progress(runTime)
 
     if gecco and injection:
         logger.debug("stop injection")
@@ -128,7 +127,7 @@ async def main(args, saveName):
         #await astro.checkInjBits()
 
     #if was not autoreading, process the info that was collected
-    if not autoread:
+    if args.noAutoread:
         logger.debug("read out buffer")
         buff, readout = await(astro.get_readout())
         readout_data = readout[:buff]
@@ -175,6 +174,10 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--dumpOutput', action='store_true', 
                 default=False, required=False, 
                 help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: FALSE')
+    
+    parser.add_argument('-na', '--noAutoread', action='store_true', 
+                default=False, required=False, 
+                help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: FALSE')
 
     """
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
@@ -237,7 +240,6 @@ if __name__ == "__main__":
     saveName = fname + time.strftime("%Y%m%d-%H%M%S") 
 
     # Logging 
-    print("setup logger")
     logname = args.outdir+saveName+"_run.log"
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
@@ -249,5 +251,9 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logLevel)
     global logger 
     logger = logging.getLogger(__name__)
+    logger.info("Setup logger")
+
+    #Define autoread bool
+    autoread_int = 0 if args.noAutoread else 1
 
     asyncio.run(main(args, saveName))
