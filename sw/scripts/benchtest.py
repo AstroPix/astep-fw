@@ -11,17 +11,17 @@ import os
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,1
 pixel = [layer, chip, 0, 30] #layer, chip, row, column
-configViaSR = False #if False, config with SPI
 inj_voltage = 300 #injection amplitude in mV
 threshold = 200 #global comparator threshold level in mV
 runTime = 5 #duration of run in s
 chipsPerRow = 2 #number of arrays per SPI bus to configure
 gecco = True
-logLevel = logging.INFO #DEBUG, INFO, WARNING, ERROR, CRITICAL
 injection = True
 debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
-#######################################################
 
+
+#######################################################
+###################### MAIN ###########################
 async def main(args, saveName):
 
     # Define outputs
@@ -30,8 +30,9 @@ async def main(args, saveName):
     if not args.dumpOutput:
         bitfile = open(bitpath,'w')    
 
+    # Setup and configure chip
     logger.debug("creating object")
-    astro = astepRun(inject=pixel,SR=configViaSR)
+    astro = astepRun(inject=pixel,SR=args.shiftRegister)
 
     logger.debug("opening fpga")
     cmod = False if gecco else True
@@ -62,11 +63,13 @@ async def main(args, saveName):
     logger.debug("enable pixel")
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
+    # Setup / configure injection
     if gecco and injection:
         ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
         logger.debug("init injection")
         await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
 
+    # Send final config to chips
     logger.debug("final configs")
     for l in range(layer+1):
         logger.debug(f"Header: {astro.get_log_header(l, chip)}")
@@ -76,13 +79,14 @@ async def main(args, saveName):
         #pass layer number
         await astro.setup_readout(l, autoread=int(autoread_int)) 
 
+    # Start injection
     if gecco and injection:
         logger.debug("start injection")
         #await astro.checkInjBits()
         await astro.start_injection()
         #await astro.checkInjBits()
 
-    #collect data
+    #Collect data
     if args.noAutoread:
         astro._wait_progress(runTime)
     else:    
@@ -120,14 +124,18 @@ async def main(args, saveName):
             ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
         df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
 
+    # End injection
     if gecco and injection:
         logger.debug("stop injection")
         #await astro.checkInjBits()
         await astro.stop_injection()
         #await astro.checkInjBits()
 
-    #if was not autoreading, process the info that was collected
+    ## DAN - after autoread mode, get one single big dump of data after this point. May want to clear/dump buffer along with the 'stop injection' command so it's not read out either here or in the beginning of the next run. Or maybe it needs to be parsed out and is the "missing" data (like if it's included then the data length of autoread vs no autoread would be equal)
+
+    #Process data
     if args.noAutoread:
+    #if was not autoreading, process the info that was collected
         logger.debug("read out buffer")
         buff, readout = await(astro.get_readout())
         readout_data = readout[:buff]
@@ -157,9 +165,14 @@ async def main(args, saveName):
             df.columns = csvframe
             df.to_csv(csvpath)
         except ValueError: #no data returned so empty DF of decoded hits
-            logger.Error(f"No data recorded - no CSV generated")
-            raise
+            logger.error(f"No data recorded - no CSV generated")
+            return # sys.exit(1)
 
+
+
+
+#######################################################
+################## TOP LEVEL ##########################
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection')
@@ -178,6 +191,10 @@ if __name__ == "__main__":
     parser.add_argument('-na', '--noAutoread', action='store_true', 
                 default=False, required=False, 
                 help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: FALSE')
+    
+    parser.add_argument('-sr', '--shiftRegister', action='store_true', 
+                default=False, required=False, 
+                help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: FALSE')
 
     """
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
@@ -203,10 +220,10 @@ if __name__ == "__main__":
 
     parser.add_argument('-M', '--maxtime', type=float, action='store', default=None,
                     help = 'Maximum run time (in minutes)')
-
+    """
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
                     help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
-    """
+
 
     args = parser.parse_args()
 
@@ -220,11 +237,10 @@ if __name__ == "__main__":
     if os.path.exists(args.outdir) == False:
         os.mkdir(args.outdir)
 
-    """
-    # Sets the loglevel
+    # Define the loglevel
     ll = args.loglevel
     if ll == 'D':
-        loglevel = logging.DEBUG
+        loglevel = logging.DEBUG ## DAN - not working! Causes runs to crash and read in tons of railed buffers after the alloted time???
     elif ll == 'I':
         loglevel = logging.INFO
     elif ll == 'E':
@@ -233,7 +249,6 @@ if __name__ == "__main__":
         loglevel = logging.WARNING
     elif ll == 'C':
         loglevel = logging.CRITICAL
-    """
     
     #Define output save name for all files
     fname="" if not args.name else args.name+"_"
@@ -248,7 +263,7 @@ if __name__ == "__main__":
     sh.setFormatter(formatter)
     logging.getLogger().addHandler(sh) 
     logging.getLogger().addHandler(fh)
-    logging.getLogger().setLevel(logLevel)
+    logging.getLogger().setLevel(loglevel)
     global logger 
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
