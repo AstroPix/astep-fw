@@ -1,4 +1,4 @@
-import asyncio
+import asyncio#, nest_asyncio
 from astep import astepRun
 import pandas as pd
 import binascii
@@ -8,13 +8,14 @@ import argparse
 from argparse import RawTextHelpFormatter
 import os
 
+#nest_asyncio.apply()
+
 #######################################################
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,1
 pixel = [layer, chip, 0, 30] #layer, chip, row, column
 inj_voltage = 300 #injection amplitude in mV
 threshold = 200 #global comparator threshold level in mV
-runTime = 5 #duration of run in s
 chipsPerRow = 2 #number of arrays per SPI bus to configure
 gecco = True
 injection = True
@@ -80,6 +81,18 @@ async def main(args, saveName):
         #pass layer number
         await astro.setup_readout(l, autoread=int(autoread_int)) 
 
+    # Prepare for run
+    if args.runTime is not None: 
+        end_time=time.time()+(args.runTime*60.)
+    else:
+        end_time = 2*time.time()
+        ## DAN - obviously this is dumb, should rethink. Trying to allow for long runs that end with CTL+C
+    
+    if not args.noAutoread:
+        dataStream = b''
+        dataStream_lst = []
+        bufferLength_lst = []
+
     # Start injection
     if gecco and injection:
         logger.debug("start injection")
@@ -88,49 +101,82 @@ async def main(args, saveName):
         #await astro.checkInjBits()
 
     #Collect data
-    if args.noAutoread:
-        astro._wait_progress(runTime)
-    else:    
-        t0 = time.time()
-        dataStream = b''
-        dataStream_lst = []
-        bufferLength_lst = []
+    logger.debug("Collecting data")
+    break_condition=False
+    try: # By enclosing the main loop in try/except we are able to capture keyboard interupts cleanly
+        while True:
+            #timing break condition
+            if (time.time() >= end_time) or break_condition:
+                break
 
-        # WARNING - live string parsing causes SW-induced slowdown and results in lower overall data rate. Enabled in "debug" mode
-        # Efficient data collection strategy = collect full buffers during running and process after the run. Default when not in "debug" mode
-        while (time.time() < t0+runTime):
-            buff, readout = await(astro.get_readout())
-            if debug:
-                if buff>0:
-                    readout_data = readout[:buff]
-                    logger.info(binascii.hexlify(readout_data))
-                    logger.info(f"{buff} bytes in buffer")
-                    dataStream+=readout_data
-                    if not args.dumpOutput:
-                        bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
-            else:
-                dataStream_lst.append(readout)
-                bufferLength_lst.append(buff)
+            if args.noAutoread:
+                #astro._wait_progress(runTime)
+                try:
+                    task = asyncio.create_task(asyncio.sleep(1))
+                    await task
+                except KeyboardInterrupt:
+                    logger.info("asyncio received exit from keyboard, exiting")
+                    break_condition=True
+                except asyncio.CancelledError:
+                    logger.info("asyncio received exit form cancellation, exiting")
+                    break_condition=True
+            else:    
 
-        if not debug:
-            #AFTER data collection, parse the raw data and save to file
-            txtOut = None if args.dumpOutput else bitfile
-            dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
-            if not args.dumpOutput:
-                bitfile.write(str(binascii.hexlify(dataStream)))
+                # WARNING - live string parsing causes SW-induced slowdown and results in lower overall data rate. Enabled in "debug" mode
+                # Efficient data collection strategy = collect full buffers during running and process after the run. Default when not in "debug" mode
 
-        #wait to decode until the very end so that all readouts can be appended together and headers re-attached
-        #loose info about which hit comes from which readout buffer
-            ## DAN - consider whether readout buffer number is worth saving. 
-            ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
-        df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
+                #define asyncio task to enable graceful exit
+                try:
+                    task = asyncio.create_task(astro.get_readout())
+                    await task
+                    buff, readout = task.result()
+                except KeyboardInterrupt:
+                    logger.info("asyncio received exit from keyboard, exiting")
+                    break_condition=True
+                except asyncio.CancelledError:
+                    logger.info("asyncio received exit form cancellation, exiting")
+                    break_condition=True
+                
+                if debug:
+                    if buff>0:
+                        readout_data = readout[:buff]
+                        logger.info(binascii.hexlify(readout_data))
+                        logger.info(f"{buff} bytes in buffer")
+                        dataStream+=readout_data
+                        if not args.dumpOutput:
+                            bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+                else:
+                    dataStream_lst.append(readout)
+                    bufferLength_lst.append(buff)
+    except KeyboardInterrupt: # Ends program cleanly when a keyboard interupt is sent (for no autoread case).
+        logger.info("Keyboard interupt. Program halt!")
+    except Exception as e: # Catches other exceptions
+        logger.exception(f"Encountered Unexpected Exception! \n{e}")
 
+    
     # End injection
     if gecco and injection:
+        print("stop injection")
         logger.debug("stop injection")
         #await astro.checkInjBits()
         await astro.stop_injection()
         #await astro.checkInjBits()
+
+    #wait to decode until the very end so that all readouts can be appended together and headers re-attached
+    if not debug and not args.noAutoread:
+        #AFTER data collection, parse autoread raw data and save to file
+        print("parsing data")
+        txtOut = None if args.dumpOutput else bitfile
+        dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
+        print("save txt data")
+        if not args.dumpOutput:
+            bitfile.write(str(binascii.hexlify(dataStream)))
+        #lose info about which hit comes from which readout buffer
+        ## DAN - consider whether readout buffer number is worth saving. 
+        ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
+        print("made df")
+        df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
+
 
     ## DAN - after autoread mode, get one single big dump of data after this point. May want to clear/dump buffer along with the 'stop injection' command so it's not read out either here or in the beginning of the next run. Or maybe it needs to be parsed out and is the "missing" data (like if it's included then the data length of autoread vs no autoread would be equal)
 
@@ -146,6 +192,7 @@ async def main(args, saveName):
         if not args.dumpOutput:
             bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
          
+    print("save csv data")
     if not args.dumpOutput:    
         bitfile.close()  
         csvframe = [
@@ -168,7 +215,7 @@ async def main(args, saveName):
         except ValueError: #no data returned so empty DF of decoded hits
             logger.error(f"No data recorded - no CSV generated")
             return # sys.exit(1)
-
+    
 
 
 
@@ -204,6 +251,8 @@ if __name__ == "__main__":
                 required=False, 
                 help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
 
+    parser.add_argument('-t', '--runTime', type=float, action='store', default=None,
+                    help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')
     """
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
                     help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
@@ -226,8 +275,6 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--maxruns', type=int, action='store', default=None,
                     help = 'Maximum number of readouts')
 
-    parser.add_argument('-M', '--maxtime', type=float, action='store', default=None,
-                    help = 'Maximum run time (in minutes)')
     """
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
                     help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
@@ -280,3 +327,13 @@ if __name__ == "__main__":
     autoread_int = 0 if args.noAutoread else 1
 
     asyncio.run(main(args, saveName))
+
+    """
+    #define asyncio coroutine to enable graceful exit
+    loop = asyncio.get_event_loop()
+    coroutine = main(args, saveName)
+    try:
+        loop.run_until_complete(coroutine)
+    except KeyboardInterrupt:
+        logger.info("asyncio recieved exit, exiting")
+    """
