@@ -357,12 +357,12 @@ class astepRun:
         dac_config:tuple[int, list[float]]: injdac settings. Must be fully specified if set. 
         onchip: bool (generate signal on chip or on GECCO card)
         """
+
         """
         # Check the required HW is available
         if not self._geccoBoard:
             logger.error("No GECCO board configured, so an injectionboard cannot be configured. Check FPGA settings.")
-            raise        
-        """
+            raise   
 
         if (inj_voltage is not None) and (dac_config is None):
             # elifs check to ensure we are not injecting a negative value because we don't have that ability
@@ -370,7 +370,8 @@ class astepRun:
                 raise ValueError("Cannot inject a negative voltage!")
             elif inj_voltage > 800:
                 logger.warning("Cannot inject more than 800mV, will use defaults")
-                inj_voltage = 300 #Sets to 300 mV
+                inj_voltage = 300 #Sets to 300 mV     
+        """
 
         if inj_voltage:
             #Update vdac value from yml 
@@ -544,6 +545,8 @@ class astepRun:
                 allData+=readout_data
                 if bitfile:
                     bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+
+        ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
 
         return allData
 
