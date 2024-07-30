@@ -1,4 +1,4 @@
-import asyncio#, nest_asyncio
+import asyncio
 from astep import astepRun
 import pandas as pd
 import binascii
@@ -8,14 +8,11 @@ import argparse
 from argparse import RawTextHelpFormatter
 import os
 
-#nest_asyncio.apply()
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,1
 pixel = [layer, chip, 0, 30] #layer, chip, row, column
-inj_voltage = 300 #injection amplitude in mV
-threshold = 200 #global comparator threshold level in mV
 chipsPerRow = 2 #number of arrays per SPI bus to configure
 gecco = True
 injection = True
@@ -53,14 +50,14 @@ async def main(args, saveName):
 
     if gecco:
         logger.debug("initializing voltage")
-        await astro.init_voltages(vthreshold=threshold) ## th in mV
+        await astro.init_voltages(vthreshold=args.threshold) ## th in mV
 
     #loger.debug("FUNCTIONALITY CHECK")
     #await astro.functionalityCheck(holdBool=True)
 
     ## DAN - confirm functionality
     #logger.debug("update threshold")
-    #await astro.update_pixThreshold(layer, chip, 100)
+    #await astro.update_pixThreshold(layer, chip, args.threshold)
 
     logger.debug("enable pixel")
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
@@ -68,8 +65,9 @@ async def main(args, saveName):
     # Setup / configure injection
     if gecco and injection:
         ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
+        ## DAN - prioritize injection voltage setting from config file and user input
         logger.debug("init injection")
-        await astro.init_injection(layer, chip, inj_voltage=inj_voltage)
+        await astro.init_injection(layer, chip, inj_voltage=args.vinj)
 
     # Send final config to chips
     logger.debug("final configs")
@@ -110,7 +108,6 @@ async def main(args, saveName):
                 break
 
             if args.noAutoread:
-                #astro._wait_progress(runTime)
                 try:
                     task = asyncio.create_task(asyncio.sleep(1))
                     await task
@@ -118,7 +115,7 @@ async def main(args, saveName):
                     logger.info("asyncio received exit from keyboard, exiting")
                     break_condition=True
                 except asyncio.CancelledError:
-                    logger.info("asyncio received exit form cancellation, exiting")
+                    logger.info("asyncio received exit from cancellation, exiting")
                     break_condition=True
             else:    
 
@@ -134,7 +131,7 @@ async def main(args, saveName):
                     logger.info("asyncio received exit from keyboard, exiting")
                     break_condition=True
                 except asyncio.CancelledError:
-                    logger.info("asyncio received exit form cancellation, exiting")
+                    logger.info("asyncio received exit from cancellation, exiting")
                     break_condition=True
                 
                 if debug:
@@ -156,7 +153,6 @@ async def main(args, saveName):
     
     # End injection
     if gecco and injection:
-        print("stop injection")
         logger.debug("stop injection")
         #await astro.checkInjBits()
         await astro.stop_injection()
@@ -165,16 +161,13 @@ async def main(args, saveName):
     #wait to decode until the very end so that all readouts can be appended together and headers re-attached
     if not debug and not args.noAutoread:
         #AFTER data collection, parse autoread raw data and save to file
-        print("parsing data")
         txtOut = None if args.dumpOutput else bitfile
         dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
-        print("save txt data")
         if not args.dumpOutput:
             bitfile.write(str(binascii.hexlify(dataStream)))
         #lose info about which hit comes from which readout buffer
         ## DAN - consider whether readout buffer number is worth saving. 
         ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
-        print("made df")
         df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
 
 
@@ -192,7 +185,6 @@ async def main(args, saveName):
         if not args.dumpOutput:
             bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
          
-    print("save csv data")
     if not args.dumpOutput:    
         bitfile.close()  
         csvframe = [
@@ -230,29 +222,41 @@ if __name__ == "__main__":
                                         \n\u2022 Save outputs (*.log, *.txt, *.csv) of the form DATETIME.* to folder data/ 
                                         \n\u2022 Logger level INFO 
                                         \n\u2022 Configure via SPI 
-                                        \n\u2022 Readoff chip with autoread """)
+                                        \n\u2022 Readoff chip with autoread 
+                                        \n\u2022 100 mV comparator threshold """)
 
     parser.add_argument('-n', '--name', default='', required=False,
-                    help='Option to give additional name to output files upon running. Default: NONE')
+                        help='Option to give additional name to output files upon running. Default: NONE')
 
     parser.add_argument('-o', '--outdir', default='data/', required=False,
-                    help='Output Directory for all datafiles, as a subdir within data/. Default: data/')
+                        help='Output Directory for all datafiles, as a subdir within data/. Default: data/')
 
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
     parser.add_argument('-d', '--dumpOutput', action='store_true', 
-                required=False, 
-                help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
+                        required=False, 
+                        help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
     
     parser.add_argument('-na', '--noAutoread', action='store_true', 
-                required=False, 
-                help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
+                        required=False, 
+                        help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     
     parser.add_argument('-sr', '--shiftRegister', action='store_true', 
-                required=False, 
-                help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
+                        required=False, 
+                        help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
 
-    parser.add_argument('-t', '--runTime', type=float, action='store', default=None,
-                    help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')
+    parser.add_argument('-T', '--runTime', type=float, action='store',  
+                        default=None,
+                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')
+    
+    parser.add_argument('-t', '--threshold', type = int, action='store', 
+                        default=100,
+                        help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
+    
+    parser.add_argument('-v','--vinj', action='store', default = None,  
+                        type=int,
+                        help = 'Specify injection voltage (in mV). DEFAULT: value in config ')
+
+
     """
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
                     help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
@@ -260,14 +264,11 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
                     help =  'Turn on injection in the given row and column. Default: No injection')
 
-    parser.add_argument('-v','--vinj', action='store', default = None, type=float,
-                    help = 'Specify injection voltage (in mV). DEFAULT 300 mV')
-
+ 
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
                     help = 'Turn on analog output in the given column. Default: Column 0.')
 
-    parser.add_argument('-t', '--threshold', type = float, action='store', default=None,
-                    help = 'Threshold voltage for digital ToT (in mV). DEFAULT 100mV')
+
     
     parser.add_argument('-E', '--errormax', action='store', type=int, default='100', 
                     help='Maximum index errors allowed during decoding. DEFAULT 100')
