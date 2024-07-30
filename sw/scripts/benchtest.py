@@ -5,6 +5,7 @@ import binascii
 import logging
 import time
 import argparse
+from argparse import RawTextHelpFormatter
 import os
 
 #######################################################
@@ -175,7 +176,14 @@ async def main(args, saveName):
 ################## TOP LEVEL ##########################
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection')
+    parser = argparse.ArgumentParser(description='A-STEP Bench Testing Code for chip configuration and data collection.', 
+                                     formatter_class=RawTextHelpFormatter, #allow formatting of the epilog
+                                     epilog=""" 
+                                        \nDefault run conditions: 
+                                        \n\u2022 Save outputs (*.log, *.txt, *.csv) of the form DATETIME.* to folder data/ 
+                                        \n\u2022 Logger level INFO 
+                                        \n\u2022 Configure via SPI 
+                                        \n\u2022 Readoff chip with autoread """)
 
     parser.add_argument('-n', '--name', default='', required=False,
                     help='Option to give additional name to output files upon running. Default: NONE')
@@ -185,16 +193,16 @@ if __name__ == "__main__":
 
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
     parser.add_argument('-d', '--dumpOutput', action='store_true', 
-                default=False, required=False, 
-                help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: FALSE')
+                required=False, 
+                help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
     
     parser.add_argument('-na', '--noAutoread', action='store_true', 
-                default=False, required=False, 
-                help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: FALSE')
+                required=False, 
+                help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     
     parser.add_argument('-sr', '--shiftRegister', action='store_true', 
-                default=False, required=False, 
-                help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: FALSE')
+                required=False, 
+                help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
 
     """
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
