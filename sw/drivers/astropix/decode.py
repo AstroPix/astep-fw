@@ -31,6 +31,7 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
     for hit in list_hits:
         # Generates the values from the bitstream
         try:
+            pack_len  = int(hit[0])
             layer       = int(hit[1])
             id          = int(hit[2]) >> 3
             payload     = int(hit[2]) & 0b111
@@ -43,14 +44,15 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
             tot_us      = (tot_total * self.sampleclock_period_ns)/1000.0
             fpga_ts     = int.from_bytes(hit[7:11], 'little')
         except IndexError: #hit cut off at end of stream
-            id, payload, location, col = -1, -1, -1, -1
+            packet_len, id, payload, location, col = -1, -1, -1, -1, -1
             timestamp, tot_msb, tot_lsb, tot_total = -1, -1, -1, -1
+            tot_us, fpga_ts = -1, -1
         
         # print decoded info in terminal if desiered
         if printer:
             try:
                 print(
-                f"{i} Packet len: {int(hit[0])}\t Layer ID: {layer}\n"
+                f"{i} Packet len: {pack_len}\t Layer ID: {layer}\n"
                 f"ChipId: {id}\tPayload: {payload}\t"
                 f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
                 f"TS: {timestamp}\t"
@@ -60,7 +62,13 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
             except IndexError:
                 print(f"HIT TOO SHORT TO BE DECODED - {binascii.hexlify(hit)}")
             except UnboundLocalError:
-                print(f"Hit could not be decoded - likely missing a header")
+                print(f"Hit could not be decoded - likely missing a header\n\n"
+                f"{i} Packet len: {pack_len}\t Layer ID: {layer}\n"
+                f"ChipId: {id}\tPayload: {payload}\t"
+                f"Location: {location}\tRow/Col: {'Col' if col else 'Row'}\t"
+                f"TS: {timestamp}\t"
+                f"ToT: MSB: {tot_msb}\tLSB: {tot_lsb} \n"
+                )
 
         # hits are sored in dictionary form
         hits = {
