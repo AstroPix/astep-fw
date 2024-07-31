@@ -173,7 +173,6 @@ class astepRun:
 
         # Set analog output
         if analog_col is not None:
-            #move pre3vious try here
             try:
                 ana_layer = analog_col[0]
                 ana_chip = analog_col[1]
@@ -182,7 +181,7 @@ class astepRun:
                 logger.info(f"enabling analog output in column {ana_col} of chip {ana_chip} in layer {ana_layer}")
                 self.asics[ana_layer].enable_ampout_col(ana_chip, ana_col, inplace=False)
             except (IndexError, KeyError):
-                logger.error(f"Cannot enable analog pixel in chip {ana_chip} - chip does not exist. Ensure layer, chip, and column values all passed")
+                logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
                 sys.exit(1)
 
         # Turns on injection if so desired 

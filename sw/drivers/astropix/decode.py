@@ -58,9 +58,9 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
                 f"FPGA TS: {fpga_ts}\n"           
                 )
             except IndexError:
-                print(
-                f"HIT TOO SHORT TO BE DECODED - {binascii.hexlify(hit)}"           
-                )
+                print(f"HIT TOO SHORT TO BE DECODED - {binascii.hexlify(hit)}")
+            except UnboundLocalError:
+                print(f"Hit could not be decoded - likely missing a header")
 
         # hits are sored in dictionary form
         hits = {
