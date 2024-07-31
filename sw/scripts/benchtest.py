@@ -15,8 +15,6 @@ layer, chip = 0,1
 pixel = [layer, chip, 0, 30] #layer, chip, row, column
 chipsPerRow = 2 #number of arrays per SPI bus to configure
 injection = True
-debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
-
 
 #######################################################
 ###################### MAIN ###########################
@@ -138,7 +136,8 @@ async def main(args, saveName):
                     logger.info("asyncio received exit from cancellation, exiting")
                     break_condition=True
                 
-                if debug:
+                if args.printHits:
+                #live printout of data packet in terminal
                     if buff>0:
                         readout_data = readout[:buff]
                         logger.info(binascii.hexlify(readout_data))
@@ -146,9 +145,10 @@ async def main(args, saveName):
                         dataStream+=readout_data
                         if not args.dumpOutput:
                             bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
-                else:
-                    dataStream_lst.append(readout)
-                    bufferLength_lst.append(buff)
+                
+                #Append full readout and buffer length to appropriate arrays
+                dataStream_lst.append(readout)
+                bufferLength_lst.append(buff)
     except KeyboardInterrupt: # Ends program cleanly when a keyboard interupt is sent (for no autoread case).
         logger.info("Keyboard interupt. Program halt!")
     except Exception as e: # Catches other exceptions
@@ -163,7 +163,7 @@ async def main(args, saveName):
         #await astro.checkInjBits()
 
     #wait to decode until the very end so that all readouts can be appended together and headers re-attached
-    if not debug and not args.noAutoread:
+    if not args.noAutoread:
         #AFTER data collection, parse autoread raw data and save to file
         txtOut = None if args.dumpOutput else bitfile
         dataStream = await astro.dataParse_autoread(dataStream_lst, bufferLength_lst, bitfile=txtOut)
@@ -265,6 +265,9 @@ if __name__ == "__main__":
     
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
+    
+    parser.add_argument('-p', '--printHits', action='store_true', required=False, 
+                        help='Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. If not passed, no printouts during data collection. Default: post-collection printout') 
     """
     parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
                     help =  'Turn on injection in the given row and column. Default: No injection')
@@ -305,7 +308,7 @@ if __name__ == "__main__":
     fname="" if not args.name else args.name+"_"
     saveName = fname + time.strftime("%Y%m%d-%H%M%S") 
 
-    # Logging 
+    #Logging 
     logname = args.outdir+saveName+"_run.log"
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
@@ -321,5 +324,9 @@ if __name__ == "__main__":
 
     #Define autoread bool
     autoread_int = 0 if args.noAutoread else 1
+
+    #Live readout printing option only possible in autoread mode
+    if args.printHits and args.noAutoread:
+        logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
 
     asyncio.run(main(args, saveName))
