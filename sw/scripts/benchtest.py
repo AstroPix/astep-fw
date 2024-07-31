@@ -16,6 +16,7 @@ pixel = [layer, chip, 0, 30] #layer, chip, row, column
 chipsPerRow = 2 #number of arrays per SPI bus to configure
 injection = True
 
+
 #######################################################
 ###################### MAIN ###########################
 async def main(args, saveName):
@@ -47,7 +48,7 @@ async def main(args, saveName):
     
     logger.debug("initializing asic")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow, analog_col=args.analog)#analog_col=[layer, chip, pixel[3]])
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
@@ -228,58 +229,66 @@ if __name__ == "__main__":
                                         \n\u2022 Board drivers for CMOD HW setup 
                                         \n\u2022 Load configuration file quadChip_allOff 
                                         \n\u2022 Configure via SPI 
-                                        \n\u2022 Readoff chip with autoread 
-                                        \n\u2022 100 mV comparator threshold """)
+                                        \n\u2022 Readoff chip with autoread and no live printing of streams 
+                                        \n\u2022 100 mV comparator threshold 
+                                        \n\u2022 Collect data until user ends run gracefully with CNTL+C""")
 
+    # Options related to outputs
     parser.add_argument('-n', '--name', default='', required=False,
                         help='Option to give additional name to output files upon running. Default: NONE')
-
     parser.add_argument('-o', '--outdir', default='data/', required=False,
                         help='Output Directory for all datafiles, as a subdir within data/. Default: data/')
-
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
     parser.add_argument('-d', '--dumpOutput', action='store_true', required=False, 
                         help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
+    parser.add_argument('-p', '--printHits', action='store_true', required=False, 
+                        help='Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. If not passed, no printouts during data collection. Default: post-collection printout') 
+
+    # Options related to software run settings
+    parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
+                        help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
+    parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
+                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')    
     
-    parser.add_argument('-na', '--noAutoread', action='store_true', required=False, 
-                        help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
-    
+    # Options related to Setup / Configuration of system
+    parser.add_argument('-g', '--gecco', action='store_true', required=False, 
+                        help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
+                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
     parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
                         help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
-
-    parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
-                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')
     
+    # Options related to Setup / Configuration of the chip in data collection run
+    parser.add_argument('-na', '--noAutoread', action='store_true', required=False, 
+                        help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
+    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = [1, 0, 0], nargs=3,
+                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. Requires input in the form {layer, chip, col} (no wrapping brackets). Default: layer 1, chip 0, col 0')
     
+    # Options related to chip injection
     ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
     parser.add_argument('-v','--vinj', action='store', default = None,  type=int,
                         help = 'Specify injection voltage (in mV). DEFAULT: value in config ')
 
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
-                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
 
-    parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
-                        help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
+
     
-    parser.add_argument('-g', '--gecco', action='store_true', required=False, 
-                        help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
     
-    parser.add_argument('-p', '--printHits', action='store_true', required=False, 
-                        help='Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. If not passed, no printouts during data collection. Default: post-collection printout') 
+
     """
     parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
                     help =  'Turn on injection in the given row and column. Default: No injection')
 
  
-    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
-                    help = 'Turn on analog output in the given column. Default: Column 0.')
 
     """
 
-
     args = parser.parse_args()
+
+
+
+
 
     #Checks for outdir path
     if args.outdir != "data/":
@@ -290,6 +299,11 @@ if __name__ == "__main__":
     # Ensures output directory exists
     if os.path.exists(args.outdir) == False:
         os.mkdir(args.outdir)
+
+
+    #Define output save name for all files
+    fname="" if not args.name else args.name+"_"
+    saveName = fname + time.strftime("%Y%m%d-%H%M%S") 
 
     # Define the loglevel
     ll = args.loglevel
@@ -303,12 +317,6 @@ if __name__ == "__main__":
         loglevel = logging.WARNING
     elif ll == 'C':
         loglevel = logging.CRITICAL
-    
-    #Define output save name for all files
-    fname="" if not args.name else args.name+"_"
-    saveName = fname + time.strftime("%Y%m%d-%H%M%S") 
-
-    #Logging 
     logname = args.outdir+saveName+"_run.log"
     formatter = logging.Formatter('%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s')
     fh = logging.FileHandler(logname)
@@ -322,11 +330,27 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
 
+
+
     #Define autoread bool
     autoread_int = 0 if args.noAutoread else 1
 
     #Live readout printing option only possible in autoread mode
     if args.printHits and args.noAutoread:
         logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
+
+    #Layer counting begins at 1 ONLY  when config files are sent. In astep.py, most layer counting still begins at 0. Modify layer number to be consistent with astep.py processing 
+    try:
+        args.analog[0] = args.analog[0]-1
+    except IndexError:
+        logger.error(f"Passed bad analog argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
+        sys.exit(1)
+
+
+
+
+
+
+
 
     asyncio.run(main(args, saveName))
