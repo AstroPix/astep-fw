@@ -12,7 +12,6 @@ import os, serial
 #######################################################
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,1
-chipsPerRow = 2 #number of arrays per SPI bus to configure
 
 
 #######################################################
@@ -46,7 +45,7 @@ async def main(args, saveName):
     
     logger.debug("initializing asic")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow)
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
@@ -235,7 +234,7 @@ if __name__ == "__main__":
                                         \n\u2022 Logger level INFO 
                                         \n\u2022 Board drivers for CMOD HW setup 
                                         \n\u2022 Load configuration file quadChip_allOff 
-                                        \n\u2022 Configure via SPI 
+                                        \n\u2022 Configure 4 chips per bus via SPI 
                                         \n\u2022 Readoff chip with autoread and no live printing of streams 
                                         \n\u2022 100 mV comparator threshold 
                                         \n\u2022 Analog readout from layer 1, chip 0, row 0, col 0
@@ -264,6 +263,8 @@ if __name__ == "__main__":
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
                         help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
+    parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = 4,
+                        help = 'Number of chips per SPI bus to enable. Default: 4')
     parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
                         help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
     
