@@ -6,7 +6,7 @@ import logging
 import time
 import argparse
 from argparse import RawTextHelpFormatter
-import os
+import os, serial
 
 
 #######################################################
@@ -14,7 +14,6 @@ import os
 layer, chip = 0,1
 pixel = [layer, chip, 0, 30] #layer, chip, row, column
 chipsPerRow = 2 #number of arrays per SPI bus to configure
-gecco = True
 injection = True
 debug = False #If true, print data to screen in real time even if it results in a SW slowdown. Use False for efficient data collection mode
 
@@ -34,9 +33,13 @@ async def main(args, saveName):
     astro = astepRun(inject=pixel,SR=args.shiftRegister)
 
     logger.debug("opening fpga")
-    cmod = False if gecco else True
-    uart = False if gecco else True
-    await astro.open_fpga(cmod=cmod, uart=uart)
+    cmod = False if args.gecco else True
+    uart = False if args.gecco else True
+    try:
+        await astro.open_fpga(cmod=cmod, uart=uart)
+    except serial.SerialException: 
+        logger.error("Indicated hardware does not match serial bus. If using GECCO setup, make sure to pass -g argument.")
+        return
 
     logger.debug("setup clocks")
     await astro.setup_clocks()
@@ -49,7 +52,7 @@ async def main(args, saveName):
     await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
-    if gecco:
+    if args.gecco:
         logger.debug("initializing voltage")
         await astro.init_voltages(vthreshold=args.threshold) ## th in mV
 
@@ -64,7 +67,7 @@ async def main(args, saveName):
     await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
 
     # Setup / configure injection
-    if gecco and injection:
+    if args.gecco and injection:
         ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
         ## DAN - prioritize injection voltage setting from config file and user input
         logger.debug("init injection")
@@ -93,7 +96,7 @@ async def main(args, saveName):
         bufferLength_lst = []
 
     # Start injection
-    if gecco and injection:
+    if args.gecco and injection:
         logger.debug("start injection")
         #await astro.checkInjBits()
         await astro.start_injection()
@@ -153,7 +156,7 @@ async def main(args, saveName):
 
     
     # End injection
-    if gecco and injection:
+    if args.gecco and injection:
         logger.debug("stop injection")
         #await astro.checkInjBits()
         await astro.stop_injection()
@@ -207,7 +210,7 @@ async def main(args, saveName):
             df.to_csv(csvpath)
         except ValueError: #no data returned so empty DF of decoded hits
             logger.error(f"No data recorded - no CSV generated")
-            return # sys.exit(1)
+            return 
     
 
 
@@ -222,6 +225,8 @@ if __name__ == "__main__":
                                         \nDefault run conditions: 
                                         \n\u2022 Save outputs (*.log, *.txt, *.csv) of the form DATETIME.* to folder data/ 
                                         \n\u2022 Logger level INFO 
+                                        \n\u2022 Board drivers for CMOD HW setup 
+                                        \n\u2022 Load configuration file quadChip_allOff 
                                         \n\u2022 Configure via SPI 
                                         \n\u2022 Readoff chip with autoread 
                                         \n\u2022 100 mV comparator threshold """)
@@ -233,36 +238,34 @@ if __name__ == "__main__":
                         help='Output Directory for all datafiles, as a subdir within data/. Default: data/')
 
     ## DAN - I hate this saving strategy. Should think of a better way. Implementation is backwards and messy
-    parser.add_argument('-d', '--dumpOutput', action='store_true', 
-                        required=False, 
+    parser.add_argument('-d', '--dumpOutput', action='store_true', required=False, 
                         help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
     
-    parser.add_argument('-na', '--noAutoread', action='store_true', 
-                        required=False, 
+    parser.add_argument('-na', '--noAutoread', action='store_true', required=False, 
                         help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     
-    parser.add_argument('-sr', '--shiftRegister', action='store_true', 
-                        required=False, 
+    parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
                         help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
 
-    parser.add_argument('-T', '--runTime', type=float, action='store',  
-                        default=None,
+    parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
                         help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')
     
-    parser.add_argument('-t', '--threshold', type = int, action='store', 
-                        default=100,
+    parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
     
     ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
-    parser.add_argument('-v','--vinj', action='store', default = None,  
-                        type=int,
+    parser.add_argument('-v','--vinj', action='store', default = None,  type=int,
                         help = 'Specify injection voltage (in mV). DEFAULT: value in config ')
 
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
-                    help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
+                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
 
-    """
+    parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
+                        help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
     
+    parser.add_argument('-g', '--gecco', action='store_true', required=False, 
+                        help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
+    """
     parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
                     help =  'Turn on injection in the given row and column. Default: No injection')
 
@@ -270,17 +273,7 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = 0,
                     help = 'Turn on analog output in the given column. Default: Column 0.')
 
-
-    
-    parser.add_argument('-E', '--errormax', action='store', type=int, default='100', 
-                    help='Maximum index errors allowed during decoding. DEFAULT 100')
-
-    parser.add_argument('-r', '--maxruns', type=int, action='store', default=None,
-                    help = 'Maximum number of readouts')
-
     """
-    parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
-                    help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
 
 
     args = parser.parse_args()
@@ -330,13 +323,3 @@ if __name__ == "__main__":
     autoread_int = 0 if args.noAutoread else 1
 
     asyncio.run(main(args, saveName))
-
-    """
-    #define asyncio coroutine to enable graceful exit
-    loop = asyncio.get_event_loop()
-    coroutine = main(args, saveName)
-    try:
-        loop.run_until_complete(coroutine)
-    except KeyboardInterrupt:
-        logger.info("asyncio recieved exit, exiting")
-    """
