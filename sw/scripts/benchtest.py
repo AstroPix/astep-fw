@@ -45,7 +45,8 @@ async def main(args, saveName):
     await astro.enable_spi()
     
     logger.debug("initializing asic")
-    await astro.asic_init(yaml="quadchip_allOff", chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
+    ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow, analog_col=[layer, chip, pixel[3]])
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if gecco:
@@ -252,14 +253,15 @@ if __name__ == "__main__":
                         default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
     
+    ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
     parser.add_argument('-v','--vinj', action='store', default = None,  
                         type=int,
                         help = 'Specify injection voltage (in mV). DEFAULT: value in config ')
 
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
+                    help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
 
     """
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'testconfig',
-                    help = 'filepath (in config/ directory) .yml file containing chip configuration. Default: config/testconfig.yml (All pixels off)')
     
     parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
                     help =  'Turn on injection in the given row and column. Default: No injection')
