@@ -24,7 +24,7 @@ class astepRun:
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these 
     # allows for simpler specifying of values. 
-    def __init__(self, chipversion=3, clock_period_ns = 5, inject:int = None, SR:bool=True):
+    def __init__(self, chipversion=3, clock_period_ns = 5, SR:bool=True): 
         """
         Initalizes astropix object. 
         No required arguments
@@ -43,17 +43,6 @@ class astepRun:
         self.asics = []
 
         self._geccoBoard = None
-
-        # Start putting the variables in for use down the line
-        if inject is None:
-            inject = (None, None)
-            self._injection = False
-        else:
-            self._injection=True
-            self.injection_col = inject[3]
-            self.injection_row = inject[2]
-            self.injection_chip = inject[1]
-            self.injection_layer = inject[0]
 
         self.sampleclock_period_ns = clock_period_ns
         self.chipversion = chipversion
@@ -134,7 +123,7 @@ class astepRun:
 ##################### ASIC METHODS FOR USERS #########################
 
     # Method to initalize the asic. This is taking the place of asic.py. 
-    async def asic_init(self, yaml:str = None, rows:int = 1, chipsPerRow:int = 1, analog_col = None):
+    async def asic_init(self, yaml:str = None, rows:int = 1, chipsPerRow:int = 1):
         """
         self.asic_init() - initalize the asic configuration. Must be called first
         Positional arguments: None
@@ -170,24 +159,6 @@ class astepRun:
         except KeyError: #could not find expected dictionary in yml file
             logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
             sys.exit(1)
-
-        # Set analog output
-        if analog_col is not None:
-            try:
-                ana_layer = analog_col[0]
-                ana_chip = analog_col[1]
-                ana_col = analog_col[2]
-                #Enable analog pixel from given chip in the daisy chain
-                logger.info(f"enabling analog output in column {ana_col} of chip {ana_chip} in layer {ana_layer}")
-                self.asics[ana_layer].enable_ampout_col(ana_chip, ana_col, inplace=False)
-            except (IndexError, KeyError):
-                logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
-                sys.exit(1)
-
-        # Turns on injection if so desired 
-        if self._injection:
-            self.asics[self.injection_layer].enable_inj_col(self.injection_chip, self.injection_col, inplace=False)
-            self.asics[self.injection_layer].enable_inj_row(self.injection_chip, self.injection_row, inplace=False)
 
     #Interface with asic.py 
     async def enable_pixel(self, layer:int, chip:int, row: int, col: int):
@@ -264,6 +235,27 @@ class astepRun:
                 return None
             #await self.asic_update()
         else: raise RuntimeError("Asic has not been initalized")
+
+    #enable pixels for injection. Must be called once per pixel
+    async def enable_injection(self, layer:int, chip:int, row: int, col: int):
+        try:
+            self.asics[layer].enable_inj_col(chip, col, inplace=False)
+            self.asics[layer].enable_inj_row(chip, row, inplace=False)
+        except (IndexError, KeyError):
+            logger.error(f"Cannot enable injection in pixel layer {layer+1}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            sys.exit(1)
+        
+    
+    #enable pixels for analog readout. Must be called once per pixel
+    async def enable_analog(self, layer:int, chip:int, col: int):
+        try:
+            #Enable analog pixel from given chip in the daisy chain
+            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer+1}")
+            self.asics[layer].enable_ampout_col(chip, col, inplace=False)
+        except (IndexError, KeyError):
+            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            sys.exit(1)
+        
 
     #close connection with FPGA
     def close_connection(self) -> None :

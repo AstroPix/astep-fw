@@ -12,9 +12,7 @@ import os, serial
 #######################################################
 ############## USER DEFINED VARIABLES #################
 layer, chip = 0,1
-pixel = [layer, chip, 0, 30] #layer, chip, row, column
 chipsPerRow = 2 #number of arrays per SPI bus to configure
-injection = True
 
 
 #######################################################
@@ -29,7 +27,7 @@ async def main(args, saveName):
 
     # Setup and configure chip
     logger.debug("creating object")
-    astro = astepRun(inject=pixel,SR=args.shiftRegister)
+    astro = astepRun(SR=args.shiftRegister)
 
     logger.debug("opening fpga")
     cmod = False if args.gecco else True
@@ -48,29 +46,38 @@ async def main(args, saveName):
     
     logger.debug("initializing asic")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow, analog_col=args.analog)#analog_col=[layer, chip, pixel[3]])
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=chipsPerRow)
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
         logger.debug("initializing voltage")
         await astro.init_voltages(vthreshold=args.threshold) ## th in mV
 
-    #loger.debug("FUNCTIONALITY CHECK")
+    #logger.debug("FUNCTIONALITY CHECK")
     #await astro.functionalityCheck(holdBool=True)
 
     ## DAN - confirm functionality
     #logger.debug("update threshold")
     #await astro.update_pixThreshold(layer, chip, args.threshold)
 
-    logger.debug("enable pixel")
-    await astro.enable_pixel(layer, chip, pixel[2], pixel[3])  
+    if args.inject:
+        logger.debug("enable injection pixel")
+        await astro.enable_injection(*args.inject)
+        await astro.enable_pixel(*args.inject) #assume that you'd like to read out the pixel you're injecting into
+        await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
+    else: #no injection
+        logger.debug("enable analog")
+        await astro.enable_analog(*args.analog)
 
     # Setup / configure injection
-    if args.gecco and injection:
+    if args.gecco and args.inject:
         ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
         ## DAN - prioritize injection voltage setting from config file and user input
         logger.debug("init injection")
         await astro.init_injection(layer, chip, inj_voltage=args.vinj)
+    elif args.inject:
+        logger.warning("Cannot initialize injection without GECCO HW. Disabling injection.")
+        args.inject = None
 
     # Send final config to chips
     logger.debug("final configs")
@@ -95,7 +102,7 @@ async def main(args, saveName):
         bufferLength_lst = []
 
     # Start injection
-    if args.gecco and injection:
+    if args.inject:
         logger.debug("start injection")
         #await astro.checkInjBits()
         await astro.start_injection()
@@ -157,7 +164,7 @@ async def main(args, saveName):
 
     
     # End injection
-    if args.gecco and injection:
+    if args.inject:
         logger.debug("stop injection")
         #await astro.checkInjBits()
         await astro.stop_injection()
@@ -231,6 +238,8 @@ if __name__ == "__main__":
                                         \n\u2022 Configure via SPI 
                                         \n\u2022 Readoff chip with autoread and no live printing of streams 
                                         \n\u2022 100 mV comparator threshold 
+                                        \n\u2022 Analog readout from layer 1, chip 0, row 0, col 0
+                                        \n\u2022 No injection/enabled pixels for digital output (only settings in yml) 
                                         \n\u2022 Collect data until user ends run gracefully with CNTL+C""")
 
     # Options related to outputs
@@ -268,21 +277,13 @@ if __name__ == "__main__":
     
     # Options related to chip injection
     ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
+    parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=4,
+                    help =  'Turn on injection in the given layer, chip, row, and column. Default: No injection')
     parser.add_argument('-v','--vinj', action='store', default = None,  type=int,
                         help = 'Specify injection voltage (in mV). DEFAULT: value in config ')
 
 
 
-    
-    
-
-    """
-    parser.add_argument('-i', '--inject', action='store', default=None, type=int, nargs=2,
-                    help =  'Turn on injection in the given row and column. Default: No injection')
-
- 
-
-    """
 
     args = parser.parse_args()
 
@@ -345,7 +346,13 @@ if __name__ == "__main__":
     except IndexError:
         logger.error(f"Passed bad analog argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
         sys.exit(1)
-
+    try:
+        args.inject[0] = args.inject[0]-1
+    except IndexError:
+        logger.error(f"Passed bad injection argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
+        sys.exit(1)
+    except TypeError: #no argument was passed
+        pass
 
 
 
