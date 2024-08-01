@@ -153,6 +153,13 @@ async def main(args, saveName):
                         if not args.dumpOutput:
                             bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
                 
+                #HK
+                if not args.gecco:
+                    #sleep to give it time between read/writes, maybe not needed for asyncio?
+                    #task = asyncio.create_task(astro.callHK()) 
+                    task_hk = asyncio.create_task(astro.every(astro.callHK()))
+                    await task_hk
+
                 #Append full readout and buffer length to appropriate arrays
                 dataStream_lst.append(readout)
                 bufferLength_lst.append(buff)
