@@ -172,6 +172,26 @@ class astepRun:
             self._wait_progress(1)
             await self.boardDriver.layersSelectSPI(flush=True)
 
+    async def buffer_flush(self, layer):
+        #Flush data from sensor
+        logger.info("Flush chip before data collection")
+        status = await self.boardDriver.rfg.read_layer_0_status() ## DAN - need to make the hardcoded 'layer_0' dynamic?
+        interruptn = status & 0x1
+        #deassert hold
+        await self.boardDriver.holdLayer(layer, hold=False)
+        while interruptn == 0:
+            logger.info("interrupt low")
+            await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+            nmbBytes = await self.boardDriver.readoutGetBufferSize()
+            if nmbBytes > 0:
+                    await self.boardDriver.readoutReadBytes(1024)
+            status = await self.boardDriver.rfg.read_layer_0_status()
+            interruptn = status & 0x1 
+        #reassert hold to be safe
+        await self.boardDriver.holdLayer(layer, hold=True) 
+        logger.info("interrupt recovered, ready to collect data")
+
+
     # The method to write data to the asic. 
     async def asic_update(self, layer):
         """This method resets the chip then writes the configuration"""
@@ -195,20 +215,7 @@ class astepRun:
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
                 sys.exit(1)    
-
-        #Flush data from sensor
-        logger.info("Flush chip before data collection")
-        status = await self.boardDriver.rfg.read_layer_0_status()
-        interruptn = status & 0x1
-        while interruptn == 0:
-            logger.info("interrupt low")
-            await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-            nmbBytes = await self.boardDriver.readoutGetBufferSize()
-            if nmbBytes > 0:
-                    await self.boardDriver.readoutReadBytes(1024)
-            status = await self.boardDriver.rfg.read_layer_0_status()
-            interruptn = status & 0x1  
-        logger.info("interrupt recovered, ready to collect data")
+        await self.buffer_flush(layer)
 
 
     # Methods to update the internal variables. Please don't do it manually
@@ -233,7 +240,6 @@ class astepRun:
             else: 
                 logger.info("update_asic_config() got no arguments, nothing to do.")
                 return None
-            #await self.asic_update()
         else: raise RuntimeError("Asic has not been initalized")
 
     #enable pixels for injection. Must be called once per pixel
@@ -545,6 +551,10 @@ class astepRun:
     #Send data for decoding from raw
     def decode_readout(self, readout:bytearray, i:int, printer: bool = True):
         return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+
+################## Housekeeping ############################
+
+
 
 ###################### INTERNAL METHODS ###########################
 
