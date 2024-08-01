@@ -177,6 +177,11 @@ class astepRun:
         logger.info("Flush chip before data collection")
         status = await self.boardDriver.rfg.read_layer_0_status() ## DAN - need to make the hardcoded 'layer_0' dynamic?
         interruptn = status & 0x1
+<<<<<<< HEAD
+=======
+        #deassert hold
+        await self.boardDriver.holdLayer(layer, hold=False)
+>>>>>>> 3d8fa00 ([AS] move buffer flush to its own method. Deassert hold during the flush)
         while interruptn == 0:
             logger.info("interrupt low")
             await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
@@ -185,6 +190,11 @@ class astepRun:
                     await self.boardDriver.readoutReadBytes(1024)
             status = await self.boardDriver.rfg.read_layer_0_status()
             interruptn = status & 0x1 
+<<<<<<< HEAD
+=======
+        #reassert hold to be safe
+        await self.boardDriver.holdLayer(layer, hold=True) 
+>>>>>>> 3d8fa00 ([AS] move buffer flush to its own method. Deassert hold during the flush)
         logger.info("interrupt recovered, ready to collect data")
 
 
@@ -549,6 +559,7 @@ class astepRun:
         return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
 
 ################## Housekeeping ############################
+<<<<<<< HEAD
 async def every(__seconds: float, func, *args, **kwargs):
     #scheduler
     while True:
@@ -581,6 +592,8 @@ async def callHK(self, flipped:bool = True): # adding a setting that can change 
         adcBytes = await driver.houseKeeping.readADCBytes(adcBytesCount) #still need to output this from task
         print(f"Got ADC bytes {adcBytes}")
         
+=======
+>>>>>>> 3d8fa00 ([AS] move buffer flush to its own method. Deassert hold during the flush)
 
 
 
