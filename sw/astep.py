@@ -177,6 +177,11 @@ class astepRun:
         logger.info("Flush chip before data collection")
         status = await self.boardDriver.rfg.read_layer_0_status() ## DAN - need to make the hardcoded 'layer_0' dynamic?
         interruptn = status & 0x1
+<<<<<<< HEAD
+=======
+        #deassert hold
+        await self.boardDriver.holdLayer(layer, hold=False)
+>>>>>>> 3d8fa00319e8eb5924d5ce05f7fb01fd7d07fa07
         while interruptn == 0:
             logger.info("interrupt low")
             await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
@@ -185,6 +190,11 @@ class astepRun:
                     await self.boardDriver.readoutReadBytes(1024)
             status = await self.boardDriver.rfg.read_layer_0_status()
             interruptn = status & 0x1 
+<<<<<<< HEAD
+=======
+        #reassert hold to be safe
+        await self.boardDriver.holdLayer(layer, hold=True) 
+>>>>>>> 3d8fa00319e8eb5924d5ce05f7fb01fd7d07fa07
         logger.info("interrupt recovered, ready to collect data")
 
 
