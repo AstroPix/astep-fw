@@ -558,6 +558,7 @@ class astepRun:
     def decode_readout(self, readout:bytearray, i:int, printer: bool = True):
         return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
 
+<<<<<<< HEAD
 ################## Housekeeping ############################
 <<<<<<< HEAD
 async def every(__seconds: float, func, *args, **kwargs):
@@ -565,37 +566,46 @@ async def every(__seconds: float, func, *args, **kwargs):
     while True:
         func(*args, **kwargs)
         await asyncio.sleep(__seconds)
+=======
+    ################## Housekeeping ############################
+    async def every(__seconds: float, func, *args, **kwargs):
+        #scheduler
+        while True:
+            func(*args, **kwargs)
+            await asyncio.sleep(__seconds)
+>>>>>>> f6c402f (Fixed identation bug in astep.py)
         
-async def callHK(self, flipped:bool = True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
-    """
-    Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
-    Input is two bytes:
-    First 2 bits: ignored
-    Next 3 bits: Set Channel #
-    Last 11 bits: ignored
+    async def callHK(self, flipped:bool = True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
+        """
+        Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
+        Input is two bytes:
+        First 2 bits: ignored
+        Next 3 bits: Set Channel #
+        Last 11 bits: ignored
 
-    Shift register input style requires bytes to be read in left to right. May be fixed in future versions
-    """
+        Shift register input style requires bytes to be read in left to right. May be fixed in future versions
+        """
 
-    await driver.houseKeeping.selectADC()
-    
-    ## Loop over ADC Settings
-    for chan in range(0,8):
-        bits = format(chan,'08b')
-        if flipped == True:
-            byte1 = int(bits[::-1],2) #this is a hex string is this ok?
-        else:
-            byte1 = int(bits,2) #this is a hex string is this ok?
-
-        await driver.houseKeeping.writeADCDACBytes([byte1,0x00])
-        adcBytesCount = await driver.houseKeeping.getADCBytesCount()
-        adcBytes = await driver.houseKeeping.readADCBytes(adcBytesCount) #still need to output this from task
-        print(f"Got ADC bytes {adcBytes}")
+        await driver.houseKeeping.selectADC()
         
+<<<<<<< HEAD
 =======
 >>>>>>> 3d8fa00 ([AS] move buffer flush to its own method. Deassert hold during the flush)
+=======
+        ## Loop over ADC Settings
+        for chan in range(0,8):
+            bits = format(chan,'08b')
+            if flipped == True:
+                byte1 = int(bits[::-1],2) #this is a hex string is this ok?
+            else:
+                byte1 = int(bits,2) #this is a hex string is this ok?
+>>>>>>> f6c402f (Fixed identation bug in astep.py)
 
-
+            await driver.houseKeeping.writeADCDACBytes([byte1,0x00])
+            adcBytesCount = await driver.houseKeeping.getADCBytesCount()
+            adcBytes = await driver.houseKeeping.readADCBytes(adcBytesCount) #still need to output this from task
+            print(f"Got ADC bytes {adcBytes}")
+        
 
 ###################### INTERNAL METHODS ###########################
 
