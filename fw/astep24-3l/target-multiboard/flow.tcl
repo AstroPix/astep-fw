@@ -67,6 +67,8 @@ proc read_design_files {} {
     add_files_no_simulation $commonSrcDir/rtl/layers/
     add_files_no_simulation $commonSrcDir/rtl/spi/
 
+    add_files_no_simulation $commonSrcDir/rtl/fifo
+
     add_files_no_simulation $commonSrcDir/rtl/utilities/
 }
 
