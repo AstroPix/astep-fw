@@ -47,7 +47,7 @@ class Astropix3Model:
     async def generateTestFrame(self,length:int,framesCount: int = 1,isRandom:bool = False ,pause:bool=False): 
         """Generate a Frame of a certain length with a counter as value"""
 
-        logger.info(f"Starting frame generator, queue length={self.spiSlave.misoQueue.qsize()}")
+        logger.info(f"[astropix] Starting frame generator, chip id={self.chipID}, queue length={self.spiSlave.misoQueue.qsize()}")
 
         self.generatedBytes = []
 
@@ -57,6 +57,7 @@ class Astropix3Model:
 
             # Generate header then bytes
             header = length | (self.chipID << 3)
+            logger.debug(f"[astropix] frame header={hex(header)}")
             self.generatedBytes.extend([header])
             await self.spiSlave.misoQueue.put(header)
             for x in range(length):
@@ -90,6 +91,7 @@ class Astropix3Model:
             #print("Wait for done timed out")
         finally:
             ## Release interrupt
+            await Timer(random.randint(1,99),units="ns")
             self.interruptn.value = 1
         
 

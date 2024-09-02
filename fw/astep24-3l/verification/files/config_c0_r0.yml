@@ -19,7 +19,7 @@ astropix2:
     geometry:
         cols: 35
         rows: 35
-    config:
+    config_0:
         digitalconfig:
             interrupt_pushpull: [1, 0b1]
             en_inj:             [19, 0b0]
