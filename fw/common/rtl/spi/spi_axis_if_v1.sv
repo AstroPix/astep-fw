@@ -33,7 +33,8 @@ module spi_axis_if_v1 #(
     input  wire [QSPI:0]            spi_miso             
 );
 
-    
+    reg enable_synced; // Forced enable, synced in this Clock domain
+    //wire enable_synced  =enable;
     reg spi_csn_reg;
     assign spi_csn = !resn ? 1'b1 : spi_csn_reg;
 
@@ -64,11 +65,11 @@ module spi_axis_if_v1 #(
     reg     spi_clk_pause;
 
     // MOSI
-    byte_t mosi_byte;
+    (* IOB = "TRUE" *) byte_t mosi_byte;
     assign spi_mosi = MSB_FIRST ?  mosi_byte[7] :mosi_byte[0] ;
     reg [3:0] mosi_bit_remaining;
     
-    wire    spi_csn_reg_should_be_low = !s_axis_empty || enable || mosi_bit_remaining>0;
+    wire    spi_csn_reg_should_be_low = !s_axis_empty || enable_synced || mosi_bit_remaining>0;
 
 
     generate
@@ -179,10 +180,13 @@ module spi_axis_if_v1 #(
             m_axis_tvalid <= 1'b0;
             master_stage_byte           <= 0;
             master_stage_byte_valid     <= 0;
+            enable_synced <= 1'b0;
             //spi_clk_pause <= 1'b0;
         end
         else begin 
 
+            // Sync enable in this CK
+            enable_synced <= enable;
            
             // Forwared Received Byte to axis master buffer on posedge
             // This is done even if the spi clock is not running, otherwise the last byte after a MOSI driven sequence is never forwarded
@@ -222,7 +226,7 @@ module spi_axis_if_v1 #(
 
             // CS
             //--------
-            if (/*s_axis_byte_valid*/!s_axis_empty || enable || mosi_bit_remaining>0) begin 
+            if (/*s_axis_byte_valid*/!s_axis_empty || enable_synced || mosi_bit_remaining>0) begin 
                 spi_csn_reg <= 1'b0;
             end
             else begin 
@@ -255,7 +259,7 @@ module spi_axis_if_v1 #(
                         mosi_byte           <= s_axis_tdata;
                         mosi_bit_remaining  <= 4'h7;
                     end
-                    else if (mosi_bit_remaining == 0 && enable)
+                    else if (mosi_bit_remaining == 0 && enable_synced)
                     begin
                         mosi_byte           <= 8'h00;
                         mosi_bit_remaining  <= 4'h7;
