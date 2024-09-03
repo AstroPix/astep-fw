@@ -25,15 +25,15 @@ set_false_path -to   [get_ports $async_out ]
 
 ## SPI SW IF Clock
 if {[llength [get_ports -quiet spi_clk]]>0} {
-    set spi_min_period 20
-    set spi_io_delay [expr $spi_min_period * 0.25]
+    set spi_min_period 30
+    set spi_io_delay [expr $spi_min_period * 0.5 + 2]
     create_clock -period $spi_min_period -name sw_spi_clk [get_ports spi_clk]
     
-    set_input_delay -max -clock sw_spi_clk $spi_io_delay  [get_ports spi_csn]
-    set_input_delay -min -clock sw_spi_clk 1              [get_ports spi_csn]
+    set_input_delay -max -clock sw_spi_clk 2                [get_ports spi_csn]
+    set_input_delay -min -clock sw_spi_clk -1               [get_ports spi_csn]
 
-    set_input_delay -max -clock sw_spi_clk $spi_io_delay  [get_ports spi_mosi] 
-    set_input_delay -min -clock sw_spi_clk 1              [get_ports spi_mosi] 
+    set_input_delay -max -clock sw_spi_clk 2                [get_ports spi_mosi]  -clock_fall
+    set_input_delay -min -clock sw_spi_clk -1               [get_ports spi_mosi]  -clock_fall
 
     set_output_delay  -max -clock sw_spi_clk $spi_io_delay  [get_ports spi_miso] 
     set_output_delay  -min -clock sw_spi_clk 1              [get_ports spi_miso]
@@ -47,23 +47,34 @@ create_generated_clock -name layers_spi_divided -source [get_pins -of_objects [g
 
 set hkDividedPin [get_pins -quiet -hierarchical *spi_hk_ckdivider_divided_clk*]
 if {[llength $hkDividedPin]>0} {
-    create_generated_clock -name hk_spi_divided     -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *spi_hk_ckdivider_divided_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_hk_ckdivider_divided_clk*/Q]
+    create_generated_clock -name hk_spi_divided     -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *spi_hk_ckdivider_divided_clk*]]] -divide_by 4 [get_pins -hierarchical *spi_hk_ckdivider_divided_clk*/Q]
 }
 
 #create_generated_clock -name spi_layer0_clock -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_0_spi_clk]
 #create_generated_clock -name spi_layer1_clock -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_1_spi_clk]
 #create_generated_clock -name spi_layer2_clock -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_2_spi_clk]
 
+set numberOfLayerClocks [llength [get_ports -quiet layer_*_spi_clk]]
+for {set i 0} {$i < $numberOfLayerClocks} {incr i} {
+    create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
+}
+#set i 0 
+#foreach layer_clk [get_ports -quiet layer_*_spi_clk] {
+#    create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
+#}
+
+#create_generated_clock -name ext_spi_clk_out -source [get_pins -of_objects [get_clocks hk_spi_divided]] -divide_by 1 -combinational [get_ports ext_spi_clk]
+
 #### Layer SPI delays, assume maximum 20 Mhz (50ns) - reserve 75% of period
 set layer_spi_min_period 50
-set layer_spi_io_delay [expr $layer_spi_min_period * 0.25]
+set layer_spi_io_delay [expr $layer_spi_min_period * 0.5 + 4]
 
 ## Common csn - remove timing, signal is sw driven
 set_false_path -to [get_ports layers_spi_csn ]
 
 
 ## Layers SPI Constraints
-for {set i 0} {$i < 3} {incr i} {
+for {set i 0} {$i < $numberOfLayerClocks} {incr i} {
 
     ## Layer 1
     set layerPorts [get_ports -quiet layer_${i}*]
@@ -71,11 +82,11 @@ for {set i 0} {$i < 3} {incr i} {
         
         #set_false_path -through [get_ports [list layer_${i}_inj layer_${i}_resn] ]
  
-        set_output_delay -max -clock layers_spi_divided $layer_spi_io_delay    [get_ports layer_${i}_spi_mosi ]
-        set_output_delay -min -clock layers_spi_divided 1                      [get_ports layer_${i}_spi_mosi ]
+        set_output_delay -max -clock spi_layer${i}_clock_out $layer_spi_io_delay    [get_ports layer_${i}_spi_mosi ]
+        set_output_delay -min -clock spi_layer${i}_clock_out 2                      [get_ports layer_${i}_spi_mosi ]
        
-        set_input_delay  -max -clock layers_spi_divided  $layer_spi_io_delay   [get_ports layer_${i}_spi_miso* ] -clock_fall
-        set_input_delay  -min -clock layers_spi_divided  1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
+        set_input_delay  -max -clock spi_layer${i}_clock_out  2                      [get_ports layer_${i}_spi_miso* ] -clock_fall
+        set_input_delay  -min -clock spi_layer${i}_clock_out  -1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
 
     }
 
@@ -87,11 +98,11 @@ if {[llength [get_ports -quiet ext_spi*]]>0} {
 
     # CSN is sw driven, deactivate timing
     set_false_path -to [get_ports {ext_spi_dac_csn ext_spi_adc_csn} ]
-    set_output_delay -max -clock hk_spi_divided $layer_spi_io_delay  [get_ports {ext_spi_mosi}  ]
-    set_output_delay -min -clock hk_spi_divided 1                    [get_ports {ext_spi_mosi}]
+    set_output_delay -max -clock hk_spi_divided $layer_spi_io_delay     [get_ports {ext_spi_mosi}  ]
+    set_output_delay -min -clock hk_spi_divided 2                       [get_ports {ext_spi_mosi}]
 
-    set_input_delay  -max -clock hk_spi_divided  $layer_spi_io_delay [get_ports ext_spi_adc_miso ] -clock_fall
-    set_input_delay  -min -clock hk_spi_divided  1                   [get_ports ext_spi_adc_miso ] -clock_fall
+    set_input_delay  -max -clock hk_spi_divided  2                      [get_ports ext_spi_adc_miso ] -clock_fall
+    set_input_delay  -min -clock hk_spi_divided  -1                     [get_ports ext_spi_adc_miso ] -clock_fall
 }
 
 
