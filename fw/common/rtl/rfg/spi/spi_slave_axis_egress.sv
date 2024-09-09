@@ -12,6 +12,7 @@
         parameter ASYNC_RES = 1 , 
         parameter MSB_FIRST = 1,
         parameter MISO_SIZE = 1
+        parameter MISO_SIZE = 1
         ) (
  
    
@@ -31,18 +32,13 @@
  
      // State
  
-    // Byte Output
-    //----------
-    reg  [7:0] egress_byte_in;
-    reg  first_bit;
-    reg  [7:0] egress_byte;
-    reg  [2:0] egress_bit_counter;
-    reg egress_bit_counter_last;
-    //wire       egress_bit_counter_last = MISO_SIZE == 1  ?  (egress_bit_counter) == 7 : (egress_bit_counter) == 5;
-    wire       egress_bit_counter_last_next = MISO_SIZE == 1  ?  (egress_bit_counter) == 6 : (egress_bit_counter) == 4;
-
-    wire input_byte_valid = s_axis_tvalid & s_axis_tready;
-
+     // Byte Output
+     //----------
+     reg  [7:0] egress_byte_in;
+     reg  [7:0] egress_byte;
+     reg  [2:0] egress_bit_counter;
+     wire       egress_bit_counter_last = MISO_SIZE == 1  ?  (egress_bit_counter) == 6 : (egress_bit_counter) == 4;
+ 
     generate
       
         if (MISO_SIZE == 1) begin 
@@ -80,8 +76,7 @@
      //---------------------
      task reset();
         state                   <= WAIT;
-                     
-        egress_byte             <= s_axis_tuser;
+        //egress_byte             <= s_axis_tuser;
         egress_bit_counter      <= 3'b000;
 
         s_axis_tready           <= 1'b0;
@@ -97,51 +92,24 @@
 
         // Output on Posedge
         //-----------------
-        if (state==WAIT) begin
-            state <= DATA;
+        if (MISO_SIZE == 1) begin 
+            egress_bit_counter <= egress_bit_counter +1;
+
+            if (MSB_FIRST)
+                egress_byte <= {egress_byte[6:0],1'b0};
+            else 
+                egress_byte <= {1'b0,egress_byte[7:1]};
+
+        end else begin 
+            egress_bit_counter <= egress_bit_counter +2;
+
+            if (MSB_FIRST)
+                egress_byte <= {egress_byte[5:0],2'b00};
+            else 
+                egress_byte <= {2'b00,egress_byte[7:2]};
         end
-        else begin
-
-            // Counter
-            if (MISO_SIZE == 1) begin 
-                egress_bit_counter <= egress_bit_counter + 1'd1;
-            end else begin 
-                egress_bit_counter <= egress_bit_counter + 2'd2;
-            end
-
-            if (egress_bit_counter_last & input_byte_valid) begin
-                egress_byte <= s_axis_tdata;
-            end
-            else if (egress_bit_counter_last) begin
-                egress_byte <= s_axis_tuser;
-            end
-            else begin
-                if (MISO_SIZE == 1) begin 
-                    
-                    if (MSB_FIRST)
-                        egress_byte <= {egress_byte[6:0],1'b0};
-                    else 
-                        egress_byte <= {1'b0,egress_byte[7:1]};
-        
-                end else begin 
-                    if (MSB_FIRST)
-                        egress_byte <= {egress_byte[5:0],2'b00};
-                    else 
-                        egress_byte <= {2'b00,egress_byte[7:2]};
-                end
-            end
-
-        end
-        
-        
+ 
         // Load next byte
-        // If we are ready, but no input byte, use tuser, otherwise save input byte
-        /*if (input_byte_valid & s_axis_tready) begin 
-            egress_byte_in
-        end else if (s_axis_tready) begin
-            
-        end
-
         if (egress_bit_counter==0) begin 
             if (s_axis_tvalid) begin 
                 egress_byte <= s_axis_tdata;
@@ -164,7 +132,7 @@
                 else 
                     egress_byte <= {2'b00,egress_byte[7:2]};
             end
-        end*/
+        end
 
     endtask
   

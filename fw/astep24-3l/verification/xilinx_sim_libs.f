@@ -25,5 +25,6 @@ ${BASE}/fw/common/xilinx-ip/fifo_axis_2clk_spi_layer/fifo_axis_2clk_spi_layer_si
 ${BASE}/fw/common/xilinx-ip/fifo_axis_1clk_1kB/fifo_axis_1clk_1kB_sim_netlist.v
 ${BASE}/fw/common/xilinx-ip/fifo_axis_2clk_sw_io_16e/fifo_axis_2clk_sw_io_16e_sim_netlist.v
 
+${BASE}/fw/common/xilinx-ip/fifo_axis_2clk_spi_loopback/fifo_axis_2clk_spi_loopback_sim_netlist.v
 
 ${BASE}/fw/common/xilinx-ip/xadc_astep/xadc_astep_sim_netlist.v
