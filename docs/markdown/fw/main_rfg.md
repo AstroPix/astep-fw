@@ -33,19 +33,22 @@
 |0x41 | [layer_1_mosi_write_size](#layer_1_mosi_write_size) | 32 |  | Number of entries in layer_1_mosi fifo|
 |0x45 | [layer_2_mosi](#layer_2_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix|
 |0x46 | [layer_2_mosi_write_size](#layer_2_mosi_write_size) | 32 |  | Number of entries in layer_2_mosi fifo|
-|0x4a | [layers_cfg_frame_tag_counter](#layers_cfg_frame_tag_counter) | 32 | Counter w/o Interrupt | Counter to tag frames upon detection (Counter value added to frame output)|
-|0x4e | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout|
-|0x4f | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register|
-|0x50 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs)|
-|0x51 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator|
-|0x52 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator|
-|0x53 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator|
-|0x54 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo|
-|0x55 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo|
-|0x59 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating.|
-|0x5a | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information.|
-|0x5b | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards|
-|0x5c | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  | |
+|0x4a | [layers_cfg_frame_tag_counter_ctrl](#layers_cfg_frame_tag_counter_ctrl) | 8 |  | A few bits to control the Frame Tagging Counter|
+|0x4b | [layers_cfg_frame_tag_counter_trigger](#layers_cfg_frame_tag_counter_trigger) | 32 | Counter w/ Interrupt | This Interrupt Counter provides the enable signal for the frame tag counter|
+|0x4f | [layers_cfg_frame_tag_counter](#layers_cfg_frame_tag_counter) | 32 | Counter w/o Interrupt | Counter to tag frames upon detection (Counter value added to frame output)|
+|0x53 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout|
+|0x54 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register|
+|0x55 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs)|
+|0x56 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator|
+|0x57 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator|
+|0x58 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator|
+|0x59 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo|
+|0x5a | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo|
+|0x5e | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating.|
+|0x5f | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information.|
+|0x60 | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards|
+|0x61 | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  | |
+|0x65 | [layers_cfg_frame_tag_counter_trigger_match](#layers_cfg_frame_tag_counter_trigger_match) | 32 |  | |
 
 
 ## <a id='hk_firmware_id'></a>hk_firmware_id
@@ -495,13 +498,46 @@
 
 
 
+## <a id='layers_cfg_frame_tag_counter_ctrl'></a>layers_cfg_frame_tag_counter_ctrl
+
+
+> A few bits to control the Frame Tagging Counter
+
+
+**Address**: 0x4a
+
+
+**Reset Value**: 8'h1
+
+
+|[7:2] |1 |0 |
+|--|-- |-- |
+|RSVD |force_count|enable|
+
+- enable: If 1, the counter will increment after the trigger counter reached its match value
+- force_count: If 1, the counter will increment at each core clock cycle. If you flush a write with this value 1 then 0 in two data words, you can increment by 1 manually
+
+
+## <a id='layers_cfg_frame_tag_counter_trigger'></a>layers_cfg_frame_tag_counter_trigger
+
+
+> This Interrupt Counter provides the enable signal for the frame tag counter
+
+
+**Address**: 0x4b
+
+
+
+
+
+
 ## <a id='layers_cfg_frame_tag_counter'></a>layers_cfg_frame_tag_counter
 
 
 > Counter to tag frames upon detection (Counter value added to frame output)
 
 
-**Address**: 0x4a
+**Address**: 0x4f
 
 
 
@@ -514,7 +550,7 @@
 > Number of IDLE Bytes until stopping readout
 
 
-**Address**: 0x4e
+**Address**: 0x53
 
 
 **Reset Value**: 8'd5
@@ -528,7 +564,7 @@
 > Shift Register Configuration I/O Control register
 
 
-**Address**: 0x4f
+**Address**: 0x54
 
 
 
@@ -551,7 +587,7 @@
 > Shift Register Configuration Input control (Readback enable and layers inputs)
 
 
-**Address**: 0x50
+**Address**: 0x55
 
 
 
@@ -572,7 +608,7 @@
 > Control bits for the Injection Pattern Generator
 
 
-**Address**: 0x51
+**Address**: 0x56
 
 
 **Reset Value**: 8'b00000110
@@ -597,7 +633,7 @@
 > Address for register to write in Injection Pattern Generator
 
 
-**Address**: 0x52
+**Address**: 0x57
 
 
 
@@ -610,7 +646,7 @@
 > Data for register to write in Injection Pattern Generator
 
 
-**Address**: 0x53
+**Address**: 0x58
 
 
 
@@ -623,7 +659,7 @@
 > Reads from the readout data fifo
 
 
-**Address**: 0x54
+**Address**: 0x59
 
 
 
@@ -636,7 +672,7 @@
 > Number of entries in layers_readout fifo
 
 
-**Address**: 0x55
+**Address**: 0x5a
 
 
 
@@ -649,7 +685,7 @@
 > Configuration register for I/O multiplexers and gating.
 
 
-**Address**: 0x59
+**Address**: 0x5e
 
 
 **Reset Value**: 8'b00001000
@@ -671,7 +707,7 @@
 > This register is connected to the Board's LED. See target documentation for detailed connection information.
 
 
-**Address**: 0x5a
+**Address**: 0x5f
 
 
 
@@ -684,7 +720,7 @@
 > Shift Register Control for Gecco Cards
 
 
-**Address**: 0x5b
+**Address**: 0x60
 
 
 
@@ -704,9 +740,23 @@
 > 
 
 
-**Address**: 0x5c
+**Address**: 0x61
 
 
 **Reset Value**: 32'd10
+
+
+
+
+## <a id='layers_cfg_frame_tag_counter_trigger_match'></a>layers_cfg_frame_tag_counter_trigger_match
+
+
+> 
+
+
+**Address**: 0x65
+
+
+**Reset Value**: 32'd4
 
 
