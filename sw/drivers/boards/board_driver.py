@@ -164,6 +164,20 @@ class BoardDriver():
     async def configureLayerSPIDivider(self, divider:int , flush = False):
         await self.rfg.write_spi_layers_ckdivider(divider,flush)
 
+
+    async def layersSetSPICSN(self, cs = False, flush = False):
+        """This helper method asserts the shared CSN to 0 by selecting CS on layer 0
+        it's a helper to be used only if the hardware uses a shared Chip Select!!
+        If any Layer is in autoread mode, chip select will be already asserted
+        """
+        layer0Cfg = await self.rfg.read_layer_0_cfg_ctrl()
+        if cs:
+            layer0Cfg = layer0Cfg | (1 << 3)
+        else:
+            layer0Cfg = layer0Cfg & ~(1 << 3)
+            
+        await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
+
     async def layersSelectSPI(self, flush = False):
         """This helper method asserts the shared CSN to 0 by selecting CS on layer 0
         it's a helper to be used only if the hardware uses a shared Chip Select!!

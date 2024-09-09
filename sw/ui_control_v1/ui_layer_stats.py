@@ -41,11 +41,14 @@ class UILayerStats(QWidget):
 
         self.widgetContent.resetBox.stateChanged.connect(self.evtReset)
         self.widgetContent.holdBox.stateChanged.connect(self.evtHold)
+        self.widgetContent.csBox.stateChanged.connect(self.evtChipSelect)
 
         self.widgetContent.resetCountersButton.clicked.connect(self.evtResetCounters)
 
         self.widgetContent.writeDummyBytesButton.clicked.connect(self.evtWriteDummyBytes)
         #self.widgetContent.resetBox.stateChanged.connect(self.evtReset)
+
+        
 
     ## Events
     ############
@@ -56,6 +59,10 @@ class UILayerStats(QWidget):
     def evtHold(self,state):
         v =  True if state is QtCore.Qt.Checked.value else False
         asyncio.run(self.boardDriver.holdLayer(self.layerID,hold = v, flush = True))
+
+    def evtChipSelect(self,state):
+        v =  True if state is QtCore.Qt.Checked.value else False
+        asyncio.run(self.boardDriver.layersSetSPICSN(cs = v, flush = True))
             
     def evtResetCounters(self):
         asyncio.run(self.boardDriver.resetLayerStatCounters(self.layerID))
