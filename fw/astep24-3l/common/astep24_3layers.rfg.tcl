@@ -48,6 +48,7 @@ set baseRegisters [subst {
                 {disable_autoread -doc "1: Layer doesn't read frames if the interrupt is low, 0: Layer reads frames upon interrupt trigger"}
                 {cs -doc "Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1"} 
                 {disable_miso -doc "If 1, the SPI interface won't read bytes from MOSI"} 
+                {loopback -doc "If 1, the Layer SPI Master is connected to the matching internal SPI Slave"} 
             }  
             -doc "Layer $i control bits"
         }]
@@ -55,6 +56,9 @@ set baseRegisters [subst {
         [rrepeat 3 {LAYER_${i}_STAT_FRAME_COUNTER  -size 32  -counter -enable -hw_ignore -doc "Counts the number of data frames"}]
         [rrepeat 3 {LAYER_${i}_STAT_IDLE_COUNTER   -size 32  -counter -enable -hw_ignore -doc "Counts the number of Idle bytes"}]
         [rrepeat 3 {LAYER_${i}_MOSI                 -fifo_axis_master -with_tlast -write_count -doc "FIFO to send bytes to Layer $i Astropix"}]
+
+        [rrepeat 3 {LAYER_${i}_LOOPBACK_MISO  -fifo_axis_master -write_count -doc "FIFO to send bytes to Layer $i Astropix throug internal slave loopback"}]
+        [rrepeat 3 {LAYER_${i}_LOOPBACK_MOSI  -fifo_axis_slave -read_count -doc "FIFO to read bytes received by internal slave loopback"}]
         
         {LAYERS_CFG_FRAME_TAG_COUNTER_CTRL      -reset 8'h1    -size 8 -bits {
                 {enable -doc "If 1, the counter will increment after the trigger counter reached its match value"} 

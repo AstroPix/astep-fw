@@ -136,12 +136,13 @@ class VSPIMaster():
 
     miso_queue : Queue | None = Queue()
 
-    def __init__(self,dut,clk,csn,mosi,miso):
+    def __init__(self,dut,clk,csn,mosi,miso,msbFirst=True):
         self.dut    = dut 
         self.clk    = clk 
         self.csn    = csn 
         self.mosi   = mosi
         self.miso   = miso
+        self.msbFirst = msbFirst
         self.miso_queue = Queue()
         self.reset()
 
@@ -176,15 +177,25 @@ class VSPIMaster():
         
         for byte in toSend:
             clocking = cocotb.start_soon(self.clock_one_byte())
-            logger.debug("Writing byte %x",byte)
+            logger.debug("Writing byte 0x%x",byte)
             rcv = 0 
             for i in range(8):
                 await RisingEdge(self.clk)
-                self.mosi.value = (byte >> i) & 1
+
+                # Out
+                if self.msbFirst is True:
+                    self.mosi.value = (byte >> (7-i)) & 1
+                else:
+                    self.mosi.value = (byte >> i) & 1
+
                 await FallingEdge(self.clk)
                 if not no_readout and ( not use_chip_select or self.csn == 0) :
                     ## MSB first
-                    rcv = rcv | (self.miso.value << (7-i))
+                    if self.msbFirst is True:
+                        rcv = rcv | (self.miso.value << (7-i))
+                    else:
+                        rcv = rcv | (self.miso.value << i)
+                    
             
             # Save miso byte and wait for clock to be done
             if not no_readout:
