@@ -9,7 +9,6 @@ import drivers.astropix.asic
 import time
 import binascii
 
-
 async def callHK(flipped=True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
     Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
@@ -21,7 +20,7 @@ async def callHK(flipped=True): # adding a setting that can change the byte orde
     Shift register input style requires bytes to be read in left to right. May be fixed in future versions
     """
     ## Open UART Driver for CMOD
-    driver = drivers.boards.getCMODUartDriver("COM4")
+    driver = drivers.boards.getCMODUartDriver("COM6")
     driver.open() #does the driver need to be closed between reads?
 
     await driver.houseKeeping.selectADC()
@@ -67,7 +66,7 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
         return
 
     ## Open UART Driver for CMOD
-    driver = drivers.boards.getCMODUartDriver("COM4")
+    driver = drivers.boards.getCMODUartDriver("COM6")
     driver.open() #does the driver need to be closed between reads? 
 
     #defaulting with Power-down with Hi-Z at the moment
@@ -75,20 +74,20 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
         asyncio.run(driver.houseKeeping.selectDAC())
         asyncio.run(driver.houseKeeping.writeADCDACBytes([0x0c,0x00]))
     elif setVoltage == 0 and flipped == False:
-        asyncio.run(driver.houseKeeping.selectDAC())
-        asyncio.run(driver.houseKeeping.writeADCDACBytes([0x30,0x00]))
+        await driver.houseKeeping.selectDAC()
+        await driver.houseKeeping.writeADCDACBytes([0x30,0x00])
     else:
         # Turn voltage input into bits
         bytess = format(int((setVoltage/3.3)*2**12-1),'016b')
         if flipped==True:
-            byte1 = hex(int(bytess[0:8][::-1],2))
-            byte2 = hex(int(bytess[8:16][::-1],2))
+            byte1 = int(bytess[0:8][::-1],2) #hex()
+            byte2 = int(bytess[8:16][::-1],2)
         else:
-            byte1 = hex(int(bytess[0:8][::-1],2))
-            byte2 = hex(int(bytess[8:16][::-1],2))
+            byte1 = int(bytess[0:8][::-1],2)
+            byte2 = int(bytess[8:16][::-1],2)
     
-        asyncio.run(driver.houseKeeping.selectDAC())
-        asyncio.run(driver.houseKeeping.writeADCDACBytes([byte1,byte2]))
+        await driver.houseKeeping.selectDAC()
+        await driver.houseKeeping.writeADCDACBytes([byte1,byte2])
 
     driver.close()
 
@@ -101,7 +100,7 @@ async def main():
     while time.time() < t_end:
         await callHK()
 
-    #setHV()
+    #await setHV(setVoltage=1.825)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ import os, serial
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
-layer, chip = 0,1
+layer, chip = 0, 1
 
 
 #######################################################
@@ -67,6 +67,8 @@ async def main(args, saveName):
     else: #no injection
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
+
+    ##DAN - allow option to enable a pixel for a noise scan in command line 
 
     # Setup / configure injection
     if args.gecco and args.inject:
@@ -263,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
                         help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
     parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
-                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')    
+                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')    # MSG FROM DAN: THIS IS NOT IN SECONDS, PROBABLY MINUTES
     
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
