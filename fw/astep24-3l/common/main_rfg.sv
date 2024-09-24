@@ -48,18 +48,21 @@ module main_rfg(
     output wire                  layer_0_cfg_ctrl_disable_autoread,
     output wire                  layer_0_cfg_ctrl_cs,
     output wire                  layer_0_cfg_ctrl_disable_miso,
+    output wire                  layer_0_cfg_ctrl_loopback,
     output wire [7:0]            layer_1_cfg_ctrl,
     output wire                  layer_1_cfg_ctrl_hold,
     output wire                  layer_1_cfg_ctrl_reset,
     output wire                  layer_1_cfg_ctrl_disable_autoread,
     output wire                  layer_1_cfg_ctrl_cs,
     output wire                  layer_1_cfg_ctrl_disable_miso,
+    output wire                  layer_1_cfg_ctrl_loopback,
     output wire [7:0]            layer_2_cfg_ctrl,
     output wire                  layer_2_cfg_ctrl_hold,
     output wire                  layer_2_cfg_ctrl_reset,
     output wire                  layer_2_cfg_ctrl_disable_autoread,
     output wire                  layer_2_cfg_ctrl_cs,
     output wire                  layer_2_cfg_ctrl_disable_miso,
+    output wire                  layer_2_cfg_ctrl_loopback,
     output wire [7:0]            layer_0_status,
     input  wire                  layer_0_status_interruptn,
     input  wire                  layer_0_status_frame_decoding,
@@ -99,7 +102,56 @@ module main_rfg(
     output reg            layer_2_mosi_m_axis_tlast,
     input  wire [31:0]            layer_2_mosi_write_size,
     input  wire                  layer_2_mosi_write_size_write,
+    // AXIS Master interface to write to FIFO layer_0_loopback_miso,
+    // --------------------,
+    output reg [7:0]             layer_0_loopback_miso_m_axis_tdata,
+    output reg                   layer_0_loopback_miso_m_axis_tvalid,
+    input  wire                  layer_0_loopback_miso_m_axis_tready,
+    input  wire [31:0]            layer_0_loopback_miso_write_size,
+    input  wire                  layer_0_loopback_miso_write_size_write,
+    // AXIS Master interface to write to FIFO layer_1_loopback_miso,
+    // --------------------,
+    output reg [7:0]             layer_1_loopback_miso_m_axis_tdata,
+    output reg                   layer_1_loopback_miso_m_axis_tvalid,
+    input  wire                  layer_1_loopback_miso_m_axis_tready,
+    input  wire [31:0]            layer_1_loopback_miso_write_size,
+    input  wire                  layer_1_loopback_miso_write_size_write,
+    // AXIS Master interface to write to FIFO layer_2_loopback_miso,
+    // --------------------,
+    output reg [7:0]             layer_2_loopback_miso_m_axis_tdata,
+    output reg                   layer_2_loopback_miso_m_axis_tvalid,
+    input  wire                  layer_2_loopback_miso_m_axis_tready,
+    input  wire [31:0]            layer_2_loopback_miso_write_size,
+    input  wire                  layer_2_loopback_miso_write_size_write,
+    // AXIS Slave interface to read from FIFO layer_0_loopback_mosi,
+    // --------------------,
+    input  wire [7:0]            layer_0_loopback_mosi_s_axis_tdata,
+    input  wire                  layer_0_loopback_mosi_s_axis_tvalid,
+    output wire                  layer_0_loopback_mosi_s_axis_tready,
+    input  wire [31:0]            layer_0_loopback_mosi_read_size,
+    input  wire                  layer_0_loopback_mosi_read_size_write,
+    // AXIS Slave interface to read from FIFO layer_1_loopback_mosi,
+    // --------------------,
+    input  wire [7:0]            layer_1_loopback_mosi_s_axis_tdata,
+    input  wire                  layer_1_loopback_mosi_s_axis_tvalid,
+    output wire                  layer_1_loopback_mosi_s_axis_tready,
+    input  wire [31:0]            layer_1_loopback_mosi_read_size,
+    input  wire                  layer_1_loopback_mosi_read_size_write,
+    // AXIS Slave interface to read from FIFO layer_2_loopback_mosi,
+    // --------------------,
+    input  wire [7:0]            layer_2_loopback_mosi_s_axis_tdata,
+    input  wire                  layer_2_loopback_mosi_s_axis_tvalid,
+    output wire                  layer_2_loopback_mosi_s_axis_tready,
+    input  wire [31:0]            layer_2_loopback_mosi_read_size,
+    input  wire                  layer_2_loopback_mosi_read_size_write,
+    output wire [7:0]            layers_cfg_frame_tag_counter_ctrl,
+    output wire                  layers_cfg_frame_tag_counter_ctrl_enable,
+    output wire                  layers_cfg_frame_tag_counter_ctrl_force_count,
+    output wire [31:0]            layers_cfg_frame_tag_counter_trigger,
+    output  reg                  layers_cfg_frame_tag_counter_trigger_interrupt,
+    input   wire                  layers_cfg_frame_tag_counter_trigger_enable,
     output wire [31:0]            layers_cfg_frame_tag_counter,
+    input   wire                  layers_cfg_frame_tag_counter_enable,
     output wire [7:0]            layers_cfg_nodata_continue,
     output wire [7:0]            layers_sr_out,
     output wire                  layers_sr_out_ck1,
@@ -140,7 +192,8 @@ module main_rfg(
     output wire                  gecco_sr_ctrl_ck,
     output wire                  gecco_sr_ctrl_sin,
     output wire                  gecco_sr_ctrl_ld,
-    output wire [31:0]            hk_conversion_trigger_match
+    output wire [31:0]            hk_conversion_trigger_match,
+    output wire [31:0]            layers_cfg_frame_tag_counter_trigger_match
     );
     
     
@@ -157,6 +210,13 @@ module main_rfg(
     reg [31:0] layer_0_mosi_write_size_reg;
     reg [31:0] layer_1_mosi_write_size_reg;
     reg [31:0] layer_2_mosi_write_size_reg;
+    reg [31:0] layer_0_loopback_miso_write_size_reg;
+    reg [31:0] layer_1_loopback_miso_write_size_reg;
+    reg [31:0] layer_2_loopback_miso_write_size_reg;
+    reg [31:0] layer_0_loopback_mosi_read_size_reg;
+    reg [31:0] layer_1_loopback_mosi_read_size_reg;
+    reg [31:0] layer_2_loopback_mosi_read_size_reg;
+    reg layers_cfg_frame_tag_counter_trigger_up;
     reg [31:0] layers_readout_read_size_reg;
     
     
@@ -204,6 +264,12 @@ module main_rfg(
     
     reg [31:0] layer_2_stat_idle_counter_reg;
     
+    reg [7:0] layers_cfg_frame_tag_counter_ctrl_reg;
+    assign layers_cfg_frame_tag_counter_ctrl = layers_cfg_frame_tag_counter_ctrl_reg;
+    
+    reg [31:0] layers_cfg_frame_tag_counter_trigger_reg;
+    assign layers_cfg_frame_tag_counter_trigger = layers_cfg_frame_tag_counter_trigger_reg;
+    
     reg [31:0] layers_cfg_frame_tag_counter_reg;
     assign layers_cfg_frame_tag_counter = layers_cfg_frame_tag_counter_reg;
     
@@ -237,6 +303,9 @@ module main_rfg(
     reg [31:0] hk_conversion_trigger_match_reg;
     assign hk_conversion_trigger_match = hk_conversion_trigger_match_reg;
     
+    reg [31:0] layers_cfg_frame_tag_counter_trigger_match_reg;
+    assign layers_cfg_frame_tag_counter_trigger_match = layers_cfg_frame_tag_counter_trigger_match_reg;
+    
     
     
     // Register Bits assignments
@@ -247,16 +316,21 @@ module main_rfg(
     assign layer_0_cfg_ctrl_disable_autoread = layer_0_cfg_ctrl_reg[2];
     assign layer_0_cfg_ctrl_cs = layer_0_cfg_ctrl_reg[3];
     assign layer_0_cfg_ctrl_disable_miso = layer_0_cfg_ctrl_reg[4];
+    assign layer_0_cfg_ctrl_loopback = layer_0_cfg_ctrl_reg[5];
     assign layer_1_cfg_ctrl_hold = layer_1_cfg_ctrl_reg[0];
     assign layer_1_cfg_ctrl_reset = layer_1_cfg_ctrl_reg[1];
     assign layer_1_cfg_ctrl_disable_autoread = layer_1_cfg_ctrl_reg[2];
     assign layer_1_cfg_ctrl_cs = layer_1_cfg_ctrl_reg[3];
     assign layer_1_cfg_ctrl_disable_miso = layer_1_cfg_ctrl_reg[4];
+    assign layer_1_cfg_ctrl_loopback = layer_1_cfg_ctrl_reg[5];
     assign layer_2_cfg_ctrl_hold = layer_2_cfg_ctrl_reg[0];
     assign layer_2_cfg_ctrl_reset = layer_2_cfg_ctrl_reg[1];
     assign layer_2_cfg_ctrl_disable_autoread = layer_2_cfg_ctrl_reg[2];
     assign layer_2_cfg_ctrl_cs = layer_2_cfg_ctrl_reg[3];
     assign layer_2_cfg_ctrl_disable_miso = layer_2_cfg_ctrl_reg[4];
+    assign layer_2_cfg_ctrl_loopback = layer_2_cfg_ctrl_reg[5];
+    assign layers_cfg_frame_tag_counter_ctrl_enable = layers_cfg_frame_tag_counter_ctrl_reg[0];
+    assign layers_cfg_frame_tag_counter_ctrl_force_count = layers_cfg_frame_tag_counter_ctrl_reg[1];
     assign layers_sr_out_ck1 = layers_sr_out_reg[0];
     assign layers_sr_out_ck2 = layers_sr_out_reg[1];
     assign layers_sr_out_sin = layers_sr_out_reg[2];
@@ -316,6 +390,18 @@ module main_rfg(
             layer_2_mosi_m_axis_tvalid <= 1'b0;
             layer_2_mosi_m_axis_tlast  <= 1'b0;
             layer_2_mosi_write_size_reg <= 0;
+            layer_0_loopback_miso_m_axis_tvalid <= 1'b0;
+            layer_0_loopback_miso_write_size_reg <= 0;
+            layer_1_loopback_miso_m_axis_tvalid <= 1'b0;
+            layer_1_loopback_miso_write_size_reg <= 0;
+            layer_2_loopback_miso_m_axis_tvalid <= 1'b0;
+            layer_2_loopback_miso_write_size_reg <= 0;
+            layer_0_loopback_mosi_read_size_reg <= 0;
+            layer_1_loopback_mosi_read_size_reg <= 0;
+            layer_2_loopback_mosi_read_size_reg <= 0;
+            layers_cfg_frame_tag_counter_ctrl_reg <= 8'h1;
+            layers_cfg_frame_tag_counter_trigger_reg <= 0;
+            layers_cfg_frame_tag_counter_trigger_up <= 1'b1;
             layers_cfg_frame_tag_counter_reg <= 0;
             layers_cfg_nodata_continue_reg <= 8'd5;
             layers_sr_out_reg <= 0;
@@ -328,6 +414,7 @@ module main_rfg(
             io_led_reg <= 0;
             gecco_sr_ctrl_reg <= 0;
             hk_conversion_trigger_match_reg <= 32'd10;
+            layers_cfg_frame_tag_counter_trigger_match_reg <= 32'd4;
         end else begin
             
             
@@ -449,56 +536,83 @@ module main_rfg(
                 {1'b1,8'h3a}: begin
                     layer_2_stat_idle_counter_reg[31:24] <= rfg_write_value;
                 end
-                {1'b1,8'h4a}: begin
+                {1'b1,8'h68}: begin
+                    layers_cfg_frame_tag_counter_ctrl_reg[7:0] <= rfg_write_value;
+                end
+                {1'b1,8'h69}: begin
+                    layers_cfg_frame_tag_counter_trigger_reg[7:0] <= rfg_write_value;
+                end
+                {1'b1,8'h6a}: begin
+                    layers_cfg_frame_tag_counter_trigger_reg[15:8] <= rfg_write_value;
+                end
+                {1'b1,8'h6b}: begin
+                    layers_cfg_frame_tag_counter_trigger_reg[23:16] <= rfg_write_value;
+                end
+                {1'b1,8'h6c}: begin
+                    layers_cfg_frame_tag_counter_trigger_reg[31:24] <= rfg_write_value;
+                end
+                {1'b1,8'h6d}: begin
                     layers_cfg_frame_tag_counter_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h4b}: begin
+                {1'b1,8'h6e}: begin
                     layers_cfg_frame_tag_counter_reg[15:8] <= rfg_write_value;
                 end
-                {1'b1,8'h4c}: begin
+                {1'b1,8'h6f}: begin
                     layers_cfg_frame_tag_counter_reg[23:16] <= rfg_write_value;
                 end
-                {1'b1,8'h4d}: begin
+                {1'b1,8'h70}: begin
                     layers_cfg_frame_tag_counter_reg[31:24] <= rfg_write_value;
                 end
-                {1'b1,8'h4e}: begin
+                {1'b1,8'h71}: begin
                     layers_cfg_nodata_continue_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h4f}: begin
+                {1'b1,8'h72}: begin
                     layers_sr_out_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h50}: begin
+                {1'b1,8'h73}: begin
                     layers_sr_in_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h51}: begin
+                {1'b1,8'h74}: begin
                     layers_inj_ctrl_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h52}: begin
+                {1'b1,8'h75}: begin
                     layers_inj_waddr_reg[3:0] <= rfg_write_value[3:0];
                 end
-                {1'b1,8'h53}: begin
+                {1'b1,8'h76}: begin
                     layers_inj_wdata_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h59}: begin
+                {1'b1,8'h7c}: begin
                     io_ctrl_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h5a}: begin
+                {1'b1,8'h7d}: begin
                     io_led_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h5b}: begin
+                {1'b1,8'h7e}: begin
                     gecco_sr_ctrl_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h5c}: begin
+                {1'b1,8'h7f}: begin
                     hk_conversion_trigger_match_reg[7:0] <= rfg_write_value;
                 end
-                {1'b1,8'h5d}: begin
+                {1'b1,8'h80}: begin
                     hk_conversion_trigger_match_reg[15:8] <= rfg_write_value;
                 end
-                {1'b1,8'h5e}: begin
+                {1'b1,8'h81}: begin
                     hk_conversion_trigger_match_reg[23:16] <= rfg_write_value;
                 end
-                {1'b1,8'h5f}: begin
+                {1'b1,8'h82}: begin
                     hk_conversion_trigger_match_reg[31:24] <= rfg_write_value;
+                end
+                {1'b1,8'h83}: begin
+                    layers_cfg_frame_tag_counter_trigger_match_reg[7:0] <= rfg_write_value;
+                end
+                {1'b1,8'h84}: begin
+                    layers_cfg_frame_tag_counter_trigger_match_reg[15:8] <= rfg_write_value;
+                end
+                {1'b1,8'h85}: begin
+                    layers_cfg_frame_tag_counter_trigger_match_reg[23:16] <= rfg_write_value;
+                end
+                {1'b1,8'h86}: begin
+                    layers_cfg_frame_tag_counter_trigger_match_reg[31:24] <= rfg_write_value;
                 end
                 default: begin
                 end
@@ -537,6 +651,24 @@ module main_rfg(
                 layer_2_mosi_m_axis_tvalid <= 1'b0;
                 layer_2_mosi_m_axis_tlast  <= 1'b0;
             end
+            if(rfg_write && rfg_address==8'h4a) begin
+                layer_0_loopback_miso_m_axis_tvalid <= 1'b1;
+                layer_0_loopback_miso_m_axis_tdata  <= rfg_write_value;
+            end else begin
+                layer_0_loopback_miso_m_axis_tvalid <= 1'b0;
+            end
+            if(rfg_write && rfg_address==8'h4f) begin
+                layer_1_loopback_miso_m_axis_tvalid <= 1'b1;
+                layer_1_loopback_miso_m_axis_tdata  <= rfg_write_value;
+            end else begin
+                layer_1_loopback_miso_m_axis_tvalid <= 1'b0;
+            end
+            if(rfg_write && rfg_address==8'h54) begin
+                layer_2_loopback_miso_m_axis_tvalid <= 1'b1;
+                layer_2_loopback_miso_m_axis_tdata  <= rfg_write_value;
+            end else begin
+                layer_2_loopback_miso_m_axis_tvalid <= 1'b0;
+            end
             
             // Write for HW Write only
             if(hk_xadc_temperature_write) begin
@@ -556,6 +688,24 @@ module main_rfg(
             end
             if(layer_2_mosi_write_size_write) begin
                 layer_2_mosi_write_size_reg <= layer_2_mosi_write_size ;
+            end
+            if(layer_0_loopback_miso_write_size_write) begin
+                layer_0_loopback_miso_write_size_reg <= layer_0_loopback_miso_write_size ;
+            end
+            if(layer_1_loopback_miso_write_size_write) begin
+                layer_1_loopback_miso_write_size_reg <= layer_1_loopback_miso_write_size ;
+            end
+            if(layer_2_loopback_miso_write_size_write) begin
+                layer_2_loopback_miso_write_size_reg <= layer_2_loopback_miso_write_size ;
+            end
+            if(layer_0_loopback_mosi_read_size_write) begin
+                layer_0_loopback_mosi_read_size_reg <= layer_0_loopback_mosi_read_size ;
+            end
+            if(layer_1_loopback_mosi_read_size_write) begin
+                layer_1_loopback_mosi_read_size_reg <= layer_1_loopback_mosi_read_size ;
+            end
+            if(layer_2_loopback_mosi_read_size_write) begin
+                layer_2_loopback_mosi_read_size_reg <= layer_2_loopback_mosi_read_size ;
             end
             if(layers_readout_read_size_write) begin
                 layers_readout_read_size_reg <= layers_readout_read_size ;
@@ -591,7 +741,16 @@ module main_rfg(
             if(!(rfg_write && rfg_address==8'h37) && layer_2_stat_idle_counter_enable) begin
                 layer_2_stat_idle_counter_reg <= layer_2_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==8'h4a)) begin
+            if(!(rfg_write && rfg_address==8'h69) && layers_cfg_frame_tag_counter_trigger_enable) begin
+                layers_cfg_frame_tag_counter_trigger_reg <= layers_cfg_frame_tag_counter_trigger_up ? layers_cfg_frame_tag_counter_trigger_reg + 1 : layers_cfg_frame_tag_counter_trigger_reg -1 ;
+            end
+            if(( (layers_cfg_frame_tag_counter_trigger_up && layers_cfg_frame_tag_counter_trigger_reg == (layers_cfg_frame_tag_counter_trigger_match_reg - 1)) || (!layers_cfg_frame_tag_counter_trigger_up && layers_cfg_frame_tag_counter_trigger_reg==1 )) && layers_cfg_frame_tag_counter_trigger_enable) begin
+                layers_cfg_frame_tag_counter_trigger_interrupt <= 1'b1;
+                layers_cfg_frame_tag_counter_trigger_up <= !layers_cfg_frame_tag_counter_trigger_up;
+            end else begin
+                layers_cfg_frame_tag_counter_trigger_interrupt <= 1'b0;
+            end
+            if(!(rfg_write && rfg_address==8'h6d) && layers_cfg_frame_tag_counter_enable) begin
                 layers_cfg_frame_tag_counter_reg <= layers_cfg_frame_tag_counter_reg + 1 ;
             end
         end
@@ -600,7 +759,10 @@ module main_rfg(
     
     // Read for FIFO Slave
     assign hk_adc_miso_fifo_s_axis_tready = rfg_read && rfg_address==8'h16;
-    assign layers_readout_s_axis_tready = rfg_read && rfg_address==8'h54;
+    assign layer_0_loopback_mosi_s_axis_tready = rfg_read && rfg_address==8'h59;
+    assign layer_1_loopback_mosi_s_axis_tready = rfg_read && rfg_address==8'h5e;
+    assign layer_2_loopback_mosi_s_axis_tready = rfg_read && rfg_address==8'h63;
+    assign layers_readout_s_axis_tready = rfg_read && rfg_address==8'h77;
     
     
     // Register Read
@@ -892,88 +1054,232 @@ module main_rfg(
                     rfg_read_value <= layer_2_mosi_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,8'h4a}: begin
-                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[7:0];
-                    rfg_read_valid <= 1 ;
-                end
                 {1'b1,8'h4b}: begin
-                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[15:8];
+                    rfg_read_value <= layer_0_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h4c}: begin
-                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[23:16];
+                    rfg_read_value <= layer_0_loopback_miso_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h4d}: begin
-                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[31:24];
+                    rfg_read_value <= layer_0_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h4e}: begin
-                    rfg_read_value <= layers_cfg_nodata_continue_reg[7:0];
-                    rfg_read_valid <= 1 ;
-                end
-                {1'b1,8'h4f}: begin
-                    rfg_read_value <= layers_sr_out_reg[7:0];
+                    rfg_read_value <= layer_0_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h50}: begin
-                    rfg_read_value <= layers_sr_in_reg[7:0];
+                    rfg_read_value <= layer_1_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h51}: begin
-                    rfg_read_value <= layers_inj_ctrl_reg[7:0];
+                    rfg_read_value <= layer_1_loopback_miso_write_size_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h52}: begin
+                    rfg_read_value <= layer_1_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h53}: begin
-                    rfg_read_value <= layers_inj_wdata_reg[7:0];
-                    rfg_read_valid <= 1 ;
-                end
-                {1'b1,8'h54}: begin
-                    rfg_read_value <= layers_readout_s_axis_tvalid ? layers_readout_s_axis_tdata : 8'hff;
+                    rfg_read_value <= layer_1_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h55}: begin
-                    rfg_read_value <= layers_readout_read_size_reg[7:0];
+                    rfg_read_value <= layer_2_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h56}: begin
-                    rfg_read_value <= layers_readout_read_size_reg[15:8];
+                    rfg_read_value <= layer_2_loopback_miso_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h57}: begin
-                    rfg_read_value <= layers_readout_read_size_reg[23:16];
+                    rfg_read_value <= layer_2_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h58}: begin
-                    rfg_read_value <= layers_readout_read_size_reg[31:24];
+                    rfg_read_value <= layer_2_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h59}: begin
-                    rfg_read_value <= io_ctrl_reg[7:0];
+                    rfg_read_value <= layer_0_loopback_mosi_s_axis_tvalid ? layer_0_loopback_mosi_s_axis_tdata : 8'hff;
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5a}: begin
-                    rfg_read_value <= io_led_reg[7:0];
+                    rfg_read_value <= layer_0_loopback_mosi_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5b}: begin
-                    rfg_read_value <= gecco_sr_ctrl_reg[7:0];
+                    rfg_read_value <= layer_0_loopback_mosi_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5c}: begin
-                    rfg_read_value <= hk_conversion_trigger_match_reg[7:0];
+                    rfg_read_value <= layer_0_loopback_mosi_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5d}: begin
-                    rfg_read_value <= hk_conversion_trigger_match_reg[15:8];
+                    rfg_read_value <= layer_0_loopback_mosi_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5e}: begin
-                    rfg_read_value <= hk_conversion_trigger_match_reg[23:16];
+                    rfg_read_value <= layer_1_loopback_mosi_s_axis_tvalid ? layer_1_loopback_mosi_s_axis_tdata : 8'hff;
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,8'h5f}: begin
+                    rfg_read_value <= layer_1_loopback_mosi_read_size_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h60}: begin
+                    rfg_read_value <= layer_1_loopback_mosi_read_size_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h61}: begin
+                    rfg_read_value <= layer_1_loopback_mosi_read_size_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h62}: begin
+                    rfg_read_value <= layer_1_loopback_mosi_read_size_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h63}: begin
+                    rfg_read_value <= layer_2_loopback_mosi_s_axis_tvalid ? layer_2_loopback_mosi_s_axis_tdata : 8'hff;
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h64}: begin
+                    rfg_read_value <= layer_2_loopback_mosi_read_size_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h65}: begin
+                    rfg_read_value <= layer_2_loopback_mosi_read_size_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h66}: begin
+                    rfg_read_value <= layer_2_loopback_mosi_read_size_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h67}: begin
+                    rfg_read_value <= layer_2_loopback_mosi_read_size_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h68}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_ctrl_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h69}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6a}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6b}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6c}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6d}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6e}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h6f}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h70}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h71}: begin
+                    rfg_read_value <= layers_cfg_nodata_continue_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h72}: begin
+                    rfg_read_value <= layers_sr_out_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h73}: begin
+                    rfg_read_value <= layers_sr_in_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h74}: begin
+                    rfg_read_value <= layers_inj_ctrl_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h76}: begin
+                    rfg_read_value <= layers_inj_wdata_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h77}: begin
+                    rfg_read_value <= layers_readout_s_axis_tvalid ? layers_readout_s_axis_tdata : 8'hff;
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h78}: begin
+                    rfg_read_value <= layers_readout_read_size_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h79}: begin
+                    rfg_read_value <= layers_readout_read_size_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7a}: begin
+                    rfg_read_value <= layers_readout_read_size_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7b}: begin
+                    rfg_read_value <= layers_readout_read_size_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7c}: begin
+                    rfg_read_value <= io_ctrl_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7d}: begin
+                    rfg_read_value <= io_led_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7e}: begin
+                    rfg_read_value <= gecco_sr_ctrl_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h7f}: begin
+                    rfg_read_value <= hk_conversion_trigger_match_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h80}: begin
+                    rfg_read_value <= hk_conversion_trigger_match_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h81}: begin
+                    rfg_read_value <= hk_conversion_trigger_match_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h82}: begin
                     rfg_read_value <= hk_conversion_trigger_match_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h83}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_match_reg[7:0];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h84}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_match_reg[15:8];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h85}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_match_reg[23:16];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,8'h86}: begin
+                    rfg_read_value <= layers_cfg_frame_tag_counter_trigger_match_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 default: begin

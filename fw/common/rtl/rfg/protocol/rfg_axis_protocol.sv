@@ -105,18 +105,35 @@ module rfg_axis_protocol  #(
         wire read_buffer_almost_empty;
         reg [7:0] read_buffer_data_in;
         wire [7:0] read_buffer_data_out;
-        rfg_axis_protocol_srl_fifo read_buffer(
+
+        mini_fwft_fifo # (
+            .AWIDTH(2),
+            .DWIDTH(8)
+        )
+        mini_fwft_fifo_inst (
+            .clk(aclk),
+            .resn(aresetn),
+            .full(read_buffer_full),
+            .almost_full(read_buffer_almost_full),
+            .empty(read_buffer_empty),
+            .almost_empty(read_buffer_almost_empty),
+            .write(read_buffer_write),
+            .read(!m_axis_write_stall),
+            .data_in(read_buffer_data_in),
+            .data_out(read_buffer_data_out)
+        );
+        /*rfg_axis_protocol_srl_fifo read_buffer(
             .clk(aclk),
             .resn(aresetn),
             .write_value(read_buffer_data_in),
             .read_value(read_buffer_data_out),
             .write(read_buffer_write),
-            .read(/*read_buffer_read*/!m_axis_write_stall),
+            .read(!m_axis_write_stall),
             .full(read_buffer_full),
             .almost_full(read_buffer_almost_full),
             .empty(read_buffer_empty),
             .almost_empty(read_buffer_almost_empty)
-        );
+        );*/
 
 
         // Main Process

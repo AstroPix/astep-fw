@@ -39,8 +39,10 @@ logging.info("Starting ui control v1b")
 
 ## IO Utility -> Run a coroutine for IO access on asyncio, this just helps make code readable and thread-safe (if needed)
 #############
+ioLock = threading.Lock()
 def onIO(coro):
-    return asyncio.run(coro)
+    with ioLock:
+        return asyncio.run(coro)
 
 ## Load UI and Main Interfaces in async IO 
 ########

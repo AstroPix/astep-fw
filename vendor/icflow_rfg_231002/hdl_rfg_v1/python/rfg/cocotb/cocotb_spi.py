@@ -30,10 +30,10 @@ class SPIIO(rfg.core.RFGIO):
 
     readout_timeout = 2
 
-    def __init__(self,dut):
+    def __init__(self,dut,msbFirst=True):
         
         ## Init VSPI
-        self.spi = VSPIMaster(dut,dut.spi_clk,dut.spi_csn,dut.spi_mosi,dut.spi_miso)
+        self.spi = VSPIMaster(dut,dut.spi_clk,dut.spi_csn,dut.spi_mosi,dut.spi_miso,msbFirst)
 
         ## Init Bytes decoder on receiving queue
         self.spiDecoder = SPIBytesDecoder(self.spi.miso_queue)
@@ -42,11 +42,12 @@ class SPIIO(rfg.core.RFGIO):
         """This Method send 10 bytes while CS is 1, it is to ensure the FIFO are reset properly"""
         # Send a frame with CS 1 and not ready bits in to avoid sim error on "x"
         # Send another bunch of empty bytes after chip selected to finalize resetting the FIFOS
+        logger.info(f"RFG SPI Master, MSB First = {self.spi.msbFirst}")
         await self.spi.send_frame([0x00]*10,use_chip_select = False,no_readout=True)
         self.spi.assert_chip_select()
         await Timer(1, units="us")
         await self.spi.send_frame([0x00]*10,use_chip_select = False,no_readout=True)
-        pass
+      
         #cocotb.start_soon(self.spiDecoder.start_protocol_decoding())
 
     

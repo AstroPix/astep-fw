@@ -65,8 +65,8 @@ The Byte Level Protocol to interface with the Firmware is the same for all commu
     - address_increment: Set to 1 to automatically increment the write/read address after each read byte 
     - vchannel: Ignore 
 - Byte 1: Address of the register, see the [Register File Reference](./main_rfg.md)
-- Byte 1-2: Read or Write Length - LSB first 
-- Byte 3 - 3+Length-1 : Data to write, or nothing if read  
+- Byte 2-3: Read or Write Length - LSB first 
+- Byte 4 - 4 + Length-1 : Data to write, or nothing if read  
 
 
 

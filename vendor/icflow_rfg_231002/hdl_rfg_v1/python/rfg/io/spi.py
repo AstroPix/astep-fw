@@ -79,7 +79,7 @@ class SPIBytesDecoder():
                     currentLength = 0
                     finished = True
             else:
-                logger.info("Got IDLE Byte %d",byte)
+                logger.info("Got IDLE Byte %x",byte)
                 pass
             #logger.info("SAFE Reached requested %d bytes",self.currentExpectedLength)
             #frame_start = False 

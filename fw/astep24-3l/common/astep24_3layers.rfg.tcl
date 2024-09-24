@@ -48,6 +48,7 @@ set baseRegisters [subst {
                 {disable_autoread -doc "1: Layer doesn't read frames if the interrupt is low, 0: Layer reads frames upon interrupt trigger"}
                 {cs -doc "Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1"} 
                 {disable_miso -doc "If 1, the SPI interface won't read bytes from MOSI"} 
+                {loopback -doc "If 1, the Layer SPI Master is connected to the matching internal SPI Slave"} 
             }  
             -doc "Layer $i control bits"
         }]
@@ -55,7 +56,16 @@ set baseRegisters [subst {
         [rrepeat 3 {LAYER_${i}_STAT_FRAME_COUNTER  -size 32  -counter -enable -hw_ignore -doc "Counts the number of data frames"}]
         [rrepeat 3 {LAYER_${i}_STAT_IDLE_COUNTER   -size 32  -counter -enable -hw_ignore -doc "Counts the number of Idle bytes"}]
         [rrepeat 3 {LAYER_${i}_MOSI                 -fifo_axis_master -with_tlast -write_count -doc "FIFO to send bytes to Layer $i Astropix"}]
-        {LAYERS_CFG_FRAME_TAG_COUNTER               -size 32 -counter -doc "Counter to tag frames upon detection (Counter value added to frame output)"}
+
+        [rrepeat 3 {LAYER_${i}_LOOPBACK_MISO  -fifo_axis_master -write_count -doc "FIFO to send bytes to Layer $i Astropix throug internal slave loopback"}]
+        [rrepeat 3 {LAYER_${i}_LOOPBACK_MOSI  -fifo_axis_slave -read_count -doc "FIFO to read bytes received by internal slave loopback"}]
+        
+        {LAYERS_CFG_FRAME_TAG_COUNTER_CTRL      -reset 8'h1    -size 8 -bits {
+                {enable -doc "If 1, the counter will increment after the trigger counter reached its match value"} 
+                {force_count -doc "If 1, the counter will increment at each core clock cycle. If you flush a write with this value 1 then 0 in two data words, you can increment by 1 manually"} 
+            }   -doc "A few bits to control the Frame Tagging Counter"}
+        {LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER       -size 32 -counter -enable -interrupt  -updown -match_reset 32'd4  -doc "This Interrupt Counter provides the enable signal for the frame tag counter"}
+        {LAYERS_CFG_FRAME_TAG_COUNTER               -size 32 -counter  -enable -doc "Counter to tag frames upon detection (Counter value added to frame output)"}
         {LAYERS_CFG_NODATA_CONTINUE   -reset 8'd5 -doc "Number of IDLE Bytes until stopping readout"}
         {LAYERS_SR_OUT 
             -doc "Shift Register Configuration I/O Control register"

@@ -40,19 +40,34 @@ LAYER_1_MOSI = 0x40
 LAYER_1_MOSI_WRITE_SIZE = 0x41
 LAYER_2_MOSI = 0x45
 LAYER_2_MOSI_WRITE_SIZE = 0x46
-LAYERS_CFG_FRAME_TAG_COUNTER = 0x4a
-LAYERS_CFG_NODATA_CONTINUE = 0x4e
-LAYERS_SR_OUT = 0x4f
-LAYERS_SR_IN = 0x50
-LAYERS_INJ_CTRL = 0x51
-LAYERS_INJ_WADDR = 0x52
-LAYERS_INJ_WDATA = 0x53
-LAYERS_READOUT = 0x54
-LAYERS_READOUT_READ_SIZE = 0x55
-IO_CTRL = 0x59
-IO_LED = 0x5a
-GECCO_SR_CTRL = 0x5b
-HK_CONVERSION_TRIGGER_MATCH = 0x5c
+LAYER_0_LOOPBACK_MISO = 0x4a
+LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x4b
+LAYER_1_LOOPBACK_MISO = 0x4f
+LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x50
+LAYER_2_LOOPBACK_MISO = 0x54
+LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x55
+LAYER_0_LOOPBACK_MOSI = 0x59
+LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x5a
+LAYER_1_LOOPBACK_MOSI = 0x5e
+LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x5f
+LAYER_2_LOOPBACK_MOSI = 0x63
+LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x64
+LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x68
+LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x69
+LAYERS_CFG_FRAME_TAG_COUNTER = 0x6d
+LAYERS_CFG_NODATA_CONTINUE = 0x71
+LAYERS_SR_OUT = 0x72
+LAYERS_SR_IN = 0x73
+LAYERS_INJ_CTRL = 0x74
+LAYERS_INJ_WADDR = 0x75
+LAYERS_INJ_WDATA = 0x76
+LAYERS_READOUT = 0x77
+LAYERS_READOUT_READ_SIZE = 0x78
+IO_CTRL = 0x7c
+IO_LED = 0x7d
+GECCO_SR_CTRL = 0x7e
+HK_CONVERSION_TRIGGER_MATCH = 0x7f
+LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x83
 
 
 
@@ -92,19 +107,34 @@ class main_rfg(AbstractRFG):
         LAYER_1_MOSI_WRITE_SIZE = 0x41
         LAYER_2_MOSI = 0x45
         LAYER_2_MOSI_WRITE_SIZE = 0x46
-        LAYERS_CFG_FRAME_TAG_COUNTER = 0x4a
-        LAYERS_CFG_NODATA_CONTINUE = 0x4e
-        LAYERS_SR_OUT = 0x4f
-        LAYERS_SR_IN = 0x50
-        LAYERS_INJ_CTRL = 0x51
-        LAYERS_INJ_WADDR = 0x52
-        LAYERS_INJ_WDATA = 0x53
-        LAYERS_READOUT = 0x54
-        LAYERS_READOUT_READ_SIZE = 0x55
-        IO_CTRL = 0x59
-        IO_LED = 0x5a
-        GECCO_SR_CTRL = 0x5b
-        HK_CONVERSION_TRIGGER_MATCH = 0x5c
+        LAYER_0_LOOPBACK_MISO = 0x4a
+        LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x4b
+        LAYER_1_LOOPBACK_MISO = 0x4f
+        LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x50
+        LAYER_2_LOOPBACK_MISO = 0x54
+        LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x55
+        LAYER_0_LOOPBACK_MOSI = 0x59
+        LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x5a
+        LAYER_1_LOOPBACK_MOSI = 0x5e
+        LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x5f
+        LAYER_2_LOOPBACK_MOSI = 0x63
+        LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x64
+        LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x68
+        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x69
+        LAYERS_CFG_FRAME_TAG_COUNTER = 0x6d
+        LAYERS_CFG_NODATA_CONTINUE = 0x71
+        LAYERS_SR_OUT = 0x72
+        LAYERS_SR_IN = 0x73
+        LAYERS_INJ_CTRL = 0x74
+        LAYERS_INJ_WADDR = 0x75
+        LAYERS_INJ_WDATA = 0x76
+        LAYERS_READOUT = 0x77
+        LAYERS_READOUT_READ_SIZE = 0x78
+        IO_CTRL = 0x7c
+        IO_LED = 0x7d
+        GECCO_SR_CTRL = 0x7e
+        HK_CONVERSION_TRIGGER_MATCH = 0x7f
+        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x83
     
     
     
@@ -515,6 +545,173 @@ class main_rfg(AbstractRFG):
     
     
     
+    async def write_layer_0_loopback_miso(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_0_LOOPBACK_MISO'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def write_layer_0_loopback_miso_bytes(self,values : bytearray,flush = False):
+        for b in values:
+            self.addWrite(register = self.Registers['LAYER_0_LOOPBACK_MISO'],value = b,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    
+    
+    async def read_layer_0_loopback_miso_write_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_0_loopback_miso_write_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layer_1_loopback_miso(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_1_LOOPBACK_MISO'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def write_layer_1_loopback_miso_bytes(self,values : bytearray,flush = False):
+        for b in values:
+            self.addWrite(register = self.Registers['LAYER_1_LOOPBACK_MISO'],value = b,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    
+    
+    async def read_layer_1_loopback_miso_write_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_1_loopback_miso_write_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layer_2_loopback_miso(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_2_LOOPBACK_MISO'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def write_layer_2_loopback_miso_bytes(self,values : bytearray,flush = False):
+        for b in values:
+            self.addWrite(register = self.Registers['LAYER_2_LOOPBACK_MISO'],value = b,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    
+    
+    async def read_layer_2_loopback_miso_write_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_2_loopback_miso_write_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MISO_WRITE_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def read_layer_0_loopback_mosi(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MOSI'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_0_loopback_mosi_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MOSI'],count = count, increment = False)
+        
+    
+    
+    
+    async def read_layer_0_loopback_mosi_read_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_0_loopback_mosi_read_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_0_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def read_layer_1_loopback_mosi(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MOSI'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_1_loopback_mosi_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MOSI'],count = count, increment = False)
+        
+    
+    
+    
+    async def read_layer_1_loopback_mosi_read_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_1_loopback_mosi_read_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_1_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def read_layer_2_loopback_mosi(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MOSI'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_2_loopback_mosi_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MOSI'],count = count, increment = False)
+        
+    
+    
+    
+    async def read_layer_2_loopback_mosi_read_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_2_loopback_mosi_read_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_cfg_frame_tag_counter_ctrl(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_cfg_frame_tag_counter_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_cfg_frame_tag_counter_ctrl_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],count = count, increment = False)
+        
+    
+    
+    
+    async def write_layers_cfg_frame_tag_counter_trigger(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],value = value,increment = True,valueLength=4)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_cfg_frame_tag_counter_trigger(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_cfg_frame_tag_counter_trigger_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],count = count, increment = True)
+        
+    
+    
+    
     async def write_layers_cfg_frame_tag_counter(self,value : int,flush = False):
         self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER'],value = value,increment = True,valueLength=4)
         if flush == True:
@@ -707,5 +904,21 @@ class main_rfg(AbstractRFG):
     
     async def read_hk_conversion_trigger_match_raw(self, count : int = 4 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['HK_CONVERSION_TRIGGER_MATCH'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_cfg_frame_tag_counter_trigger_match(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],value = value,increment = True,valueLength=4)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_cfg_frame_tag_counter_trigger_match(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_cfg_frame_tag_counter_trigger_match_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],count = count, increment = True)
         
     

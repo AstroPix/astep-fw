@@ -1,11 +1,14 @@
 
+from deprecated import deprecated
+
 import drivers.astep.housekeeping
 import rfg.io
 import rfg.core
 import asyncio
 
 from drivers.astropix.asic import Asic
-from deprecated import deprecated
+
+from drivers.astropix.loopback_model import Astropix3LBModel
 
 class BoardDriver():
 
@@ -87,6 +90,11 @@ class BoardDriver():
     def geccoGetInjectionBoard(self):
         return self.getInjectionBoard(slot = 3 )
 
+    ## Loopback Model
+    ################
+    def getLoopbackModelForLayer(self,layer):
+        return Astropix3LBModel(self,layer)
+
     ## Chips
     ################
     async def setupASICSAuto(self, configFile : str ):
@@ -152,6 +160,20 @@ class BoardDriver():
 
     ## Layers
     ##################
+    async def configureLayersFrameTag(self,enable, flush = False):
+        await self.rfg.write_layers_cfg_frame_tag_counter_ctrl(1 if enable is True else 0,flush)
+
+    async def configureLayersFrameTagFrequency(self, targetFrequencyHz : int , flush = False):
+        """Calculated required divider to reach the provided target SPI clock frequency"""
+        coreFrequency = self.getFPGACoreFrequency()
+        divider = int( coreFrequency / ( targetFrequencyHz))
+        assert divider >=1 and divider <=255 , (f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency/255)}")
+        await self.configureLayersFrameTagDivider(divider,flush)
+
+    async def configureLayersFrameTagDivider(self, divider , flush = False):
+        await self.rfg.write_layers_cfg_frame_tag_counter_trigger_match(divider,False)
+        await self.rfg.write_layers_cfg_frame_tag_counter_trigger(0,flush)
+        
     async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = False):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         coreFrequency = self.getFPGACoreFrequency()
@@ -161,6 +183,30 @@ class BoardDriver():
 
     async def configureLayerSPIDivider(self, divider:int , flush = False):
         await self.rfg.write_spi_layers_ckdivider(divider,flush)
+
+
+    async def layerSelectSPI(self, layer , cs : bool, flush = False):
+        """This helper method asserts the shared CSN to 0 by selecting CS on layer 0
+        it's a helper to be used only if the hardware uses a shared Chip Select!!
+        If any Layer is in autoread mode, chip select will be already asserted
+        """
+        layerCfg = await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
+        layerCfg = (layerCfg | (1 << 3)) if cs else (layerCfg & ~(1 << 3))
+        await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(layerCfg,flush)
+
+
+    async def layersSetSPICSN(self, cs = False, flush = False):
+        """This helper method asserts the shared CSN to 0 by selecting CS on layer 0
+        it's a helper to be used only if the hardware uses a shared Chip Select!!
+        If any Layer is in autoread mode, chip select will be already asserted
+        """
+        layer0Cfg = await self.rfg.read_layer_0_cfg_ctrl()
+        if cs:
+            layer0Cfg = layer0Cfg | (1 << 3)
+        else:
+            layer0Cfg = layer0Cfg & ~(1 << 3)
+            
+        await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
 
     async def layersSelectSPI(self, flush = False):
         """This helper method asserts the shared CSN to 0 by selecting CS on layer 0

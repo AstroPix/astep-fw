@@ -54,7 +54,7 @@ async def test_layers_config_sr(dut):
 async def test_layer_0_config_sr_multichip(dut):
     """Configures using SR on layer 0 with a multichip chain"""
 
-    rfg.core.debug()
+    #rfg.core.debug()
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)

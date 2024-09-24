@@ -73,7 +73,7 @@ async def getSPIDriver(dut):
 
     ## SPI
     #########
-    rfg_io = SPIIO(dut)
+    rfg_io = SPIIO(dut,msbFirst=False)
     await Timer(10, units="us")
 
     #rfg.cocotb.cocotb_spi.debug()
