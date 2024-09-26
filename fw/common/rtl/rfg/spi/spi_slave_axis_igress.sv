@@ -8,10 +8,12 @@ module spi_slave_axis_igress #(
     parameter ID_WIDTH      = 8,
     parameter AXIS_DEST     = 0,
     parameter AXIS_SOURCE   = 0,
-    parameter ASYNC_RES     = 0, 
+    parameter ASYNC_RES     = 1, 
+    parameter USE_CHIP_SELECT = 0,
     parameter MSB_FIRST     = 1  ) (
 
         // Async reset
+        input  wire                         resn,
         input  wire                         spi_clk, 
         input  wire                         spi_csn,
         input  wire                         spi_mosi,
@@ -30,14 +32,14 @@ module spi_slave_axis_igress #(
 
     // State
     //-------------------------------
-    enum reg {DATA,WRITE} state;
+    enum {DATA,WRITE} state;
     reg [2:0] counter;
     reg [7:0] rcv_byte;
 
     // AXIS
     //------------
-    assign m_axis_tdest = AXIS_DEST;
-    assign m_axis_tid   = AXIS_SOURCE;
+    assign m_axis_tdest = {DEST_WIDTH{AXIS_DEST}};
+    assign m_axis_tid   = {ID_WIDTH{AXIS_SOURCE}};
 
     // MOSI in
     //-------------
@@ -51,12 +53,11 @@ module spi_slave_axis_igress #(
 
         // Shift MOSI in SPI Byte LSB First
         //---------------
-        if (MSB_FIRST == 1)
-            rcv_byte <= {rcv_byte[6:0],spi_mosi};
-        else 
+        if (MSB_FIRST)     
             rcv_byte <= {spi_mosi,rcv_byte[7:1]};
-
-        counter      <= counter + 1'b1;
+        else 
+            rcv_byte <= {rcv_byte[6:0],spi_mosi};
+        counter      <= counter + 1;
 
 
         // When counter is 7, byte done is 1 (overflow), otherwise byte done is 0
@@ -79,17 +80,44 @@ module spi_slave_axis_igress #(
 
     endtask
     generate
-
-
-    always @(negedge spi_clk or posedge spi_csn) begin 
-        if ( spi_csn) begin
-            reset();
-        end else begin 
-            receive();
+        if (USE_CHIP_SELECT == 1) begin 
+            if (ASYNC_RES) begin 
+                always @(negedge spi_clk or posedge spi_csn or negedge resn) begin 
+                    if (!resn || spi_csn) begin
+                        reset();
+                    end else begin 
+                        receive();
+                    end
+                end
+            end else begin 
+                always @(negedge spi_clk or posedge spi_csn) begin 
+                    if ( spi_csn) begin
+                        reset();
+                    end else begin 
+                        receive();
+                    end
+                end
+            end
         end
-    end
-      
-        
+        else begin 
+            if (ASYNC_RES) begin 
+                always @(negedge spi_clk  or negedge resn) begin 
+                    if (!resn ) begin
+                        reset();
+                    end else begin 
+                        receive();
+                    end
+                end
+            end else begin 
+                always @(negedge spi_clk) begin 
+                    if ( !resn ) begin
+                        reset();
+                    end else begin 
+                        receive();
+                    end
+                end
+            end
+        end
         
 
     endgenerate
