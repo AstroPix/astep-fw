@@ -194,8 +194,9 @@ module sw_ftdi245_spi_uart(
 
 
     // IGRESS
-    spi_slave_axis_igress #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(0)) spi_igress(
+    spi_slave_axis_igress #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(1)) spi_igress(
         .spi_clk(spi_clk),
+        .resn(!spi_csn),
         .spi_csn(spi_csn),
         .spi_mosi(spi_mosi),
 
@@ -273,7 +274,7 @@ module sw_ftdi245_spi_uart(
         .m_axis_tuser(readout_framing_m_axis_tuser),
         .m_axis_tvalid(readout_framing_m_axis_tvalid)
     );
-    spi_slave_axis_egress #(.ASYNC_RES(1),.MSB_FIRST(0),.MISO_SIZE(1)) spi_egress(
+    spi_slave_axis_egress #(.ASYNC_RES(1),.MSB_FIRST(1),.MISO_SIZE(1),.MTU_SIZE(16),.USE_CHIP_SELECT(0)) spi_egress(
        
         .s_axis_tdata(readout_framing_m_axis_tdata),
         .s_axis_tready(readout_framing_m_axis_tready),
@@ -281,6 +282,7 @@ module sw_ftdi245_spi_uart(
         .s_axis_tvalid(readout_framing_m_axis_tvalid),
 
         .spi_clk(spi_clk),
+        .resn(!spi_csn),
         .spi_csn(spi_csn),
         .spi_miso(spi_miso)
     );
