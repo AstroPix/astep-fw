@@ -21,15 +21,12 @@ ${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_igress.sv
 
 ${BASE}/fw/common/rtl/rfg/uart/uart_lite_driver.sv
 
+${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_protocol_srl_fifo.sv
 ${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_protocol.sv
 ${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_readout_framing.sv
 
 ## Layer 
 -f ${BASE}/fw/common/rtl/layers/layers_readout_switched.f
-
-## Layer Loopback
-${BASE}/fw/common/rtl/asic_model/loopback_spi_if.sv
-
 
 ## Housekeeping
 -f ${BASE}/fw/common/rtl/housekeeping/housekeeping_main.f
