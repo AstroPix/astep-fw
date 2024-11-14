@@ -55,7 +55,9 @@ module astep24_3l_multitarget_top (
     input  wire				layer_0_spi_right_clk,
     input  wire				layer_0_spi_right_csn,
     output wire [1:0]		layer_0_spi_right_miso,
-    input  wire				layer_0_spi_right_mosi, 
+    input  wire				layer_0_spi_right_mosi,
+
+    input wire ext_ts_clk,
 
     `elsif TARGET_CMOD
     
@@ -217,7 +219,7 @@ module astep24_3l_multitarget_top (
     // Gate Sample clock and Timestamp clock based on config. Enable signals disable/enable clocks for all configs
     // Sample clock is going to either sample_clk_gated or sample_clk_se_gated
     BUFGCE sample_clock_gate    (.I(sample_clk_internal),   .O(sample_clk_gated),   .CE(io_ctrl_sample_clock_enable && !sample_clk_se_selected));
-    BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk),      .CE(io_ctrl_timestamp_clock_enable)); 
+    BUFGCE timestamp_clock_gate (.I(ext_ts_clk),.O(timestamp_clk),      .CE(io_ctrl_timestamp_clock_enable)); 
 
     
 
