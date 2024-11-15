@@ -57,7 +57,8 @@ module astep24_3l_multitarget_top (
     output wire [1:0]		layer_0_spi_right_miso,
     input  wire				layer_0_spi_right_mosi,
 
-    input wire ext_timestamp_clk,
+    input wire ext_timestamp_clk_p,
+    input wire ext_timestamp_clk_n,
 
     `elsif TARGET_CMOD
     
@@ -215,6 +216,10 @@ module astep24_3l_multitarget_top (
     wire sample_clk_gated; // Clock for normal sample_clk
     wire sample_clk_se_gated; // Clock for se outputs
     wire sample_clk_se_selected = io_ctrl_sample_clock_enable && io_ctrl_gecco_sample_clock_se;
+
+    // BEAM: Get TS Clock as Diff input
+    wire ext_timestamp_clk;
+    IBUFDS  ext_timestamp_clk_idiff( .I(ext_timestamp_clk_p), .IB(ext_timestamp_clk_n), .O(ext_timestamp_clk) );    
 
     // Gate Sample clock and Timestamp clock based on config. Enable signals disable/enable clocks for all configs
     // Sample clock is going to either sample_clk_gated or sample_clk_se_gated

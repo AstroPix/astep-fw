@@ -217,10 +217,14 @@ set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS33} [get_ports ext_spi_mosi]
 
 
 ### Pmod header JC
-#set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_sin]
-#set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ck]
+#set_property  -dict {PACKAGE_PIN AA8  IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_sin]
+#set_property  -dict {PACKAGE_PIN AB8 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ck]
+#set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVDS_25} [get_ports ext_timestamp_clk_p]
+#set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVDS_25} [get_ports ext_timestamp_clk_n]
 #set_property  -dict {PACKAGE_PIN AA8 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ld]
 
+set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVDS_25} [get_ports ext_timestamp_clk_p]
+set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVDS_25} [get_ports ext_timestamp_clk_n]
 
 #set_property PACKAGE_PIN AB8 [get_ports {trigger_ext_n}]
 #set_property IOSTANDARD LVCMOS33 [get_ports {trigger_ext_n}]

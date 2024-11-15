@@ -3,6 +3,9 @@
 
 ## No Dedicated route to spi clock host interface, this avoids hard errors
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets spi_clk_IBUF]
+set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets ext_timestamp_clk]
+
+
 
 ## Multi Cycle Paths
 ##########
