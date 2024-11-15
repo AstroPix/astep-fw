@@ -38,3 +38,4 @@ ${BASE}/fw/common/rtl/utilities/reset_sync.sv
 ${BASE}/fw/common/rtl/utilities/async_input_sync.sv
 ${BASE}/fw/common/rtl/utilities/async_signal_sync.sv
 ${BASE}/fw/common/rtl/utilities/resets_synchronizer.sv
+${BASE}/fw/common/rtl/utilities/edge_detect.sv

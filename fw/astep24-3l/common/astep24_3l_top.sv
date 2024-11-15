@@ -85,7 +85,11 @@ module astep24_3l_top(
     output wire io_ctrl_sample_clock_enable,
     output wire io_ctrl_timestamp_clock_enable,
     output wire io_ctrl_gecco_sample_clock_se,
-    output wire io_ctrl_gecco_inj_enable
+    output wire io_ctrl_gecco_inj_enable,
+
+    // Counter External Clock for Beam test
+    //-------
+    input wire ext_timestamp_clk
 );
 
     
@@ -212,7 +216,8 @@ module astep24_3l_top(
     wire [31:0] layers_readout_read_size;
     wire [7:0]  layers_cfg_nodata_continue;
     wire [31:0] layers_cfg_frame_tag_counter;
-     
+    wire        layers_cfg_frame_tag_counter_enable;
+
     wire hk_conversion_trigger_interrupt;
     wire hk_ctrl_select_adc;
 
@@ -329,6 +334,7 @@ module astep24_3l_top(
         .layer_2_mosi_write_size_write(1'b1),
       
         .layers_cfg_frame_tag_counter(layers_cfg_frame_tag_counter),
+        .layers_cfg_frame_tag_counter_enable(layers_cfg_frame_tag_counter_enable),
         .layers_cfg_nodata_continue(layers_cfg_nodata_continue),
 
         .layers_sr_out(),
@@ -576,6 +582,21 @@ module astep24_3l_top(
         .O(ext_spi_clk),
         .S(ext_adc_spi_csn)
     );*/
+
+    // Counter Clock Synchronisation for BEAM Test
+    //---------------------
+
+    // Input external clock edge is synchronised into the core clock domain to enable Frame tag counter counting
+    wire ext_timestamp_clk_rising;
+    edge_detect ext_timestamp_clk_edge_detect(
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .in(ext_timestamp_clk),
+        .rising_edge(ext_timestamp_clk_rising),
+        .falling_edge()
+    );
+    
+    assign layers_cfg_frame_tag_counter_enable = ext_timestamp_clk_rising;
                 
 
 endmodule

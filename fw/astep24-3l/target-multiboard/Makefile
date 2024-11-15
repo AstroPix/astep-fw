@@ -23,6 +23,13 @@ verify.nexys: export IC_SIM_TB := sim_top_nexys
 verify.nexys:
 	@icf_cctb $(CCTB_ARGS)
 
+inspect.beam: export PYTHONPATH := $(shell pwd)/../verification:$(BASE)/fw/common/verification:$(PYTHONPATH)
+inspect.beam: CCTB_ARGS := $(CCTB_ARGS) -f $(shell pwd)/astep24_3l_multitarget_top.nexys.sim.f -gui
+inspect.beam: export IC_SIM_TB := sim_99_beam_clock
+inspect.beam: export IC_SIM_UI := 1
+inspect.beam:
+	@icf_cctb $(CCTB_ARGS)
+
 inspect.nexys: export IC_SIM_UI := 1
 inspect.nexys: verify.nexys
 

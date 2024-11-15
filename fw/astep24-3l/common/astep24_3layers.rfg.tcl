@@ -55,7 +55,7 @@ set baseRegisters [subst {
         [rrepeat 3 {LAYER_${i}_STAT_FRAME_COUNTER  -size 32  -counter -enable -hw_ignore -doc "Counts the number of data frames"}]
         [rrepeat 3 {LAYER_${i}_STAT_IDLE_COUNTER   -size 32  -counter -enable -hw_ignore -doc "Counts the number of Idle bytes"}]
         [rrepeat 3 {LAYER_${i}_MOSI                 -fifo_axis_master -with_tlast -write_count -doc "FIFO to send bytes to Layer $i Astropix"}]
-        {LAYERS_CFG_FRAME_TAG_COUNTER               -size 32 -counter -doc "Counter to tag frames upon detection (Counter value added to frame output)"}
+        {LAYERS_CFG_FRAME_TAG_COUNTER               -size 32 -counter -enable -doc "Counter to tag frames upon detection (Counter value added to frame output)"}
         {LAYERS_CFG_NODATA_CONTINUE   -reset 8'd5 -doc "Number of IDLE Bytes until stopping readout"}
         {LAYERS_SR_OUT 
             -doc "Shift Register Configuration I/O Control register"

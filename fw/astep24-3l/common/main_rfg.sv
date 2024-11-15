@@ -100,6 +100,7 @@ module main_rfg(
     input  wire [31:0]            layer_2_mosi_write_size,
     input  wire                  layer_2_mosi_write_size_write,
     output wire [31:0]            layers_cfg_frame_tag_counter,
+    input   wire                  layers_cfg_frame_tag_counter_enable,
     output wire [7:0]            layers_cfg_nodata_continue,
     output wire [7:0]            layers_sr_out,
     output wire                  layers_sr_out_ck1,
@@ -591,7 +592,7 @@ module main_rfg(
             if(!(rfg_write && rfg_address==8'h37) && layer_2_stat_idle_counter_enable) begin
                 layer_2_stat_idle_counter_reg <= layer_2_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==8'h4a)) begin
+            if(!(rfg_write && rfg_address==8'h4a) && layers_cfg_frame_tag_counter_enable) begin
                 layers_cfg_frame_tag_counter_reg <= layers_cfg_frame_tag_counter_reg + 1 ;
             end
         end
