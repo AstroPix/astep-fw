@@ -108,10 +108,10 @@ class Astropix3Model:
         # Check header
         ####
         header = await self.spiSlave.getByte()
-        if broadcast:
-            assert((header >> 5 == 0x2) , "Header Command bits must be 0x2 single target chip")
-        else:
-            assert((header == 0x7E) , "Header Command bits must 0x7E broadcast")
+        if broadcast is True:
+            assert (header & 0x1F) == 0x1E , "Header address must be 0x1E Broadcast in broadcast mode"
+            
+        assert (header >> 5) == 0x3 , "Header Command bits must be 0x3 for SR Config"
 
         # Loop to get the config bits
         logger.info("Checking SPI Config SIN/CK1/CK2 sequence")

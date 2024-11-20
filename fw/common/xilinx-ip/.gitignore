@@ -1,6 +1,6 @@
 ip_user_files
 */*
-!./*/*.xci
+!*/*.xci
 managed_ip_project/*
 !managed_ip_project/managed_ip_project.xpr
 
