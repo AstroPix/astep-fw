@@ -311,7 +311,7 @@ module astep24_3l_multitarget_top (
     wire layer_1_hold;
     wire layer_2_hold;
     wire [2:0] layers_hold_internal;
-    assign layers_hold = |layers_hold_internal;
+    assign layers_hold = layers_hold_internal[0];
 
     wire layer_0_spi_csn;
     wire layer_1_spi_csn;
@@ -321,7 +321,7 @@ module astep24_3l_multitarget_top (
     //assign layers_spi_csn     = 0;
 
     wire [2:0] layers_resn_internal;
-    assign layers_resn = &layers_resn_internal;
+    assign layers_resn = layers_resn_internal[0];
 
     `else
     wire [0:0] layers_hold_internal;
