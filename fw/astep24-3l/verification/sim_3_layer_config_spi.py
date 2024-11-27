@@ -48,7 +48,7 @@ async def test_layers_config_spi_chip0(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(targetChip = 0)
+    await asic.writeConfigSPI(targetChip = 0)
     await driver.layersDeselectSPI()
 
     await Timer(10, units="us")
@@ -59,7 +59,7 @@ async def test_layers_config_spi_chip0(dut):
 
     ## Test Broadcast
     await driver.layersSelectSPI()
-    await asic.writeConfigSPIv2(broadcast = True)
+    await asic.writeConfigSPI(broadcast = True)
     await driver.layersDeselectSPI()
 
     await Timer(10, units="us")
@@ -89,7 +89,7 @@ async def test_layers_config_spi_chip0_checkbits(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(targetChip = 0)
+    await asic.writeConfigSPI(targetChip = 0)
     await driver.layersDeselectSPI()
 
     await Timer(10, units="us")
@@ -125,7 +125,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(targetChip = 0)
+    await asic.writeConfigSPI(targetChip = 0)
     await driver.layersDeselectSPI()
 
     await Timer(300, units="us")
@@ -140,7 +140,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(targetChip = 1)
+    await asic.writeConfigSPI(targetChip = 1)
     await driver.layersDeselectSPI()
 
     await Timer(300, units="us")
@@ -155,7 +155,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(broadcast = True, targetChip = 0)
+    await asic.writeConfigSPI(broadcast = True, targetChip = 0)
     await driver.layersDeselectSPI()
 
     await Timer(300, units="us")
@@ -171,7 +171,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     await driver.setLayerConfig(layer = 0 , reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await driver.layersSelectSPI()
     asic = driver.getAsic(0)
-    await asic.writeConfigSPIv2(broadcast = True, targetChip = 1)
+    await asic.writeConfigSPI(broadcast = True, targetChip = 1)
     await driver.layersDeselectSPI()
 
     await Timer(300, units="us")

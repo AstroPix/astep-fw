@@ -8,6 +8,7 @@ from cocotb.clock       import Clock
 from cocotbext.uart import UartSource, UartSink
 
 import vip.cctb
+import rfg.cocotb.cocotb_spi
 
 ## Import simulation target driver
 import astep24_3l_sim
@@ -17,7 +18,7 @@ import astep24_3l_sim
 @cocotb.test(timeout_time = 1 , timeout_unit = "ms")
 async def test_fw_id_uart(dut):
 
-    driver = astep24_3l_sim.getUARTDriver(dut)
+    driver = await astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     
@@ -36,7 +37,8 @@ async def test_fw_id_uart(dut):
 @cocotb.test(timeout_time = 1 , timeout_unit = "ms")
 async def test_fw_id_spi(dut):
 
-    
+    #rfg.core.debug()
+    #rfg.cocotb.cocotb_spi.debug()
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)

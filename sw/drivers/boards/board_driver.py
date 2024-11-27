@@ -36,15 +36,15 @@ class BoardDriver():
             return self
         
 
-    def open(self):
+    async def open(self):
         """Open the Register File I/O Connection to the underlying driver"""
-        self.rfg.io.open()
+        await self.rfg.io.open()
         self.openedEvent.set()
 
-    def close(self):
+    async def close(self):
         """Close the Register File I/O Connection to the underlying driver"""
         self.openedEvent.clear()
-        self.rfg.io.close()
+        await self.rfg.io.close()
 
     async def waitOpened(self):
         await self.openedEvent.wait()

@@ -1,0 +1,63 @@
+site_name: !ENV [IC_DOC_SITE_NAME, 'ICFlow Site Documentation']
+nav:
+  - ...
+
+plugins:
+  - exclude:
+      glob:
+        - '**/~*'
+  - drawio-exporter
+  - drawio_file
+  - search
+  - table-reader:
+      base_path: "docs_dir"
+      data_path: "."
+      search_page_directory: True
+      allow_missing_files: True
+  - kroki
+  - git-revision-date
+  - awesome-pages
+  - include-markdown
+repo_url: !ENV [IC_REPO_URL, '']
+repo_name: Repository
+extra_css:
+  - ./_icflow_work_/stylesheets/extra.css
+theme:
+  name: material
+  #custom_dir: custom_theme/
+  font:
+    text: Baloo Chettan 2
+  palette:
+    scheme: icflow
+  favicon: img/favicon.ico
+  logo: ./_icflow_work_/images/logo-adl.png
+  features:
+    - navigation.expand
+    - navigation.sections
+    - navigation.instant
+    - navigation.indexes
+    - navigation.tabs
+    - navigation.top
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed
+  - abbr
+  - pymdownx.snippets
+  - footnotes
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      use_pygments: true
+      linenums: true
+      linenums_style: pymdownx.table
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      title: 'Table of Contents'
+      toc_depth: '2-5'
+      permalink: true
