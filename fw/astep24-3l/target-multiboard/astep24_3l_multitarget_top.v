@@ -57,6 +57,11 @@ module astep24_3l_multitarget_top (
     output wire [1:0]		layer_0_spi_right_miso,
     input  wire				layer_0_spi_right_mosi, 
 
+
+    input wire ext_timestamp_clk_p,
+    input wire ext_timestamp_clk_n,
+    input wire ext_timestamp_clk,
+
     `elsif TARGET_CMOD
     
     input  wire             cold_resn,
@@ -209,21 +214,36 @@ module astep24_3l_multitarget_top (
     wire io_ctrl_sample_clock_enable;
     wire io_ctrl_timestamp_clock_enable;
     wire io_ctrl_gecco_sample_clock_se;
+    wire io_ctrl_fpga_ts_clock_diff;
+    wire io_ctrl_astropix_ts_is_fpga_ext_ts;
 
     wire sample_clk_gated; // Clock for normal sample_clk
     wire sample_clk_se_gated; // Clock for se outputs
     wire sample_clk_se_selected = io_ctrl_sample_clock_enable && io_ctrl_gecco_sample_clock_se;
 
+   
+    
+
     // Gate Sample clock and Timestamp clock based on config. Enable signals disable/enable clocks for all configs
     // Sample clock is going to either sample_clk_gated or sample_clk_se_gated
     BUFGCE sample_clock_gate    (.I(sample_clk_internal),   .O(sample_clk_gated),   .CE(io_ctrl_sample_clock_enable && !sample_clk_se_selected));
-    BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk),      .CE(io_ctrl_timestamp_clock_enable)); 
+    
 
     
 
     // SCLOCK_SE_DIFF ->  SE clock as differential to carrier other wise CMOS single ended to carrier
     // Normal Diff sample clock -> directly to chip or can be replicated 4 times in telescope mode
     `ifdef TARGET_NEXYS
+
+         // FPGA TS Clock as Diff input, can also be mapped to astropix timestamp
+        wire ext_timestamp_clk_diff;
+        wire ext_timestamp_clk_internal;
+   
+        IBUFDS  ext_timestamp_clk_idiff( .I(ext_timestamp_clk_p), .IB(ext_timestamp_clk_n), .O(ext_timestamp_clk_diff) );
+        assign ext_timestamp_clk_internal =  io_ctrl_fpga_ts_clock_diff ? ext_timestamp_clk_diff : ext_timestamp_clk;
+
+        wire timestamp_clk_internal_to_out = io_ctrl_astropix_ts_is_fpga_ext_ts ? ext_timestamp_clk_internal : timestamp_clk_internal; 
+        BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal_to_out),.O(timestamp_clk),      .CE(io_ctrl_timestamp_clock_enable)); 
 
         BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk_se_gated),.CE(io_ctrl_sample_clock_enable && sample_clk_se_selected));
 
@@ -250,6 +270,8 @@ module astep24_3l_multitarget_top (
      
     `else
             OBUF  clk_sample_se_single( .I(sample_clk_gated), .O(sample_clk));
+
+            BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable)); 
     `endif
 
     // Config Connections
@@ -453,7 +475,11 @@ module astep24_3l_multitarget_top (
         .io_ctrl_sample_clock_enable(io_ctrl_sample_clock_enable),
         .io_ctrl_timestamp_clock_enable(io_ctrl_timestamp_clock_enable),
         .io_ctrl_gecco_sample_clock_se(io_ctrl_gecco_sample_clock_se),
-        .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable)
+        .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable),
+        .io_ctrl_fpga_ts_clock_diff(io_ctrl_fpga_ts_clock_diff),
+        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts),
+
+        .ext_timestamp_clk(ext_timestamp_clk_internal)
     );
             
     

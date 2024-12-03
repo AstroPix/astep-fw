@@ -510,11 +510,13 @@
 **Reset Value**: 8'h1
 
 
-|[7:2] |1 |0 |
-|--|-- |-- |
-|RSVD |force_count|enable|
+|[7:4] |3 |2 |1 |0 |
+|--|-- |-- |-- |-- |
+|RSVD |force_count|source_external|source_match_counter|enable|
 
 - enable: If 1, the counter will increment after the trigger counter reached its match value
+- source_match_counter: If 1, the counter will increment after the matching counter reached its match value
+- source_external: If 1, the counter will increment after each external clock posedge
 - force_count: If 1, the counter will increment at each core clock cycle. If you flush a write with this value 1 then 0 in two data words, you can increment by 1 manually
 
 
@@ -691,14 +693,16 @@
 **Reset Value**: 8'b00001000
 
 
-|[7:4] |3 |2 |1 |0 |
-|--|-- |-- |-- |-- |
-|RSVD |gecco_inj_enable|gecco_sample_clock_se|timestamp_clock_enable|sample_clock_enable|
+|[7:6] |5 |4 |3 |2 |1 |0 |
+|--|-- |-- |-- |-- |-- |-- |
+|RSVD |astropix_ts_is_fpga_ext_ts|fpga_ts_clock_diff|gecco_inj_enable|gecco_sample_clock_se|timestamp_clock_enable|sample_clock_enable|
 
 - sample_clock_enable: Sample clock output enable. Sample clock output is 0 if this bit is set to 0
 - timestamp_clock_enable: Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0
 - gecco_sample_clock_se: Selects the Single Ended output for the sample clock on Gecco.
 - gecco_inj_enable: Selects the Gecco Injection to Injection Card output for the injection patterns. Set to 0 to route the injection pattern directly to the chip carrier
+- fpga_ts_clock_diff: If 1, the external FPGA timestamp clock is differential
+- astropix_ts_is_fpga_ext_ts: If 1, the astropix ts clock is sourced from the fpga external ts
 
 
 ## <a id='io_led'></a>io_led

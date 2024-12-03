@@ -101,6 +101,8 @@ module main_rfg(
     input  wire                  layer_2_mosi_write_size_write,
     output wire [7:0]            layers_cfg_frame_tag_counter_ctrl,
     output wire                  layers_cfg_frame_tag_counter_ctrl_enable,
+    output wire                  layers_cfg_frame_tag_counter_ctrl_source_match_counter,
+    output wire                  layers_cfg_frame_tag_counter_ctrl_source_external,
     output wire                  layers_cfg_frame_tag_counter_ctrl_force_count,
     output wire [31:0]            layers_cfg_frame_tag_counter_trigger,
     output  reg                  layers_cfg_frame_tag_counter_trigger_interrupt,
@@ -142,6 +144,8 @@ module main_rfg(
     output wire                  io_ctrl_timestamp_clock_enable,
     output wire                  io_ctrl_gecco_sample_clock_se,
     output wire                  io_ctrl_gecco_inj_enable,
+    output wire                  io_ctrl_fpga_ts_clock_diff,
+    output wire                  io_ctrl_astropix_ts_is_fpga_ext_ts,
     output wire [7:0]            io_led,
     output wire [7:0]            gecco_sr_ctrl,
     output wire                  gecco_sr_ctrl_ck,
@@ -276,7 +280,9 @@ module main_rfg(
     assign layer_2_cfg_ctrl_cs = layer_2_cfg_ctrl_reg[3];
     assign layer_2_cfg_ctrl_disable_miso = layer_2_cfg_ctrl_reg[4];
     assign layers_cfg_frame_tag_counter_ctrl_enable = layers_cfg_frame_tag_counter_ctrl_reg[0];
-    assign layers_cfg_frame_tag_counter_ctrl_force_count = layers_cfg_frame_tag_counter_ctrl_reg[1];
+    assign layers_cfg_frame_tag_counter_ctrl_source_match_counter = layers_cfg_frame_tag_counter_ctrl_reg[1];
+    assign layers_cfg_frame_tag_counter_ctrl_source_external = layers_cfg_frame_tag_counter_ctrl_reg[2];
+    assign layers_cfg_frame_tag_counter_ctrl_force_count = layers_cfg_frame_tag_counter_ctrl_reg[3];
     assign layers_sr_out_ck1 = layers_sr_out_reg[0];
     assign layers_sr_out_ck2 = layers_sr_out_reg[1];
     assign layers_sr_out_sin = layers_sr_out_reg[2];
@@ -293,6 +299,8 @@ module main_rfg(
     assign io_ctrl_timestamp_clock_enable = io_ctrl_reg[1];
     assign io_ctrl_gecco_sample_clock_se = io_ctrl_reg[2];
     assign io_ctrl_gecco_inj_enable = io_ctrl_reg[3];
+    assign io_ctrl_fpga_ts_clock_diff = io_ctrl_reg[4];
+    assign io_ctrl_astropix_ts_is_fpga_ext_ts = io_ctrl_reg[5];
     assign gecco_sr_ctrl_ck = gecco_sr_ctrl_reg[0];
     assign gecco_sr_ctrl_sin = gecco_sr_ctrl_reg[1];
     assign gecco_sr_ctrl_ld = gecco_sr_ctrl_reg[2];
@@ -612,15 +620,22 @@ module main_rfg(
                 layers_readout_read_size_reg <= layers_readout_read_size ;
             end
             // Write for Counter
-            if(!(rfg_write && rfg_address==8'hc)) begin
+            // Counter with interrupt on matching register: If the match register is written, reset the counter
+            if(rfg_write && rfg_address==8'h61) begin
+                hk_conversion_trigger_reg <= 0;
+            end
+            else if(!(rfg_write && rfg_address==8'hc)) begin
                 hk_conversion_trigger_reg <= hk_conversion_trigger_up ? hk_conversion_trigger_reg + 1 : hk_conversion_trigger_reg -1 ;
             end
+            
+            // Counter with interrupt on matching register: Enable counting when match counter is reached, and set up-down to change counting direction
             if(( (hk_conversion_trigger_up && hk_conversion_trigger_reg == (hk_conversion_trigger_match_reg - 1)) || (!hk_conversion_trigger_up && hk_conversion_trigger_reg==1 )) ) begin
                 hk_conversion_trigger_interrupt <= 1'b1;
                 hk_conversion_trigger_up <= !hk_conversion_trigger_up;
             end else begin
                 hk_conversion_trigger_interrupt <= 1'b0;
             end
+            
             if(hk_stat_conversions_counter_enable) begin
                 hk_stat_conversions_counter_reg <= hk_stat_conversions_counter_reg + 1 ;
             end
@@ -642,15 +657,21 @@ module main_rfg(
             if(!(rfg_write && rfg_address==8'h37) && layer_2_stat_idle_counter_enable) begin
                 layer_2_stat_idle_counter_reg <= layer_2_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==8'h4b) && layers_cfg_frame_tag_counter_trigger_enable) begin
+            // Counter with interrupt on matching register: If the match register is written, reset the counter
+            if(rfg_write && rfg_address==8'h65) begin
+                layers_cfg_frame_tag_counter_trigger_reg <= 0;
+            end
+            else if(!(rfg_write && rfg_address==8'h4b) && layers_cfg_frame_tag_counter_trigger_enable) begin
                 layers_cfg_frame_tag_counter_trigger_reg <= layers_cfg_frame_tag_counter_trigger_up ? layers_cfg_frame_tag_counter_trigger_reg + 1 : layers_cfg_frame_tag_counter_trigger_reg -1 ;
             end
+            // Counter with interrupt on matching register: Enable counting when match counter is reached, and set up-down to change counting direction
             if(( (layers_cfg_frame_tag_counter_trigger_up && layers_cfg_frame_tag_counter_trigger_reg == (layers_cfg_frame_tag_counter_trigger_match_reg - 1)) || (!layers_cfg_frame_tag_counter_trigger_up && layers_cfg_frame_tag_counter_trigger_reg==1 )) && layers_cfg_frame_tag_counter_trigger_enable) begin
                 layers_cfg_frame_tag_counter_trigger_interrupt <= 1'b1;
                 layers_cfg_frame_tag_counter_trigger_up <= !layers_cfg_frame_tag_counter_trigger_up;
             end else begin
                 layers_cfg_frame_tag_counter_trigger_interrupt <= 1'b0;
             end
+            
             if(!(rfg_write && rfg_address==8'h4f) && layers_cfg_frame_tag_counter_enable) begin
                 layers_cfg_frame_tag_counter_reg <= layers_cfg_frame_tag_counter_reg + 1 ;
             end

@@ -57,7 +57,9 @@ set baseRegisters [subst {
         [rrepeat 3 {LAYER_${i}_MOSI                 -fifo_axis_master -with_tlast -write_count -doc "FIFO to send bytes to Layer $i Astropix"}]
         
         {LAYERS_CFG_FRAME_TAG_COUNTER_CTRL      -reset 8'h1    -size 8 -bits {
-                {enable -doc "If 1, the counter will increment after the trigger counter reached its match value"} 
+                {enable -doc "If 1, the counter will increment after the trigger counter reached its match value"}
+                {source_match_counter -doc "If 1, the counter will increment after the matching counter reached its match value"}
+                {source_external -doc "If 1, the counter will increment after each external clock posedge"}
                 {force_count -doc "If 1, the counter will increment at each core clock cycle. If you flush a write with this value 1 then 0 in two data words, you can increment by 1 manually"} 
             }   -doc "A few bits to control the Frame Tagging Counter"}
         {LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER       -size 32 -counter -enable -interrupt  -updown -match_reset 32'd4  -doc "This Interrupt Counter provides the enable signal for the frame tag counter"}
@@ -106,6 +108,8 @@ set baseRegisters [subst {
                 {timestamp_clock_enable -doc "Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0"} 
                 {gecco_sample_clock_se  -doc "Selects the Single Ended output for the sample clock on Gecco." } 
                 {gecco_inj_enable       -doc "Selects the Gecco Injection to Injection Card output for the injection patterns. Set to 0 to route the injection pattern directly to the chip carrier"}
+                {fpga_ts_clock_diff     -doc "If 1, the external FPGA timestamp clock is differential"}
+                {astropix_ts_is_fpga_ext_ts     -doc "If 1, the astropix ts clock is sourced from the fpga external ts"}
             } 
                 
         } 

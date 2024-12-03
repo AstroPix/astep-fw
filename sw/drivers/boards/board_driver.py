@@ -150,6 +150,21 @@ class BoardDriver():
         else: v &= ~(0x8)
         await self.rfg.write_io_ctrl(v,flush) 
 
+
+    async def ioSetFPGAExternalTSClockDifferential(self,enable:bool,flush:bool = False):
+        """If an external clock input is used for the FPGA TS counter, it is differential or not"""
+        v = await self.rfg.read_io_ctrl()
+        if enable: v|=0x10 
+        else: v &= ~(0x10)
+        await self.rfg.write_io_ctrl(v,flush)
+
+    async def ioSetAstropixTSToFPGATS(self,enable:bool,flush:bool = False):
+        """The Astropix TS clock can be sourced from the external FPGA TS clock (it true) or from the internal TS clock (if false)"""
+        v = await self.rfg.read_io_ctrl()
+        if enable: v|=0x20 
+        else: v &= ~(0x20)
+        await self.rfg.write_io_ctrl(v,flush) 
+
     ## Layers
     ##################
     async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = False):
@@ -324,4 +339,24 @@ class BoardDriver():
     async def readoutReadBytes(self,count : int):
         ## Using the _raw version returns an array of bytes, while the normal method converts to int based on the number of bytes
         return  await self.rfg.read_layers_readout_raw(count = count) if count > 0 else  []
-       
+    
+
+    ## FPGA Timestamp config
+    ############
+
+    async def layersConfigFPGATimestamp(self,enable:bool,force : bool,source_match_counter:bool,source_external:bool,flush:bool = False):
+        """Configure the FPGA Timestamp to count from the internal match counter, the external TS input or force at each clock cycle"""
+        assert not (source_match_counter is True and source_external is True) , "Don't configure FPGA TS to both count from internal match counter or the external clock"
+        regVal = 0
+        regVal |= 0x0 if enable is False else 0x1
+        regVal |= 0x0 if source_match_counter is False else 0x2
+        regVal |= 0x0 if source_external is False else 0x4
+        regVal |= 0x0 if force is False else 0x8
+        await self.rfg.write_layers_cfg_frame_tag_counter_ctrl(regVal,flush)
+
+    async def layersConfigFPGATimestampFrequency(self,targetFrequencyHz:int,flush:bool = False):
+        """Configure the internal matching counter to trigger an FPGA Timestmap count with a certain frequency"""
+        coreFrequency = self.getFPGACoreFrequency()
+        divider = int( coreFrequency / (targetFrequencyHz))
+        assert divider >=1 and divider < pow(2,32) , (f"Target Freq is too slow, Divider {divider} is too high, min. clock frequency: {int(coreFrequency/pow(2,32))}")
+        await self.rfg.write_layers_cfg_frame_tag_counter_trigger_match(divider,flush)
