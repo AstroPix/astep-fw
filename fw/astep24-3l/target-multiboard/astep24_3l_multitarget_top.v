@@ -233,16 +233,19 @@ module astep24_3l_multitarget_top (
 
     // SCLOCK_SE_DIFF ->  SE clock as differential to carrier other wise CMOS single ended to carrier
     // Normal Diff sample clock -> directly to chip or can be replicated 4 times in telescope mode
+    wire ext_timestamp_clk_internal;
     `ifdef TARGET_NEXYS
 
          // FPGA TS Clock as Diff input, can also be mapped to astropix timestamp
         wire ext_timestamp_clk_diff;
-        wire ext_timestamp_clk_internal;
-   
+        
+        
         IBUFDS  ext_timestamp_clk_idiff( .I(ext_timestamp_clk_p), .IB(ext_timestamp_clk_n), .O(ext_timestamp_clk_diff) );
-        assign ext_timestamp_clk_internal =  io_ctrl_fpga_ts_clock_diff ? ext_timestamp_clk_diff : ext_timestamp_clk;
+        MUXF7 ext_timestamp_clk_diff_or_single_ended(.I0(ext_timestamp_clk),.I1(ext_timestamp_clk_diff),.O(ext_timestamp_clk_internal),.S(io_ctrl_fpga_ts_clock_diff));
+        //assign ext_timestamp_clk_internal =  io_ctrl_fpga_ts_clock_diff ? ext_timestamp_clk_diff : ext_timestamp_clk;
 
-        wire timestamp_clk_internal_to_out = io_ctrl_astropix_ts_is_fpga_ext_ts ? ext_timestamp_clk_internal : timestamp_clk_internal; 
+        //wire timestamp_clk_internal_to_out = io_ctrl_astropix_ts_is_fpga_ext_ts ? ext_timestamp_clk_internal : timestamp_clk_internal;
+        MUXF7 timestamp_clock_ext_local_select(.I0(timestamp_clk_internal),.I1(ext_timestamp_clk_internal),.O(timestamp_clk_internal_to_out),.S(io_ctrl_astropix_ts_is_fpga_ext_ts));
         BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal_to_out),.O(timestamp_clk),      .CE(io_ctrl_timestamp_clock_enable)); 
 
         BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk_se_gated),.CE(io_ctrl_sample_clock_enable && sample_clk_se_selected));
@@ -269,9 +272,10 @@ module astep24_3l_multitarget_top (
         `endif
      
     `else
+            // CMOD Case
             OBUF  clk_sample_se_single( .I(sample_clk_gated), .O(sample_clk));
-
             BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable)); 
+            assign ext_timestamp_clk_internal = 'b0;
     `endif
 
     // Config Connections

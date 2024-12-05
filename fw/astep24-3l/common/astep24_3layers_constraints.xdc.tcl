@@ -9,8 +9,8 @@ set_msg_config -string set_vadj -suppress
 create_clock -name async_io_dummy_clk -period 10
 
 # Uart I/O Delay can be ignored
-# Interrupt is fully async, synced internally layers_sr_ld*
-set async_in {uart_tx_in layer_*_interruptn cpu_resetn *resn layers_sr_sout* sw* btn*}
+# Interrupt is fully async, synced internally layers_sr_ld* ext_timestamp*
+set async_in {uart_tx_in layer_*_interruptn cpu_resetn *resn layers_sr_sout* sw* btn* ext_timestamp*}
 set async_out {uart_rx_out layers_sr_sin* layers_sr_ck* layers_sr_ld* *_hold  layers_sr_rb led* layer*_inj layer*_resn gecco_inj* gecco_sr*}
 
 set_output_delay -max -clock async_io_dummy_clk 1.0 [get_ports $async_out ]
@@ -105,5 +105,14 @@ if {[llength [get_ports -quiet ext_spi*]]>0} {
     set_input_delay  -min -clock hk_spi_divided  -1                     [get_ports ext_spi_adc_miso ] -clock_fall
 }
 
+## External FPGA Timestamp clock that can be used to count in FPGA, and also timestamp Astropix
+#####
+
+## Generated Clock for SPI divided clock output
+#create_generated_clock -name ext_timestamp_clock -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *ext_timestamp_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*/Q]
+# Max 40 Mhz
+#create_clock -name ext_timestamp_clock -period 25 [get_pins -hierarchical ext_timestamp_clk_diff_or_single_ended/O]
+#set_input_delay  -max -clock ext_timestamp_clock 0 [get_ports -filter {DIRECTION == IN} ext_timestamp* ]
 
 
+#set_clock_groups -group clk_core_top_clocking_core_io_uart -group ext_timestamp_clock -asynchronous
