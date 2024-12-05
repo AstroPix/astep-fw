@@ -1,0 +1,14 @@
+#!/bin/bash
+
+pushd /tmp
+
+runtime=digilent.adept.runtime_2.27.9-amd64.deb
+utilities=digilent.adept.utilities_2.7.1-amd64.deb
+
+wget https://digilent.s3.us-west-2.amazonaws.com/Software/Adept2+Runtime/2.27.9/$runtime
+wget https://digilent.s3-us-west-2.amazonaws.com/Software/AdeptUtilities/2.7.1/$utilities
+
+sudo dpkg -i $runtime
+sudo dpkg -i $utilities
+
+rm $runtime $utilities

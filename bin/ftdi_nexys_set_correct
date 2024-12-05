@@ -1,0 +1,16 @@
+#!/bin/bash
+
+
+id="1-1"
+[ ! -z "$1" ] && id=$1
+
+echo "Fixing Nexys FTDI device $id"
+product=$(cat /sys/bus/usb/devices/$id/product)
+echo "USB Device is: $product"
+if [[ ! $product == *"Digilent"* ]]
+then
+    echo "USB Device $id is not Digilent FTDI, change the id"
+else
+    sudo sh -c "echo -n $id:1.0 > /sys/bus/usb/drivers/ftdi_sio/unbind"
+    sudo sh -c "echo -n $id:1.1 > /sys/bus/usb/drivers/ftdi_sio/unbind"
+fi
