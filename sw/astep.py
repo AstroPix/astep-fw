@@ -18,6 +18,7 @@ import drivers.astropix.decode
 # Logging stuff
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class astepRun:
 
@@ -63,7 +64,7 @@ class astepRun:
 
         self._geccoBoard = True if not cmod else False
 
-        self.boardDriver.open()
+        await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
         await self._test_io()
         logger.info("FPGA test successful.")
@@ -148,9 +149,12 @@ class astepRun:
             ## Get asic for each row aka each daisy chain
             for r in range(rows):
                 self.asics.append(self.boardDriver.getAsic(row = r-1))
-        except Exception:
-            logger.error('Must pass a configuration file in the form of *.yml')
-            sys.exit(1)
+        except FileNotFoundError as e :
+            logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
+            raise e
+        except Exception as e:
+            logger.error('An error occured while setting up the asics')
+            raise e
 
         # Test to see whether the yml file can be read
         try:
@@ -165,14 +169,15 @@ class astepRun:
        self.asics[layer].enable_pixel(chip, col, row)
 
     # Set chip routing
-    async def set_routing(self, layer):
+    async def set_routing(self, layer : int) -> None :
+            logger.info(f"Writting SPI Routing frame for Layer {layer}")
             await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
             await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
             await self.boardDriver.layersDeselectSPI(flush=True)
             self._wait_progress(1)
-            await self.boardDriver.layersSelectSPI(flush=True)
 
     async def buffer_flush(self, layer):
+        """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
         #Flush data from sensor
         logger.info("Flush chip before data collection")
         status = await self.boardDriver.rfg.read_layer_0_status() ## DAN - need to make the hardcoded 'layer_0' dynamic?
@@ -189,28 +194,30 @@ class astepRun:
             interruptn = status & 0x1 
         #reassert hold to be safe
         await self.boardDriver.holdLayer(layer, hold=True) 
-        logger.info("interrupt recovered, ready to collect data")
+        logger.info("interrupt recovered, ready to collect data, resetting stat counters")
+
+        await self.boardDriver.resetLayerStatCounters(layer)
 
 
     # The method to write data to the asic. 
     async def asic_update(self, layer):
-        """This method resets the chip then writes the configuration"""
+        """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
         await self.boardDriver.resetLayer(layer = layer )
         await self.set_routing(layer)
         if self.SR:
             try:
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
-                await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer].num_chips} chips. Check chipsPerRow from asic_init")
                 sys.exit(1)
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
+                await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False, hold=True,disableMISO=True, flush = True )
                 for chip in range(self.asics[layer].num_chips):
+                    await self.boardDriver.layersSelectSPI(flush=True)
                     await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
                     await self.boardDriver.layersDeselectSPI(flush=True)
-                    await self.boardDriver.layersSelectSPI(flush=True)
                 await self.boardDriver.layersDeselectSPI(flush=True)
             except OverflowError:
                 logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
@@ -264,12 +271,12 @@ class astepRun:
         
 
     #close connection with FPGA
-    def close_connection(self) -> None :
+    async def close_connection(self) -> None :
         """
         Closes the FPGA board driver connection
         This is optional, connections are closed automatically upon script ending
         """
-        self.boardDriver.close()
+        await self.boardDriver.close()
 
 
 ################## Voltageboard Methods ############################
@@ -546,6 +553,26 @@ class astepRun:
         ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
 
         return allData
+
+
+    ########## Sanity Helpers ###############
+    async def sanity_check_idle(self,layer:int):
+        """This method sends some SPI bytes to layer while on Hold, the IDLE byte counter should increase"""
+        # Set layer on Hold
+        await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False , hold=True, disableMISO = False, flush = True )
+
+        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
+        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
+        logger.info(f"[Sanity-IDLE {layer}] Before SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
+
+        # Write Some SPI Bytes
+        await self.boardDriver.layersSelectSPI(flush=True)
+        await self.boardDriver.writeBytesToLayer(layer = layer, bytes = [0x00]*8,waitBytesSend=True,flush=True)
+        await self.boardDriver.layersDeselectSPI(flush=True)
+        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
+        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
+        logger.info(f"[Sanity-IDLE {layer}] After SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
+        assert idleBytes == 16
 
 ############################ Decoder ##############################
     #Send data for decoding from raw

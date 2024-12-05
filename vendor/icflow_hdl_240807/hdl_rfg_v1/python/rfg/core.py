@@ -18,10 +18,10 @@ class RFGIO:
     This class provides a basic interface to send RFG bytes to a specific IO interface
     """
 
-    def open(self):
+    async def open(self):
         pass
 
-    def close(self):
+    async def close(self):
         pass
 
     async def writeBytes(self,bytes : bytearray):

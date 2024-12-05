@@ -335,8 +335,12 @@ class BoardDriver():
     async def writeLayerBytes(self,layer : int , bytes: bytearray,flush:bool = False):
         await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
     
-    async def writeBytesToLayer(self,layer : int , bytes: bytearray,flush:bool = False):
+    async def writeBytesToLayer(self,layer : int , bytes: bytearray,waitBytesSend : bool = False, flush:bool = False):
         await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
+        if waitBytesSend is True:
+            await self.assertLayerNotInReset(layer)
+            while (await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0):
+                pass
 
     async def getLayerMOSIBytesCount(self,layer:int):
         return await getattr(self.rfg,f"read_layer_{layer}_mosi_write_size")()
@@ -352,10 +356,15 @@ class BoardDriver():
 
     async def getLayerControl(self,layer:int):
         return await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
+    
+    async def assertLayerNotInReset(self,layer:int):
+        ctrlReg = await self.getLayerControl(layer)
+        if ((ctrlReg >> 1) & 0x1) == 1:
+            raise Exception(f"Layer {layer} is in reset, user requests it is not")
 
-    async def resetLayerStatCounters(self,layer:int):
+    async def resetLayerStatCounters(self,layer:int,flush:bool = True):
         await getattr(self.rfg, f"write_layer_{layer}_stat_frame_counter")(0,False)
-        await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(0,True)
+        await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(0,flush)
 
     async def getLayerMISOBytesCount(self,layer:int):
         """Returns the number of bytes in the Slave Out Bytes Buffer"""

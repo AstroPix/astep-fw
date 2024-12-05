@@ -31,7 +31,7 @@ class UARTIO(rfg.core.RFGIO):
     def listPorts(self) -> list[ListPortInfo] : 
         list_ports.comports()
 
-    def open(self):
+    async def open(self):
         if self.port == None: 
             logger.error("No COM port path selected")
         else: 
@@ -40,7 +40,7 @@ class UARTIO(rfg.core.RFGIO):
             logger.info(f"Opened Serial port {self.port} with baud {self.baud} bps")
             #self.serialPort.open()
 
-    def close(self):
+    async def close(self):
         logger.info("Closing Serial Port")
         if self.serialPort != None:
             if self.serialPort.is_open:

@@ -11,7 +11,7 @@ import os, serial
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
-layer, chip = 0, 1
+layer, chip = 0, 0
 
 
 #######################################################
@@ -28,13 +28,15 @@ async def main(args, saveName):
     logger.debug("creating object")
     astro = astepRun(SR=args.shiftRegister)
 
-    logger.debug("opening fpga")
+    
     cmod = False if args.gecco else True
     uart = False if args.gecco else True
+
+    logger.info(f"opening fpga,cmod={cmod},uart={uart}")
     try:
         await astro.open_fpga(cmod=cmod, uart=uart)
     except serial.SerialException: 
-        logger.error("Indicated hardware does not match serial bus. If using GECCO setup, make sure to pass -g argument.")
+        logger.error("Cannot find Serial Port to open to CMOD/UART. If using GECCO setup, make sure to pass -g argument.")
         return
 
     logger.debug("setup clocks")
@@ -43,7 +45,7 @@ async def main(args, saveName):
     logger.debug("setup spi")
     await astro.enable_spi()
     
-    logger.debug("initializing asic")
+    logger.info(f"initializing asic,config={args.yaml},chips={args.chipsPerRow}")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
     await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
     logger.debug(f"Header: {astro.get_log_header(layer, chip)}")

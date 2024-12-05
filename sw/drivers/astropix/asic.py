@@ -284,13 +284,12 @@ class Asic():
         
         # Get Chain settings
         try:
-            self.num_chips_yml = dict_from_yml[self.chip].get('chain')['length']
-            self.num_chips_yml = self.num_chips
-            logger.info("%s%d  Configuration file with %d chips found!", self.chipname, self.chipversion, self.num_chips_yml)
+            self.num_chips = dict_from_yml[self.chip].get('chain')['length']
+            logger.info("%s%d  Configuration file with %d chips found!", self.chipname, self.chipversion, self.num_chips)
         except (KeyError, TypeError):
             logger.debug("%s%d DaisyChain Length config not found!", self.chipname, self.chipversion)
             logger.debug("Use %s%d DaisyChain Length %i from chipsPerRow run parameter", self.chipname, self.chipversion, self.num_chips)
-        
+        logger.info("%s%d Number of chips in chain: %d ", self.chipname, self.chipversion, self.num_chips)
  
         # Get chip geometry
         try:
@@ -303,7 +302,7 @@ class Asic():
             #sys.exit(1)
 
         # Get chip configs
-        for chip_number in range(self.num_chips_yml):
+        for chip_number in range(self.num_chips):
             try:
                 self.asic_config[f'config_{chip_number}'] = dict_from_yml.get(self.chip)[f'config_{chip_number}']
                 logger.info("Chain chip_%d config found!", chip_number)

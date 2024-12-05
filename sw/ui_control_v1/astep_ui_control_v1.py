@@ -106,7 +106,7 @@ def uiStartup(app,window):
 
     try:
         sleep(1)
-        boardDriver.open()
+        asyncio.run(boardDriver.open())
         window.boardDriver = boardDriver
 
         window.deviceStatus.setText(f"Opened")

@@ -64,7 +64,7 @@ class FTDIIO(rfg.core.RFGIO):
         self.searchFlag = searchFlag
         self._deviceHandle = None 
 
-    def open(self):
+    async def open(self):
         matchingDevices = listFTDIDevicesMatching(self.searchPattern,self.searchFlag)
         if len(matchingDevices) == 0:
             raise OSError(f"Cannot Open FTDI RFG IO, no device matches pattern {self.searchPattern}")
@@ -86,7 +86,7 @@ class FTDIIO(rfg.core.RFGIO):
         self._deviceHandle.setLatencyTimer(2)
         self._deviceHandle.setUSBParameters(65536, 65536)  # Set Usb frame
 
-    def close(self):
+    async def close(self):
         if self._deviceHandle is not None:
             try: 
                 self._deviceHandle.close()
@@ -152,6 +152,6 @@ class FTDIIO(rfg.core.RFGIO):
 
 def exit_close(io : FTDIIO):
     """This function is called through atexit to ensure Device is properly closed upon program exit"""
-    io.close()
+    asyncio.run(io.close())
     
         
