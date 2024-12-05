@@ -195,7 +195,6 @@ module sw_ftdi245_spi_uart(
 
     // IGRESS
     spi_slave_axis_igress #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(0)) spi_igress(
-    spi_slave_axis_igress #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(0)) spi_igress(
         .spi_clk(spi_clk),
         .spi_csn(spi_csn),
         .spi_mosi(spi_mosi),

@@ -12,7 +12,6 @@
         parameter ASYNC_RES = 1 , 
         parameter MSB_FIRST = 1,
         parameter MISO_SIZE = 1
-        parameter MISO_SIZE = 1
         ) (
  
    
@@ -80,35 +79,22 @@
         egress_bit_counter      <= 3'b000;
 
         s_axis_tready           <= 1'b0;
-        egress_bit_counter_last <= 1'b0;
 
     endtask
     task send();
 
-        egress_bit_counter_last <= egress_bit_counter_last_next;
-        s_axis_tready           <= egress_bit_counter_last_next;
-
-        
+        s_axis_tready           <= egress_bit_counter_last;
 
         // Output on Posedge
         //-----------------
+        
+        // Counter
         if (MISO_SIZE == 1) begin 
-            egress_bit_counter <= egress_bit_counter +1;
-
-            if (MSB_FIRST)
-                egress_byte <= {egress_byte[6:0],1'b0};
-            else 
-                egress_byte <= {1'b0,egress_byte[7:1]};
-
+            egress_bit_counter <= egress_bit_counter + 1'd1;
         end else begin 
-            egress_bit_counter <= egress_bit_counter +2;
-
-            if (MSB_FIRST)
-                egress_byte <= {egress_byte[5:0],2'b00};
-            else 
-                egress_byte <= {2'b00,egress_byte[7:2]};
+            egress_bit_counter <= egress_bit_counter + 2'd2;
         end
- 
+
         // Load next byte
         if (egress_bit_counter==0) begin 
             if (s_axis_tvalid) begin 
