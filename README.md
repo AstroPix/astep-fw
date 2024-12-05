@@ -90,7 +90,7 @@ The build method for the Firmware is imported from Nicolas Striebig work on astr
 If you want to change the parameters for the builds, edit the entry scripts for the targets: 
 - gecco-astropix2.tcl
 - gecco-astropix3.tcl
-- cmod-astep.tcl 
+- cmodr2-astep.tcl 
 
 You can build the firmware using the Makefile targets:
 
@@ -104,7 +104,7 @@ cd fw/astep24-3l/target-multiboard
 
 make gecco-astropix2.build # Gecco Astropix 2
 make gecco-astropix3.build # Gecco Astropix 3
-make cmod-astep.build # CMOD Astropix 3
+make cmodr2-astep.build # CMOD Astropix 3
 
 # Outputs are located in the vivado-run/bitstreams folder
 ```
@@ -118,7 +118,7 @@ mkdir vivado-run
 cd vivado-run
 vivado -mode batch -source ../gecco-astropix2.tcl
 vivado -mode batch -source ../gecco-astropix3.tcl
-vivado -mode batch -source ../cmod-astep.tcl
+vivado -mode batch -source ../cmodr2-astep.tcl
 ```
 
 or by running vivado directly:
@@ -136,7 +136,7 @@ mkdir vivado-run
 cd vivado-run
 vivado -mode batch -source ../gecco-astropix2.tcl
 vivado -mode batch -source ../gecco-astropix3.tcl
-vivado -mode batch -source ../cmod-astep.tcl
+vivado -mode batch -source ../cmodr2-astep.tcl
 
 # Outputs are located in the vivado-run/bitstreams folder
 ```
