@@ -139,7 +139,7 @@ class AbstractRFG:
 
 
     def addWrite(self,register : RFGRegister,value : int,increment:bool = False,valueLength :int = 1,repeat : int = 1 ):
-        logger.debug("Write Register %s (%x) Value %x, bytes count %d", register.name,register.value, value,valueLength)
+        logger.debug("Write Register %s (%x) Value %x, bytes count %d, increment %s", register.name,register.value, value,valueLength,increment)
 
         ## Create new Write command if register changes
         ## If repeated write to same register, write all values in one pass
