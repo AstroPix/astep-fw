@@ -53,7 +53,7 @@ class astepRun:
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
         if cmod and uart:
             #self.boardDriver = drivers.boards.getCMODUartDriver(drivers.astep.serial.getFirstCOMPort())
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM4")
+            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
         elif cmod and not uart:
             self.boardDriver = drivers.boards.getCMODDriver()
         elif not cmod and uart:

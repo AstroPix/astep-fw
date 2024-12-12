@@ -71,8 +71,8 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
 
     #defaulting with Power-down with Hi-Z at the moment
     if setVoltage == 0 and flipped == True:
-        asyncio.run(driver.houseKeeping.selectDAC())
-        asyncio.run(driver.houseKeeping.writeADCDACBytes([0x0c,0x00]))
+        await driver.houseKeeping.selectDAC()
+        await driver.houseKeeping.writeADCDACBytes([0x0c,0x00])
     elif setVoltage == 0 and flipped == False:
         await driver.houseKeeping.selectDAC()
         await driver.houseKeeping.writeADCDACBytes([0x30,0x00])
@@ -97,10 +97,10 @@ async def main():
     t0 = time.time()
     t_end = t0+30
 
-    while time.time() < t_end:
-        await callHK()
+    #while time.time() < t_end:
+    #    await callHK()
 
-    #await setHV(setVoltage=1.825)
+    await setHV(setVoltage=0) #1.825 ``= 150V
 
 
 if __name__ == "__main__":

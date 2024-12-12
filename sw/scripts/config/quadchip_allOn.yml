@@ -58,9 +58,9 @@ astropix3:
             vprec:              [6, 60]
             vnrec:              [6, 30]
 
-        vdacs:
+        vdacs: # vdac = voltage / 1.8 * 1024
             blpix:              [10, 568] # 1V = 568
-            thpix:              [10, 682] # 100 mV threshold = 625
+            thpix:              [10, 738] # 100 mV threshold = 625, it was 682
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
@@ -139,13 +139,13 @@ astropix3:
             vprec:              [6, 60]
             vnrec:              [6, 30]
 
-        vdacs:
-            blpix:              [10, 568]
-            thpix:              [10, 682]
+        vdacs: # vdac = voltage / 1.8 * 1024
+            blpix:              [10, 568] # 1V = 568
+            thpix:              [10, 738] # 100 mV threshold = 625, it was 682
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 171] # 300 mV = 171
 
         recconfig:
             col0:               [38, 0b000_00000_00000_00000_00000_00000_00000_00000]
@@ -220,13 +220,13 @@ astropix3:
             vprec:              [6, 60]
             vnrec:              [6, 30]
 
-        vdacs:
-            blpix:              [10, 568]
-            thpix:              [10, 682]
+        vdacs: # vdac = voltage / 1.8 * 1024
+            blpix:              [10, 568] # 1V = 568
+            thpix:              [10, 738] # 100 mV threshold = 625, it was 682
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 171] # 300 mV = 171
 
         recconfig:
             col0:               [38, 0b000_00000_00000_00000_00000_00000_00000_00000]
@@ -301,13 +301,13 @@ astropix3:
             vprec:              [6, 60]
             vnrec:              [6, 30]
 
-        vdacs:
-            blpix:              [10, 568]
-            thpix:              [10, 682]
+        vdacs: # vdac = voltage / 1.8 * 1024
+            blpix:              [10, 568] # 1V = 568
+            thpix:              [10, 738] # 100 mV threshold = 625, it was 682
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 171] # 300 mV = 171
 
         recconfig:
             col0:               [38, 0b000_00000_00000_00000_00000_00000_00000_00000]
