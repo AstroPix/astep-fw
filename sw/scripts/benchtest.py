@@ -96,8 +96,7 @@ async def main(args, saveName):
     if args.runTime is not None: 
         end_time=time.time()+(args.runTime*60.)
     else:
-        end_time = 2*time.time()
-        ## DAN - obviously this is dumb, should rethink. Trying to allow for long runs that end with CTL+C
+        end_time = float('inf')
     
     if not args.noAutoread:
         dataStream = b''
