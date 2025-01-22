@@ -61,26 +61,27 @@ async def main(args, saveName):
     #logger.debug("update threshold")
     #await astro.update_pixThreshold(layer, chip, args.threshold)
 
+    # Setup / configure injection
     if args.inject:
         logger.debug("enable injection pixel")
         await astro.enable_injection(*args.inject)
         await astro.enable_pixel(*args.inject) #assume that you'd like to read out the pixel you're injecting into
         await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
+        
+        ##DAN - allow option to enable a pixel for a noise scan in command line 
+
+        if args.gecco:
+            ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
+            ## DAN - prioritize injection voltage setting from config file and user input
+            logger.debug("init injection (gecco)")
+            await astro.init_injection(layer, chip, inj_voltage=args.vinj)
+        else:
+            logger.warning("Cannot initialize injection without GECCO HW. Disabling injection.")
+            args.inject = None
     else: #no injection
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
 
-    ##DAN - allow option to enable a pixel for a noise scan in command line 
-
-    # Setup / configure injection
-    if args.gecco and args.inject:
-        ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
-        ## DAN - prioritize injection voltage setting from config file and user input
-        logger.debug("init injection")
-        await astro.init_injection(layer, chip, inj_voltage=args.vinj)
-    elif args.inject:
-        logger.warning("Cannot initialize injection without GECCO HW. Disabling injection.")
-        args.inject = None
 
     # Send final config to chips
     logger.debug("final configs")
