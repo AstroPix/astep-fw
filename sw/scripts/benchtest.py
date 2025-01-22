@@ -266,7 +266,7 @@ if __name__ == "__main__":
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
                         help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
     parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
-                        help = 'Maximum run time (in seconds). Default: NONE (run until user CTL+C)')    # MSG FROM DAN: THIS IS NOT IN SECONDS, PROBABLY MINUTES
+                        help = 'Maximum run time (in minutes). Default: NONE (run until user CTL+C)')
     
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
