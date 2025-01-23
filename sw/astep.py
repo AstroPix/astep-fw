@@ -384,29 +384,25 @@ class astepRun:
         #self._geccoBoard = False
         #print("INJ_WDATA BEFORE CONF")
         #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
+        self.injector = self.boardDriver.geccoGetInjectionBoard()
+        self.injector.period = inj_period
+        self.injector.clkdiv = clkdiv
+        self.injector.initdelay = initdelay
+        self.injector.cycle = cycle
+        self.injector.pulsesperset = pulseperset 
 
-        if self._geccoBoard:
+        if self._geccoBoard and not onchip: 
             # Injection Board is provided by the board Driver
             # The Injection Board provides an underlying Voltage Board
-            self.injector = self.boardDriver.geccoGetInjectionBoard()
-            if not onchip:
-                await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = True, flush = True)
-                self.injectorBoard = self.injector.vBoard
-                self.injectorBoard.dacvalues = (8, [inj_voltage/1000.,0.0]) #defaults from Nicolas
-                self.injectorBoard.vcal = self.vboard.vcal
-                self.injectorBoard.vsupply = self.vboard.vsupply
-                await self.injectorBoard.update()
-            else:
-                await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)
-
-            self.injector.period = inj_period
-            self.injector.clkdiv = clkdiv
-            self.injector.initdelay = initdelay
-            self.injector.cycle = cycle
-            self.injector.pulsesperset = pulseperset 
+            await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = True, flush = True)
+            self.injectorBoard = self.injector.vBoard
+            self.injectorBoard.dacvalues = (8, [inj_voltage/1000.,0.0]) #defaults from Nicolas
+            self.injectorBoard.vcal = self.vboard.vcal
+            self.injectorBoard.vsupply = self.vboard.vsupply
+            await self.injectorBoard.update()
         else:
             #Injection provided through integrated features on chip
-            print("SET INJ WITH REGISTERS")
+            #print("SET INJ WITH REGISTERS")
             await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)
 
 
@@ -458,19 +454,21 @@ class astepRun:
         Starts Injection.
         Takes no arguments and no return
         """
-        # Check the required HW is available
-        if self._geccoBoard:
-            await self.injector.start()
-            #print("INJ_WDATA AFTER START")
-            #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
-        else:
-            print("STARTING WITH REGISTERS") 
-            ## DAN - unfinished beginning of controlling injection with registers instead of injection card. Necessary for CMOD and parallel in 'stop_injection' method
-            layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
-            if layers_inj_val>0: #injection not running
-                await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
-                await self.boardDriver.rfg.write_layers_inj_ctrl(0b1)
-                await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
+        await self.injector.start()
+#        # Check the required HW is available
+#        if self._geccoBoard:
+#            await self.injector.start()
+#            #print("INJ_WDATA AFTER START")
+#            #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
+#        else:
+#            await self.injector.start()
+#            print("STARTING WITH REGISTERS") 
+#            ## DAN - unfinished beginning of controlling injection with registers instead of injection card. Necessary for CMOD and parallel in 'stop_injection' method
+#            #layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
+#            #if layers_inj_val>0: #injection not running
+#            #    await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
+#            #    await self.boardDriver.rfg.write_layers_inj_ctrl(0b1)
+#            #    await self.boardDriver.rfg.write_layers_inj_ctrl(0b0)
         logger.info("Began injection")
 
     # Stop injection
@@ -479,15 +477,16 @@ class astepRun:
         Stops Injection.
         Takes no arguments and no return
         """
-        # Check the required HW is available
-        if self._geccoBoard:
-            await self.injector.stop()
-        else:
-            print("STOPPING WITH REGISTERS")
-            layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
-            if layers_inj_val==0: #injection running
-                await self.boardDriver.rfg.write_layers_inj_ctrl(3)
-
+        await self.injector.stop()
+#        # Check the required HW is available
+#        if self._geccoBoard:
+#            await self.injector.stop()
+#        else:
+#            print("STOPPING WITH REGISTERS")
+#            #layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
+#            #if layers_inj_val==0: #injection running
+#            #    await self.boardDriver.rfg.write_layers_inj_ctrl(3)
+#
         logger.info("Stopped injection")
 
 
