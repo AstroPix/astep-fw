@@ -24,7 +24,13 @@ astropix3:
             interrupt_pushpull: [3, 0b110]
     config_0:
         digitalconfig:
-            interrupt_pushpull: [3, 0b110]
+            interrupt_pushpull: [1, 0b1]
+            en_inj:             [1, 0b0]
+            reset:              [1, 0b1]
+            extrabits:          [1, 0b1]
     config_1:
         digitalconfig:
-            interrupt_pushpull: [3, 0b010]
+            interrupt_pushpull: [1, 0b1]
+            en_inj:             [1, 0b0]
+            reset:              [1, 0b1]
+            extrabits:          [1, 0b1]

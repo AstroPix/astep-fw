@@ -93,3 +93,35 @@ async def test_spi_1byte_out(dut):
     await Timer(100, units="us")
     dut.layer_0_interruptn.value = 1
     await Timer(100, units="us")
+
+
+@cocotb.test(timeout_time = 5,timeout_unit="ms")
+async def test_sr_short_multilayer(dut):
+
+    rfg.core.debug()
+    await vip.cctb.common_clock_reset_nexys(dut)
+    driver = await astep24_3l_sim.getDriver(dut)
+    await Timer(10, units="us")
+    
+    ## Setup Asic
+    driver.setupASICS(version = 3 , rows = 3 , chipsPerRow= 2, configFile = "../../files/test_config_short.yml" )
+
+    ## Write Config
+    asic0 = driver.getAsic(0)
+    await asic0.writeConfigSR(ckdiv=1)
+    asic0.interrupt_pushpull(chip=0,enable = False)
+    await asic0.writeConfigSR(ckdiv=1)
+
+    await Timer(50, units="us")
+
+    asic1 = driver.getAsic(1)
+    await asic1.writeConfigSR(ckdiv=1)
+
+    await Timer(50, units="us")
+
+    asic2 = driver.getAsic(2)
+    await asic2.writeConfigSR(ckdiv=1)
+
+    await Timer(50, units="us")
+
+    await Timer(150, units="us")

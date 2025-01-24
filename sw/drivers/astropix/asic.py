@@ -132,6 +132,10 @@ class Asic():
     def num_chips(self, chips):
         self._num_chips = chips
 
+
+    def interrupt_pushpull(self,chip:int,enable:bool):
+        self.asic_config[f'config_{chip}']['digitalconfig']['interrupt_pushpull'][1] = 0 if enable is False else 1
+
     def enable_inj_row(self, chip:int, row: int, inplace:bool=False):
         """
         Enable injection in specified row
