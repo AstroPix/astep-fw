@@ -384,7 +384,7 @@ class astepRun:
         #self._geccoBoard = False
         #print("INJ_WDATA BEFORE CONF")
         #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
-        self.injector = self.boardDriver.geccoGetInjectionBoard()
+        self.injector = self.boardDriver.getInjectionBoard(slot = 3)
         self.injector.period = inj_period
         self.injector.clkdiv = clkdiv
         self.injector.initdelay = initdelay
