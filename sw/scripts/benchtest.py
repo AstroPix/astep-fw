@@ -11,7 +11,7 @@ import os, serial
 
 #######################################################
 ############## USER DEFINED VARIABLES #################
-layer, chip = 0, 0
+#layer, chip = 0, 0
 
 
 #######################################################
@@ -51,7 +51,7 @@ async def main(args, saveName):
     logger.info(f"initializing asic,config={args.yaml},chips={args.chipsPerRow}")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
     await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
-    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
+#    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
         logger.debug("initializing voltage")
@@ -80,7 +80,7 @@ async def main(args, saveName):
             ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
             ## DAN - prioritize injection voltage setting from config file and user input - Done (Adrien)
             logger.debug("init injection (gecco)")
-            await astro.init_injection(layer, chip, inj_voltage=args.vinj)
+            await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj)
         else:
             if args.vinj is None:
                 # Priority to command line, defaults to yaml - already in vdac units
@@ -89,9 +89,9 @@ async def main(args, saveName):
                 except (KeyError, IndexError):
                     logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
                     args.inject = None
-                await astro.init_injection(layer, chip, inj_voltage=args.vinj, is_mV=False)
+                await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj, is_mV=False)
             else:
-                await astro.init_injection(layer, chip, inj_voltage=args.vinj)
+                await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj)
     else: #no injection
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
@@ -99,7 +99,7 @@ async def main(args, saveName):
 
     # Send final config to chips
     logger.debug("final configs")
-    for l in range(layer+1):
+    for l in range(args.nLayers):
         logger.debug(f"Header: {astro.get_log_header(l, chip)}")
         await astro.asic_configure(l)
     
@@ -279,15 +279,17 @@ if __name__ == "__main__":
 
     # Options related to software run settings
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
-                        help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: D')
+                        help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: I')
     parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
                         help = 'Maximum run time (in minutes). Default: NONE (run until user CTL+C)')
     
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadChip_allOff',
                         help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
+    parser.add_argument('-l', '--nLayers', action='store', required=False, type=int, default = 1,
+                        help = 'Number of layers to configure and initialize. Default: 1')
     parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = 4,
                         help = 'Number of chips per SPI bus to enable. Default: 4')
     parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
