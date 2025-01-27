@@ -21,8 +21,7 @@ async def callHK(flipped=True): # adding a setting that can change the byte orde
     """
     ## Open UART Driver for CMOD
     driver = drivers.boards.getCMODUartDriver("COM6")
-    driver.open() #does the driver need to be closed between reads?
-
+    await driver.open() #does the driver need to be closed between reads?
     await driver.houseKeeping.selectADC()
     
     ## Loop over ADC Settings
@@ -43,7 +42,7 @@ async def callHK(flipped=True): # adding a setting that can change the byte orde
         task = asyncio.create_task(asyncio.sleep(1)) #is this in seconds? us?
         await task
 
-    driver.close()
+    await driver.close()
 
 
 async def setHV(flipped=True,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
@@ -67,14 +66,13 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
 
     ## Open UART Driver for CMOD
     driver = drivers.boards.getCMODUartDriver("COM6")
-    driver.open() #does the driver need to be closed between reads? 
+    await driver.open() #does the driver need to be closed between reads? 
+    await driver.houseKeeping.selectDAC()
 
     #defaulting with Power-down with Hi-Z at the moment
     if setVoltage == 0 and flipped == True:
-        asyncio.run(driver.houseKeeping.selectDAC())
-        asyncio.run(driver.houseKeeping.writeADCDACBytes([0x0c,0x00]))
+        await driver.houseKeeping.writeADCDACBytes([0x0c,0x00])
     elif setVoltage == 0 and flipped == False:
-        await driver.houseKeeping.selectDAC()
         await driver.houseKeeping.writeADCDACBytes([0x30,0x00])
     else:
         # Turn voltage input into bits
@@ -89,19 +87,29 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
         await driver.houseKeeping.selectDAC()
         await driver.houseKeeping.writeADCDACBytes([byte1,byte2])
 
-    driver.close()
+    await driver.close()
 
 
-async def main():
+async def main(ramp):
 
     t0 = time.time()
     t_end = t0+30
 
-    while time.time() < t_end:
-        await callHK()
+    #while time.time() < t_end:
+    #    await callHK()
 
-    #await setHV(setVoltage=1.825)
+    if ramp == "up":
+        for v in [.5, 1., 1.5, 1.9, 2.05]:
+            await setHV(setVoltage=v)
+            time.sleep(2)
+    elif ramp == "down":
+        for v in [1.9, 1.5, 1., .5, 0.]:
+            await setHV(setVoltage=v)
+            time.sleep(2)
+    else:
+        await setHV(setVoltage=0.   ) #1.825V = 150V pre-1Mohm Res, #2.05V = 150V post-1MOhm Res
+
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main("down"))

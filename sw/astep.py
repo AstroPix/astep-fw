@@ -118,6 +118,14 @@ class astepRun:
         await self.boardDriver.configureLayerSPIFrequency(targetFrequencyHz = spiFreq , flush = True)
         logger.info(f"SPI clock set to {spiFreq}Hz ({spiFreq/1000000:.2f})MHz")
 
+    async def setup_fpgatag(self, FPGATSFreqHz:int = 1000000):
+        # Sets counting frequency of FPGA-based Timestamp. Tags and is added to data frames. Pass values in Hz
+        await self.boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = FPGATSFreqHz ,flush = True)
+
+    async def enable_fpgatag(self,enable:bool = True):
+        # Enables FPGA-based Timestamp. Setting source_external = True and source_match_counter = False will allow for external (off-FPGA) clock
+        await self.boardDriver.layersConfigFPGATimestamp(enable = enable,force = False ,source_match_counter = True, source_external = False ,flush = True)
+
     async def asic_configure(self, layer:int):
         await self.asic_update(layer)
 
@@ -131,7 +139,7 @@ class astepRun:
         Optional:
         yaml:str - Name of yml file with configuration values
         rows:int - Number of SPI busses / ASIC objects to create
-        chipsPerRow:int - Number of arrays per SPI bus, must all be equal
+        chipsPerRow:int - Number of arrays per SPI bus, must all be equal (Adrien: possible ComPair problem?)
         analog_col: list[int] - Define layer, chip, col (in that order) of pixel to enable analog output (only one per row) 
         """
 
@@ -345,7 +353,9 @@ class astepRun:
         await self.vboard.update()
 
     # Setup Injections with GECCO HW (injection card)
-    async def init_injection(self, layer:int, chip:int, inj_voltage:float = None, inj_period:int = 100, clkdiv:int = 300, initdelay: int = 100, cycle: float = 0, pulseperset: int = 1, dac_config:tuple[int, list[float]] = None, onchip:bool = True):
+    async def init_injection(self, layer:int, chip:int, 
+                             inj_voltage:float = None, inj_period:int = 100, clkdiv:int = 300, initdelay: int = 100, cycle: float = 0, pulseperset: int = 1, 
+                             dac_config:tuple[int, list[float]] = None, onchip:bool = True, is_mV:bool = True):
         """
         Configure injections
         Required Arguments:
@@ -379,7 +389,10 @@ class astepRun:
 
         if inj_voltage:
             #Update vdac value from yml 
-            await self.update_asic_config(layer, chip, vdac_cfg={'vinj':self.get_internal_vdac(inj_voltage/1000.)})
+            if is_mV:#Needs conversion to vdac units
+                await self.update_asic_config(layer, chip, vdac_cfg={'vinj':self.get_internal_vdac(inj_voltage/1000.)})
+            else:#Already converted to vdac units
+                await self.update_asic_config(layer, chip, vdac_cfg={'vinj':inj_voltage})
 
         #self._geccoBoard = False
         #print("INJ_WDATA BEFORE CONF")

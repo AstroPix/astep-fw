@@ -41,6 +41,9 @@ async def main(args, saveName):
 
     logger.debug("setup clocks")
     await astro.setup_clocks()
+    # enabling fpga tag disabled until tested
+    #await astro.setup_fpgatag()
+    #await astro.enable_fpgatag()
 
     logger.debug("setup spi")
     await astro.enable_spi()
@@ -53,6 +56,9 @@ async def main(args, saveName):
     if args.gecco:
         logger.debug("initializing voltage")
         await astro.init_voltages(vthreshold=args.threshold) ## th in mV
+
+    ## 12/17 Test: Configure FPGA TS "Tag" Rate
+    
 
     #logger.debug("FUNCTIONALITY CHECK")
     #await astro.functionalityCheck(holdBool=True)
@@ -72,12 +78,20 @@ async def main(args, saveName):
 
         if args.gecco:
             ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
-            ## DAN - prioritize injection voltage setting from config file and user input
+            ## DAN - prioritize injection voltage setting from config file and user input - Done (Adrien)
             logger.debug("init injection (gecco)")
             await astro.init_injection(layer, chip, inj_voltage=args.vinj)
         else:
-            logger.warning("Cannot initialize injection without GECCO HW. Disabling injection.")
-            args.inject = None
+            if args.vinj is None:
+                # Priority to command line, defaults to yaml - already in vdac units
+                try:
+                    args.vinj = astro.boardDriver.getAsic(row=args.inject[0]-1).asic_config[f'config_{args.inject[1]}']['vdacs']['vinj'][1]
+                except (KeyError, IndexError):
+                    logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
+                    args.inject = None
+                await astro.init_injection(layer, chip, inj_voltage=args.vinj, is_mV=False)
+            else:
+                await astro.init_injection(layer, chip, inj_voltage=args.vinj)
     else: #no injection
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)

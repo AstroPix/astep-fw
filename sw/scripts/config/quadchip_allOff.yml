@@ -60,7 +60,7 @@ astropix3:
 
         vdacs: # vdac = voltage / 1.8 * 1024
             blpix:              [10, 568] # 1V = 568
-            thpix:              [10, 577] # 100 mV threshold = 625
+            thpix:              [10, 625] # 100 mV threshold = 625, #738 = 300mV, 400mV = 795
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
@@ -141,11 +141,11 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 682]
+            thpix:              [10, 625]
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 341] 
 
         recconfig:
             col0:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
@@ -222,11 +222,11 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 682]
+            thpix:              [10, 625]
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 341] 
 
         recconfig:
             col0:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]
@@ -303,11 +303,11 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 682]
+            thpix:              [10, 625]
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
-            vinj:               [10, 171] 
+            vinj:               [10, 341] 
 
         recconfig:
             col0:               [38, 0b001_11111_11111_11111_11111_11111_11111_11110]

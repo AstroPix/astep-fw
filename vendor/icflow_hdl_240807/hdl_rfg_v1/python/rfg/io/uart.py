@@ -103,4 +103,4 @@ class UARTIO(rfg.core.RFGIO):
         
 
 def exit_close(io : UARTIO):
-    io.close()
+    asyncio.run(io.close())

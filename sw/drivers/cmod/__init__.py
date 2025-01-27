@@ -1,4 +1,5 @@
 from drivers.boards.board_driver import BoardDriver
+from .injectionboard import InjectionBoard
 import rfg.io
 import rfg.core
 import rfg.discovery
