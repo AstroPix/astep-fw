@@ -44,7 +44,7 @@ def decode_readout(self, logger, readout:bytearray, i:int, printer: bool = True)
             tot_us      = (tot_total * self.sampleclock_period_ns)/1000.0
             fpga_ts     = int.from_bytes(hit[7:11], 'little')
         except IndexError: #hit cut off at end of stream
-            packet_len, id, payload, location, col = -1, -1, -1, -1, -1
+            packet_len, layer, id, payload, location, col = -1, -1, -1, -1, -1, -1
             timestamp, tot_msb, tot_lsb, tot_total = -1, -1, -1, -1
             tot_us, fpga_ts = -1, -1
         

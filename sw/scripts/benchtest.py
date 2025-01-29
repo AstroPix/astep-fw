@@ -47,10 +47,9 @@ async def main(args, saveName):
 
     logger.debug("setup spi")
     await astro.enable_spi()
-    
     logger.info(f"initializing asic,config={args.yaml},chips={args.chipsPerRow}")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
+    await astro.asic_init(yaml=args.yaml, rows = args.nLayers, chipsPerRow=args.chipsPerRow)
 #    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
@@ -77,8 +76,6 @@ async def main(args, saveName):
         ##DAN - allow option to enable a pixel for a noise scan in command line 
 
         if args.gecco:
-            ## DAN - implement injection for CMOD without using injectioncard/voltagecard methods unique to GECCO
-            ## DAN - prioritize injection voltage setting from config file and user input - Done (Adrien)
             logger.debug("init injection (gecco)")
             await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj)
         else:
@@ -99,13 +96,13 @@ async def main(args, saveName):
 
     # Send final config to chips
     logger.debug("final configs")
-    for l in range(args.nLayers):
-        logger.debug(f"Header: {astro.get_log_header(l, chip)}")
-        await astro.asic_configure(l)
+    for layer in range(args.nLayers):
+        #logger.debug(f"Header: {astro.get_log_header(l, chip)}")
+        await astro.asic_configure(layer)
     
         logger.debug("setup readout")
         #pass layer number
-        await astro.setup_readout(l, autoread=int(autoread_int)) 
+        await astro.setup_readout(layer, autoread=int(autoread_int)) 
 
     # Prepare for run
     if args.runTime is not None: 
@@ -124,7 +121,7 @@ async def main(args, saveName):
         #await astro.checkInjBits()
         await astro.start_injection()
         #await astro.checkInjBits()
-
+    
     #Collect data
     logger.debug("Collecting data")
     break_condition=False
@@ -203,11 +200,14 @@ async def main(args, saveName):
             bitfile.write(str(binascii.hexlify(dataStream)))
         #lose info about which hit comes from which readout buffer
         ## DAN - consider whether readout buffer number is worth saving. 
-        ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
+        ## DAN - Think about way to break up how much is stored in memory at one time before storing somewhere. 
+        # Should still decode at the end (of some interval of time) but not save to store all in dynamic RAM the whole time
         df = astro.decode_readout(dataStream,i=0) #i is meant to be readout stream increment
 
 
-    ## DAN - after autoread mode, get one single big dump of data after this point. May want to clear/dump buffer along with the 'stop injection' command so it's not read out either here or in the beginning of the next run. Or maybe it needs to be parsed out and is the "missing" data (like if it's included then the data length of autoread vs no autoread would be equal)
+    ## DAN - after autoread mode, get one single big dump of data after this point. 
+    # May want to clear/dump buffer along with the 'stop injection' command so it's not read out either here or in the beginning of the next run. 
+    # Or maybe it needs to be parsed out and is the "missing" data (like if it's included then the data length of autoread vs no autoread would be equal)
 
     #Process data
     if args.noAutoread:
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadChip_allOff',
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
                         help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
     parser.add_argument('-l', '--nLayers', action='store', required=False, type=int, default = 1,
                         help = 'Number of layers to configure and initialize. Default: 1')
