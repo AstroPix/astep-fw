@@ -64,8 +64,8 @@ module spi_axis_if_v1 #(
     wire    spi_clk_running = (spi_clk_enable == 1 && spi_csn_reg==0);
     reg     spi_clk_pause;
 
-    // MOSI
-    (* IOB = "TRUE" *) byte_t mosi_byte;
+    // MOSI (* IOB = "TRUE" *) 
+    byte_t mosi_byte;
     assign spi_mosi = MSB_FIRST ?  mosi_byte[7] :mosi_byte[0] ;
     reg [3:0] mosi_bit_remaining;
     

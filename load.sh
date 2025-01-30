@@ -7,7 +7,8 @@ fi
 ## Python path
 export PYTHONPATH="$BASE/sw/:$PYTHONPATH"
 
-
+## Bin Folder
+export PATH="$BASE/bin:$PATH"
 
 
 ## Local tools -> This file can be set by users to load tools, based on user's installation paths

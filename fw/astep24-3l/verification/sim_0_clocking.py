@@ -60,7 +60,7 @@ async def test_clocking_dividers(dut):
 async def test_buffers_reset(dut):
   
     ## Get Target Driver
-    driver = astep24_3l_sim.getUARTDriver(dut)
+    driver = await astep24_3l_sim.getDriver(dut)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
@@ -83,7 +83,7 @@ async def test_buffers_reset(dut):
 async def test_spi_divider_api(dut):
   
     ## Get Target Driver
-    boardDriver = astep24_3l_sim.getUARTDriver(dut)
+    boardDriver = await astep24_3l_sim.getDriver(dut)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)

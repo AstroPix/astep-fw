@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "faucet": "^0.0.4",
+    "tape": "^5.7.5"
+  }
+}

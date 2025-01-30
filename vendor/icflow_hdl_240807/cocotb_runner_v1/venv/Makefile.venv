@@ -1,0 +1,23 @@
+
+SHELL=/bin/bash
+REQFILES=$(wildcard requirements.txt) $(wildcard ../requirements.txt)
+PYTHON ?= /usr/bin/python3
+
+run: setup
+#@echo "[ICF] Running python script $(SCRIPT)"
+	@.venv/bin/python3 $(SCRIPT) $(ARGS)
+
+setup: .venv/bin/activate .venv/bin/icf_updated
+
+
+.venv/bin/activate: 
+	@$(PYTHON)  -m venv .venv
+
+
+.venv/bin/icf_updated: $(REQFILES)
+	@.venv/bin/python3 -m pip install --upgrade pip
+	@for f in $(REQFILES); do .venv/bin/pip3 install --upgrade -r $$f; done
+	@touch .venv/bin/icf_updated
+	
+
+	

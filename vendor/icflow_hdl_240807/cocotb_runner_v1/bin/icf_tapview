@@ -1,0 +1,5 @@
+#!/bin/bash
+
+workdir=$(pwd)
+echo "[ICF] Displaying TAP $1 using faucet"
+cat $1 | faucet

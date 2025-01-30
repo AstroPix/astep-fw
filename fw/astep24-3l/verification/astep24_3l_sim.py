@@ -42,7 +42,7 @@ async def getDriver(dut):
     else:
         return await getSPIDriver(dut)
 
-def getUARTDriver(dut):
+async def getUARTDriver(dut):
 
     ## Load RF and Setup UARTIO
     firmwareRF = rfg.discovery.loadOneFSPRFGOrFail()
@@ -58,10 +58,7 @@ def getUARTDriver(dut):
     firmwareRF.withIODriver(rfg_io)
 
     boardDriver = SimBoard(firmwareRF)
-    boardDriver.open()
-
-    
-
+    await boardDriver.open()
 
     return boardDriver
 
@@ -82,10 +79,12 @@ async def getSPIDriver(dut):
     #await rfg_io.softReset()
 
     firmwareRF.withIODriver(rfg_io)
-    await rfg_io.open()
+    #await rfg_io.open()
     await Timer(10, units="us")
 
     boardDriver = SimBoard(firmwareRF)
+    await boardDriver.open()
+    await Timer(10, units="us")
 
 
     return boardDriver

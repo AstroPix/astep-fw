@@ -85,7 +85,13 @@ module astep24_3l_top(
     output wire io_ctrl_sample_clock_enable,
     output wire io_ctrl_timestamp_clock_enable,
     output wire io_ctrl_gecco_sample_clock_se,
-    output wire io_ctrl_gecco_inj_enable
+    output wire io_ctrl_gecco_inj_enable,
+    output wire io_ctrl_fpga_ts_clock_diff,
+    output wire io_ctrl_astropix_ts_is_fpga_ext_ts,
+
+    // External Clock for FPGA Timestamp clock
+    //-------
+    input wire ext_timestamp_clk
 );
 
     
@@ -212,9 +218,14 @@ module astep24_3l_top(
     wire [31:0] layers_readout_read_size;
     wire [7:0]  layers_cfg_nodata_continue;
     wire [31:0] layers_cfg_frame_tag_counter;
-     
+    wire        layers_cfg_frame_tag_counter_ctrl_enable;
+    wire        layers_cfg_frame_tag_counter_ctrl_enable_match_trigger;
+
     wire hk_conversion_trigger_interrupt;
     wire hk_ctrl_select_adc;
+
+    // external TS clock edge
+    wire ext_timestamp_clk_rising;
 
     wire [7:0]  layer_0_loopback_miso_m_axis_tdata;
     wire [31:0] layer_0_loopback_miso_write_size;
@@ -397,14 +408,16 @@ module astep24_3l_top(
         .layers_cfg_frame_tag_counter_ctrl(),
         .layers_cfg_frame_tag_counter_ctrl_force_count(layers_cfg_frame_tag_counter_ctrl_force_count),
         .layers_cfg_frame_tag_counter_ctrl_enable(layers_cfg_frame_tag_counter_ctrl_enable),
+        .layers_cfg_frame_tag_counter_ctrl_source_match_counter(layers_cfg_frame_tag_counter_ctrl_source_match_counter),
+        .layers_cfg_frame_tag_counter_ctrl_source_external(layers_cfg_frame_tag_counter_ctrl_source_external),
 
         .layers_cfg_frame_tag_counter_trigger(),
         .layers_cfg_frame_tag_counter_trigger_interrupt(layers_cfg_frame_tag_counter_trigger_interrupt),
-        .layers_cfg_frame_tag_counter_trigger_enable(layers_cfg_frame_tag_counter_ctrl_enable),
+        .layers_cfg_frame_tag_counter_trigger_enable(layers_cfg_frame_tag_counter_ctrl_source_match_counter),
         .layers_cfg_frame_tag_counter_trigger_match(),
 
         .layers_cfg_frame_tag_counter(layers_cfg_frame_tag_counter),
-        .layers_cfg_frame_tag_counter_enable(layers_cfg_frame_tag_counter_ctrl_enable && (layers_cfg_frame_tag_counter_trigger_interrupt || layers_cfg_frame_tag_counter_ctrl_force_count)),
+        .layers_cfg_frame_tag_counter_enable(layers_cfg_frame_tag_counter_ctrl_enable && (layers_cfg_frame_tag_counter_trigger_interrupt || layers_cfg_frame_tag_counter_ctrl_force_count || (ext_timestamp_clk_rising && layers_cfg_frame_tag_counter_ctrl_source_external))),
 
         .layers_cfg_nodata_continue(layers_cfg_nodata_continue),
 
@@ -451,7 +464,9 @@ module astep24_3l_top(
         .io_ctrl_sample_clock_enable(io_ctrl_sample_clock_enable),
         .io_ctrl_timestamp_clock_enable(io_ctrl_timestamp_clock_enable),
         .io_ctrl_gecco_sample_clock_se(io_ctrl_gecco_sample_clock_se),
-        .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable)
+        .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable),
+        .io_ctrl_fpga_ts_clock_diff(io_ctrl_fpga_ts_clock_diff),
+        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts)
   );
 
 
@@ -720,7 +735,23 @@ module astep24_3l_top(
     assign ext_spi_clk = hk_ctrl_select_adc ? !ext_spi_clk_internal : ext_spi_clk_internal;
     assign ext_dac_spi_csn = !hk_ctrl_select_adc ? ext_spi_csn_internal : 1;
     assign ext_adc_spi_csn =  hk_ctrl_select_adc ? ext_spi_csn_internal : 1;
-      
+    
+
+    // Counter Clock Synchronisation for FPGA TS
+    //---------------------
+
+    // Input external clock edge is synchronised into the core clock domain to enable Frame tag counter counting
+    
+    edge_detect ext_timestamp_clk_edge_detect(
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .in(ext_timestamp_clk & layers_cfg_frame_tag_counter_ctrl_source_external),
+        .rising_edge(ext_timestamp_clk_rising),
+        .falling_edge()
+    );
+    
+    //assign layers_cfg_frame_tag_counter_enable = ext_timestamp_clk_rising;
+                
 
 endmodule
 
