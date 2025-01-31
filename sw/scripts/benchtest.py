@@ -78,18 +78,18 @@ async def main(args, saveName):
 
         if args.gecco:
             logger.debug("init injection (gecco)")
-            await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj)
+            await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
         else:
             if args.vinj is None:
                 # Priority to command line, defaults to yaml - already in vdac units
                 try:
-                    args.vinj = astro.boardDriver.getAsic(row=args.inject[0]-1).asic_config[f'config_{args.inject[1]}']['vdacs']['vinj'][1]
+                    args.vinj = astro.boardDriver.getAsic(row=args.inject[0]).asic_config[f'config_{args.inject[1]}']['vdacs']['vinj'][1]
                 except (KeyError, IndexError):
                     logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
                     args.inject = None
-                await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj, is_mV=False)
+                await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj, is_mV=False)
             else:
-                await astro.init_injection(args.inject[0]-1, args.inject[1], inj_voltage=args.vinj)
+                await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
     else: #no injection
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
