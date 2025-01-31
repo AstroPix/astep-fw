@@ -1,5 +1,6 @@
 import asyncio
-from astep import astepRun
+#from astep import astepRun
+import sys
 import pandas as pd
 import binascii
 import logging
@@ -286,12 +287,12 @@ if __name__ == "__main__":
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
-                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
-    parser.add_argument('-l', '--nLayers', action='store', required=False, type=int, default = 1,
-                        help = 'Number of layers to configure and initialize. Default: 1')
-    parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = 4,
-                        help = 'Number of chips per SPI bus to enable. Default: 4')
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadChip_allOff'], nargs="+", 
+                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. \
+                                One file must be passed for each layer, from layer #0 to layer #2. \
+                                Default: config/quadChip_allOff (All pixels off, only fisrt layer is configured)')
+    parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = [4], nargs="+", 
+                        help = 'Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4')
     parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
                         help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
     
@@ -368,23 +369,28 @@ if __name__ == "__main__":
     if args.printHits and args.noAutoread:
         logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
 
-    #Layer counting begins at 1 ONLY  when config files are sent. In astep.py, most layer counting still begins at 0. Modify layer number to be consistent with astep.py processing 
-    try:
-        args.analog[0] = args.analog[0]-1
-    except IndexError:
-        logger.error(f"Passed bad analog argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
-        sys.exit(1)
-    try:
-        args.inject[0] = args.inject[0]-1
-    except IndexError:
-        logger.error(f"Passed bad injection argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
-        sys.exit(1)
-    except TypeError: #no argument was passed
-        pass
+    #print(args.analog)
+    #print(args.inject)
+
+    #print(args.yaml)
+    #print(args.chipsPerRow)
+    #Layer counting begins at 0.
+    #Make sure config arguments make sense
+    if len(args.yaml) > len(args.chipsPerRow):
+        args.chipsPerRow = [args.chipsPerRow[0]]*len(args.yaml)
+        if len(args.chipsPerRow) > 1:
+            logger.warning(f"Number of chips per row not provided for every layer - default to {args.chipsPerRow[0]} for all {len(args.yaml)} layers.")
+    elif len(args.yaml) < len(args.chipsPerRow):
+        raise ValueError("You need to provide one yaml configuration file for every chipsPerRow argument.")
+
+    #Make sure analog/inject arguments make sense
+    if len(args.analog)!=3 or args.analog[0]<0 or args.analog[0]>2 or args.analog[1]<0 or args.analog[1]>3 or args.analog[2]<0:
+        raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},column={0[2]}".format(args.analog))
+    if len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0:
+        raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
 
-
-
+    #sys.exit(0)
 
 
 
