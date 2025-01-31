@@ -192,7 +192,8 @@ class astepRun:
         interruptn = status & 0x1
         #deassert hold
         await self.boardDriver.holdLayer(layer, hold=False)
-        while interruptn == 0:
+        interupt_counter=0
+        while interruptn == 0 and interupt_counter<20:
             logger.info("interrupt low")
             await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
             nmbBytes = await self.boardDriver.readoutGetBufferSize()
@@ -200,6 +201,7 @@ class astepRun:
                     await self.boardDriver.readoutReadBytes(1024)
             status = await self.boardDriver.rfg.read_layer_0_status()
             interruptn = status & 0x1 
+            interupt_counter+=1
         #reassert hold to be safe
         await self.boardDriver.holdLayer(layer, hold=True) 
         logger.info("interrupt recovered, ready to collect data, resetting stat counters")
