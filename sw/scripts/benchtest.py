@@ -50,7 +50,7 @@ async def main(args, saveName):
     await astro.enable_spi()
     logger.info(f"initializing asic,config={args.yaml},chips={args.chipsPerRow}")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, rows = args.nLayers, chipsPerRow=args.chipsPerRow)
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
 #    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
@@ -97,7 +97,7 @@ async def main(args, saveName):
 
     # Send final config to chips
     logger.debug("final configs")
-    for layer in range(args.nLayers):
+    for layer in range(len(args.yaml)):
         #logger.debug(f"Header: {astro.get_log_header(l, chip)}")
         await astro.asic_configure(layer)
     

@@ -108,19 +108,38 @@ class BoardDriver():
 
         return asic
 
-    def setupASICS(self, version : int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None):
+    def setupASICS(self, version: int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None):
+        """Configure one or multiple rows with a single config file
+
+        Args:
+            version: int, AstroPix chip version
+            rows: int, number of rows, default=1
+            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
+            configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
+        """
         assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
         if version == 2: 
             self.geccoGetVoltageBoard().dacvalues =  (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
 
         for i in range(rows):
-            asic = Asic(rfg = self.rfg, row = i)
-            asic.chipversion = version
-            self.asics.append(asic)
-            asic.num_chips = chipsPerRow
+            self.setupASIC(version, row=i, chipsPerRow=chipsPerRow, configFile=configFile)
 
-            if configFile is not None: 
-                asic.load_conf_from_yaml(configFile)
+    def setupASIC(self, version: int, row: int = 0, chipsPerRow: int=1, configFile: str|None = None):
+        """Configures one row (aka daisy chain) with a single config file
+
+        Args:
+            version: int, AstroPix chip version
+            row: int, number of the current row, default=0
+            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
+            configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
+        """
+        asic = Asic(rfg = self.rfg, row = i)
+        asic.chipversion = version
+        self.asics.append(asic)
+        asic.num_chips = chipsPerRow
+
+        if configFile is not None: 
+            asic.load_conf_from_yaml(configFile)
 
     def getAsic(self,row = 0 ): 
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
