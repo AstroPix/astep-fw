@@ -133,7 +133,7 @@ class BoardDriver():
             chipsPerRow: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
-        asic = Asic(rfg = self.rfg, row = i)
+        asic = Asic(rfg = self.rfg, row = row)
         asic.chipversion = version
         self.asics.append(asic)
         asic.num_chips = chipsPerRow

@@ -272,7 +272,7 @@ class astepRun:
     async def enable_analog(self, layer:int, chip:int, col: int):
         try:
             #Enable analog pixel from given chip in the daisy chain
-            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer+1}")
+            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
             self.asics[layer].enable_ampout_col(chip, col, inplace=False)
         except (IndexError, KeyError):
             logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
