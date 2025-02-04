@@ -535,7 +535,7 @@ class astepRun:
 
 ############################ Data Collection / Processing ##############################
     #Properly set up layer config for data collection
-    async def setup_readout(self, layer:int, autoread:int = 1):
+    async def setup_readout(self, layer:int, autoread:bool = True):
         #Take take layer out of reset and hold
         await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = autoread, hold=False, flush = True )
    

@@ -103,7 +103,7 @@ async def main(args, saveName):
     
         logger.debug("setup readout")
         #pass layer number
-        await astro.setup_readout(layer, autoread=int(autoread_int)) 
+        await astro.setup_readout(layer, autoread=not(args.noAutoread) 
 
     # Prepare for run
     if args.runTime is not None: 
@@ -360,10 +360,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
 
-
-
-    #Define autoread bool
-    autoread_int = 0 if args.noAutoread else 1
 
     #Live readout printing option only possible in autoread mode
     if args.printHits and args.noAutoread:
