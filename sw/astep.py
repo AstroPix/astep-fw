@@ -264,7 +264,7 @@ class astepRun:
             self.asics[layer].enable_inj_col(chip, col, inplace=False)
             self.asics[layer].enable_inj_row(chip, row, inplace=False)
         except (IndexError, KeyError):
-            logger.error(f"Cannot enable injection in pixel layer {layer+1}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            logger.error(f"Cannot enable injection in pixel layer {layer}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed.")
             sys.exit(1)
         
     
@@ -275,7 +275,7 @@ class astepRun:
             logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
             self.asics[layer].enable_ampout_col(chip, col, inplace=False)
         except (IndexError, KeyError):
-            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed.")
             sys.exit(1)
         
 
