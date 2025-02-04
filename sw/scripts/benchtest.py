@@ -72,7 +72,7 @@ async def main(args, saveName):
         logger.debug("enable injection pixel")
         await astro.enable_injection(*args.inject)
         await astro.enable_pixel(*args.inject) #assume that you'd like to read out the pixel you're injecting into
-        await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
+        #await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
         
         ##DAN - allow option to enable a pixel for a noise scan in command line 
 
@@ -90,10 +90,12 @@ async def main(args, saveName):
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj, is_mV=False)
             else:
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
-    else: #no injection
+    #else: #no injection
+    if args.analog:
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
-
+    else:
+        pass#Smtg needed here?
 
     # Send final config to chips
     logger.debug("final configs")
@@ -103,7 +105,7 @@ async def main(args, saveName):
     
         logger.debug("setup readout")
         #pass layer number
-        await astro.setup_readout(layer, autoread=not(args.noAutoread) 
+        await astro.setup_readout(layer, autoread=not(args.noAutoread)) 
 
     # Prepare for run
     if args.runTime is not None: 
@@ -301,8 +303,11 @@ if __name__ == "__main__":
                         help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
-    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = [1, 0, 0], nargs=3,
-                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. Requires input in the form {layer, chip, col} (no wrapping brackets). Default: layer 1, chip 0, col 0')
+    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = None, nargs=3,
+                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. 
+                        Requires input in the form {layer, chip, col} (no wrapping brackets). 
+                        Default: None')
+                        #Default: layer 1, chip 0, col 0')
     
     # Options related to chip injection
     ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
@@ -315,9 +320,6 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-
-
-
 
 
     #Checks for outdir path
@@ -380,9 +382,9 @@ if __name__ == "__main__":
         raise ValueError("You need to provide one yaml configuration file for every chipsPerRow argument.")
 
     #Make sure analog/inject arguments make sense
-    if len(args.analog)!=3 or args.analog[0]<0 or args.analog[0]>2 or args.analog[1]<0 or args.analog[1]>3 or args.analog[2]<0:
+    if args.analog is not None and (len(args.analog)!=3 or args.analog[0]<0 or args.analog[0]>2 or args.analog[1]<0 or args.analog[1]>3 or args.analog[2]<0):
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},column={0[2]}".format(args.analog))
-    if len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0:
+    if args.inject is not None and (len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0):
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
 

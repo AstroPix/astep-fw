@@ -265,11 +265,14 @@ class BoardDriver():
         """Sets Layer in Reset then Remove reset after a wait time. The registers are written right now.
 
         Args:
+            layer (int): layer to reset
             waitTime (float):  Reset duration - Default 0.5s
         """
-        await self.setLayerReset(layer = layer, reset = True , flush = True )
+        #await self.setLayerReset(layer = layer, reset = True , flush = True )
+        await self.setLayerConfig(layer=layer, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
         await asyncio.sleep(waitTime)
-        await self.setLayerReset(layer = layer, reset = False , flush = True )
+        #await self.setLayerReset(layer = layer, reset = False , flush = True )
+        await self.setLayerConfig(layer=layer, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
 
     @deprecated("Please use clearer setLayerConfig method")
     async def setLayerReset(self,layer:int, reset : bool, disable_autoread : bool  = True, modify : bool = False, flush = False):
@@ -303,8 +306,9 @@ class BoardDriver():
         """Modified the layer config with provided bools
 
         Args:
-            autoread (bool): Enables or Disables interrupt-based automatic reading
+            layer (int): layer to reset
             reset (bool): Assert/deassert reset I/O to ASIC
+            autoread (bool): Enables or Disables interrupt-based automatic reading
             hold (bool): Assert/deassert hold I/O to ASIC
             chipSelect (bool): Assert/deassert Chip Select for this layer (I/O is inverted in firmware to produce low-active signal)
             disableMISO (bool): Disable SPI MISO bytes reading. Setting this bit to 1 prevents the Firmware from reading bytes
