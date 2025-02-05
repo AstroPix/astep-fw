@@ -217,13 +217,13 @@ class astepRun:
             try:
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
             except OverflowError:
-                logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer].num_chips} chips. Check chipsPerRow from asic_init")
+                logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer]._num_chips} chips. Check chipsPerRow from asic_init")
                 sys.exit(1)
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
                 await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False, hold=True,disableMISO=True, flush = True )
-                for chip in range(self.asics[layer].num_chips):
+                for chip in range(self.asics[layer]._num_chips):
                     await self.boardDriver.layersSelectSPI(flush=True)
                     await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
                     await self.boardDriver.layersDeselectSPI(flush=True)

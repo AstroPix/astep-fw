@@ -135,11 +135,10 @@ class BoardDriver():
         """
         asic = Asic(rfg = self.rfg, row = row)
         asic.chipversion = version
-        self.asics.append(asic)
-        asic.num_chips = chipsPerRow
-
         if configFile is not None: 
             asic.load_conf_from_yaml(configFile)
+        asic._num_chips = chipsPerRow
+        self.asics.append(asic)
 
     def getAsic(self,row = 0 ): 
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
