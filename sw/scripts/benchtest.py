@@ -278,7 +278,8 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--dumpOutput', action='store_true', required=False, 
                         help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
     parser.add_argument('-p', '--printHits', action='store_true', required=False, 
-                        help='Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. If not passed, no printouts during data collection. Default: post-collection printout') 
+                        help = 'Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. \
+                                If not passed, no printouts during data collection. Default: post-collection printout') 
 
     # Options related to software run settings
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
@@ -304,8 +305,8 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = None, nargs=3,
-                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. 
-                        Requires input in the form {layer, chip, col} (no wrapping brackets). 
+                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. \
+                        Requires input in the form {layer, chip, col} (no wrapping brackets). \
                         Default: None')
                         #Default: layer 1, chip 0, col 0')
     
