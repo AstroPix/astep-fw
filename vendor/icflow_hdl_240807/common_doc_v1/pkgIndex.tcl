@@ -75,16 +75,17 @@ package ifneeded icflow.doc 1.0 {
 
             cd docs
             if {[lsearch $::argv --serve]!=-1} {
-                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile serve >@stdout 2>@ stdout
+                exec make {*}$makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile serve >@stdout 2>@stdout
             } else {
-                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile generate >@stdout 2>@ stdout
+                set cmd [list {*}$makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile generate]
+                exec make {*}$cmd >@stdout 2>@stdout
             }
 
         } elseif  {[file exists mkdocs.yml]} {
             if {[lsearch $::argv --serve]!=-1} {
-                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile serve >@stdout 2>@ stdout
+                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile serve >@stdout 2>@stdout
             } else {
-                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile generate >@stdout 2>@ stdout
+                exec make $makeArgs -f $::env(DOCSV1_HOME)/mkdocs/Makefile generate >@stdout 2>@stdout
             }
         } else {
 
