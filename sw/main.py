@@ -8,6 +8,8 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 import pandas as pd
 import asyncio
 import time, os, sys, binascii
+from tqdm import tqdm
+import argparse
 
 import drivers.boards
 import drivers.astep.serial
@@ -17,14 +19,17 @@ import drivers.astep.serial
 import logging
 
 # progress bar - Usefull to wait for humans to read oscilloscopes 
-def _wait_progress(self, seconds:float=2):
+def _wait_progress(seconds:float=2):
     try:
         for _ in tqdm(range(int(10*seconds)), desc=f'Wait {int(10*seconds)/10} s.'):
-            time.sleep(.1)
+            try:
+                time.sleep(.1)
+            except KeyboardInterrupt:
+                break
     except KeyboardInterrupt:
         pass
 
-async def buffer_flush(boardDrider, layer):
+async def buffer_flush(boardDriver, layer):
     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
     #Flush data from sensor
     logger.info("Flush chip before data collection")
@@ -46,7 +51,7 @@ async def buffer_flush(boardDrider, layer):
     await boardDriver.holdLayer(layer, hold=True) 
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
 
-    await self.boardDriver.resetLayerStatCounters(layer)
+    await boardDriver.resetLayerStatCounters(layer)
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -70,7 +75,7 @@ async def main(args):
     await boardDriver.enableSensorClocks(flush = True)
     # Setup FPGA timestamps
     logger.debug("Configure FPGA TS freq.")
-    await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = FPGATSFreqHz, flush = True)
+    await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
     logger.debug("Enable FPGA TS.")
     await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
@@ -85,7 +90,7 @@ async def main(args):
     except FileNotFoundError as e :
         logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
         raise e
-    logger.info(f"{len(boardDriver.asics} ASIC drivers instanciated.")
+    logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
     # Setup / configure injection
     if args.inject:
         logger.debug("Enable injection pixel")
@@ -103,23 +108,23 @@ async def main(args):
             logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
             args.inject = None
     # Setup / configure analog
-     if args.analog:
+    if args.analog:
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
     # Reset chips
-    for i in range(5):
-        print(f"Reset #{i}/5")
-        _wait_progress(10)
-        await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
-        await asyncio.sleep(.5)
-        await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    #for i in range(5):
+    #    print(f"Reset #{i}/5")
+    #    _wait_progress(10)
+    await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
+    await asyncio.sleep(.5)
+    await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
     # Set routing
     logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
     for layer in range(len(args.yaml)):
-        await self.boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
     for layer in range(len(args.yaml)):
         _wait_progress(20)
-        await self.boardDriver.asics[layer].writeSPIRoutingFrame()
+        await boardDriver.asics[layer].writeSPIRoutingFrame()
     _wait_progress(30)
     await boardDriver.layersDeselectSPI(flush=True)
     
@@ -139,7 +144,7 @@ if __name__ == "__main__":
                                      epilog="""""") 
 
     # Options related to outputs
-    parser.add_argument('-o', '--outputPrefix', type=str, default="{}/{}".format(os.getcwd(), time.strftime("%Y%m%d-%H%M%S")), 
+    parser.add_argument('-o', '--outputPrefix', type=str, default="{0}{2}data{2}{1}".format(os.getcwd(), time.strftime("%Y%m%d-%H%M%S"), os.path.sep), 
                         help="Path to and beginning of the name of the data file(s) and log file, default: data/YYYYMMDD-HHMMSS")
 
     # Options related to software run settings
@@ -201,11 +206,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
 
-
-    #Live readout printing option only possible in autoread mode
-    if args.printHits and args.noAutoread:
-        logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
-
     #Layer counting begins at 0.
     #Make sure config arguments make sense
     if len(args.yaml) > len(args.chipsPerRow):
@@ -222,4 +222,4 @@ if __name__ == "__main__":
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
 
-    asyncio.run(main(args, saveName))
+    asyncio.run(main(args))
