@@ -11,7 +11,7 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: configure
-      run:  source load.sh && sudo apt install libnotify4 && make ci_deps
+      run:  source load.sh && sudo apt install libnotify4 libsecret-1-0 && make ci_deps
 
     - name: Build
       run: source load.sh && make ci_docs
