@@ -488,6 +488,21 @@ class Asic():
         logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(value), value)
 
         return data
+    
+    async def writeSPI(self, payload):
+        """Writes the payload over SPI
+        """
+        step  = 256
+        steps = int(math.ceil(len(payload)/step))
+        for chunk in range(0, len(payload), step):
+            chunkBytes = payload[chunk:chunk+step]
+            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
+            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
+
+            # Wait for the current chunk to be written before sending the next one
+            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
+                pass
+            logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
 
 
     async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):
@@ -495,18 +510,4 @@ class Asic():
 
         spiBytes = self.createSPIConfigFrame(targetChip = targetChip , broadcast = broadcast)
         logger.info("Writing SPI Config for chip %d,row=%d,len=%d",targetChip,self.row,len(spiBytes))
-
-        step  = 256
-        steps = int(math.ceil(len(spiBytes)/step))
-        for chunk in range(0, len(spiBytes), step):
-            chunkBytes = spiBytes[chunk:chunk+step]
-            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
-            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
-
-            ## Sleep to give time for the FW to send the bytes, this will be better synchronised in the future
-            ## Must be improved
-            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
-                pass
-            #await asyncio.sleep(0.1)         
-            logger.info("Current MISO Write count=%d",await self.rfg.read_layer_0_mosi_write_size())
-
+        self.writeSPI(spiBytes)

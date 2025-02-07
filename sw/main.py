@@ -112,27 +112,32 @@ async def main(args):
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
     # Reset chips
-    #for i in range(5):
-    #    print(f"Reset #{i}/5")
-    #    _wait_progress(10)
     await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
     await asyncio.sleep(.5)
     await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
-    _wait_progress(2)
     # Set routing
     logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
+    _wait_progress(2)
     for layer in range(len(args.yaml)):
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
-    for i in range(1):
-        for layer in range(len(args.yaml)):
-            print(f"Write routing #{i}/5 of layer #{layer}")
-            #_wait_progress(5)
-            await boardDriver.asics[layer].writeSPIRoutingFrame(3)
-    _wait_progress(1)
+    for layer in range(len(args.yaml)):
+        await boardDriver.asics[layer].writeSPIRoutingFrame(3)
     await boardDriver.layersDeselectSPI(flush=True)
+
+    # Check chips ID here?
     
     # Write configuration to chips
-
+    for layer in range(len(args.yaml)):#set chipSelect
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    #boardDriver.asics[0].writeConfigSPI()
+    asicCfg = boardDriver.asics[0].config['config_0']
+    print(asicCfg)
+    bitvector = boardDriver.asics[0].gen_config_vector_SPI(False, 0)#bitvector for chip 0
+    print(bitvector)
+    payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0)
+    print(payload)
+    boardDriver.asics[0].writeSPI(payload)
+    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
 
 
 
