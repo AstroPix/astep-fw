@@ -439,8 +439,9 @@ class Asic():
         await self.rfg.flush()
 
 
-    async def writeSPIRoutingFrame(self):
-        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING] + [0x00]*self._num_chips*4,True)
+    async def writeSPIRoutingFrame(self, firstChipID: int = 0x00):
+        print(bin(SPI_HEADER_ROUTING | firstChipID))
+        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*self._num_chips*4,True)
 
     def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0)  -> bytearray:
         """

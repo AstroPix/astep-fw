@@ -118,14 +118,17 @@ async def main(args):
     await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
     await asyncio.sleep(.5)
     await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    _wait_progress(2)
     # Set routing
     logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
     for layer in range(len(args.yaml)):
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
-    for layer in range(len(args.yaml)):
-        _wait_progress(20)
-        await boardDriver.asics[layer].writeSPIRoutingFrame()
-    _wait_progress(30)
+    for i in range(1):
+        for layer in range(len(args.yaml)):
+            print(f"Write routing #{i}/5 of layer #{layer}")
+            #_wait_progress(5)
+            await boardDriver.asics[layer].writeSPIRoutingFrame(3)
+    _wait_progress(1)
     await boardDriver.layersDeselectSPI(flush=True)
     
     # Write configuration to chips
