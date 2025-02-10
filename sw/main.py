@@ -50,7 +50,6 @@ async def buffer_flush(boardDriver, layer):
     #reassert hold to be safe
     await boardDriver.holdLayer(layer, hold=True) 
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
-
     await boardDriver.resetLayerStatCounters(layer)
 
 async def get_readout(boardDriver, counts:int = 4096):
@@ -113,23 +112,24 @@ async def main(args):
     # Setup / configure injection
     if args.inject:
         logger.debug("Enable injection pixel")
-        await astro.enable_injection(*args.inject)
-        await astro.enable_pixel(*args.inject)
+        boardDriver.asics[args.inject[0]].enable_injection_col(args.inject[1], args.inject[3], inplace=False)
+        boardDriver.asics[args.inject[0]].enable_injection_row(args.inject[1], args.inject[2], inplace=False)
+        boardDriver.asics[args.inject[0]].enable_pixel(chip=args.inject[1], col=args.inject[3], row=args.inject[2], inplace=False)
         logger.debug("Set injection voltage")
         # Priority to command line, defaults to yaml - already in vdac units
         try:
-            if args.vinj is None:
-                args.vinj = astro.boardDriver.asics[args.inject[0]].asic_config[f'config_{args.inject[1]}']['vdacs']['vinj'][1]
-                await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj, is_mV=False)
-            else:
-                await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
+            if args.vinj is not None:
+                boardDriver.asics[args.inject[0]].asic_config[f"config_{args.inject[1]}"]["vdacs"]["vinj"] = int(args.vinj/1000*1024/1.8)#1.8 V coded on 10 bits
+            injector = boardDriver.getInjectionBoard(slot = 3)#ShortHand to configure on-chip injector
+            injector.period, injector.clkdiv, injector.initdelay, injector.cycle, injector.pulsesperset = 100, 300, 100, 0, 1#Default set of parameters
+            await boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)#ShortHand for writing the correct registers on-chip, ignore reference to Gecco
         except (KeyError, IndexError):
             logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
             args.inject = None
     # Setup / configure analog
     if args.analog:
         logger.debug("enable analog")
-        await astro.enable_analog(*args.analog)
+        boardDriver.asics[args.analog[0]].enable_ampout_col(args.analog[1], args.analog[2], inplace=False)
     # Reset chips
     await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
     await asyncio.sleep(.5)
@@ -159,14 +159,17 @@ async def main(args):
     await boardDriver.asics[0].writeSPI(payload)
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     await buffer_flush(boardDriver, 0)
-
-    # Main loop
+    
+    # Final setup
+    if args.inject: await injector.start()
     dataStream_lst = []
     bufferLength_lst = []
     if args.runTime is not None: 
         end_time=time.time()+(args.runTime*60.)
     else:
         end_time = float('inf')
+    
+    # Main loop
     run = time.time() < end_time
     while run:
         try:
@@ -177,7 +180,8 @@ async def main(args):
             # Store data
             dataStream_lst.append(readout)
             bufferLength_lst.append(buff)
-            print(buff, end='\r')
+            print("Print data:")
+            print(f"{buff}, {readout}", end='\r', flush=True)
             # Check time
             run = time.time() < end_time
         except KeyboardInterrupt:
@@ -185,9 +189,7 @@ async def main(args):
             run=False
 
     # End injection
-    if args.inject:
-        logger.debug("stop injection")
-        await astro.stop_injection()
+    if args.inject: await injector.stop()
 
     # Decode data
     dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
