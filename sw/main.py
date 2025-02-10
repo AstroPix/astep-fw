@@ -13,7 +13,7 @@ import argparse
 
 import drivers.boards
 import drivers.astep.serial
-#import drivers.astropix.decode Not needed yet, maybe later
+import drivers.astropix.decode
 
 # Logging stuff
 import logging
@@ -52,6 +52,25 @@ async def buffer_flush(boardDriver, layer):
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
 
     await boardDriver.resetLayerStatCounters(layer)
+
+async def get_readout(boardDriver, counts:int = 4096):
+    bufferSize = await(boardDriver.readoutGetBufferSize())
+    readout = await(boardDriver.readoutReadBytes(counts))
+    return bufferSize, readout
+
+#Parse raw data readouts to remove railing. Moved to postprocessing method to avoid SW slowdown when using autoread
+def dataParse_autoread(data_lst, buffer_lst, bitfile:str = None):
+    allData = b''
+    for i, buff in enumerate(buffer_lst):
+        if buff>0:
+            readout_data = data_lst[i][:buff]
+            logger.info(binascii.hexlify(readout_data))
+            allData+=readout_data
+            if bitfile:
+                bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
+    ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
+    return allData
+
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -117,11 +136,11 @@ async def main(args):
     await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
     # Set routing
     logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
-    _wait_progress(2)
+    #_wait_progress(2)
     for layer in range(len(args.yaml)):
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
     for layer in range(len(args.yaml)):
-        await boardDriver.asics[layer].writeSPIRoutingFrame(3)
+        await boardDriver.asics[layer].writeSPIRoutingFrame()
     await boardDriver.layersDeselectSPI(flush=True)
 
     # Check chips ID here?
@@ -130,14 +149,54 @@ async def main(args):
     for layer in range(len(args.yaml)):#set chipSelect
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
     #boardDriver.asics[0].writeConfigSPI()
-    asicCfg = boardDriver.asics[0].config['config_0']
-    print(asicCfg)
-    bitvector = boardDriver.asics[0].gen_config_vector_SPI(False, 0)#bitvector for chip 0
-    print(bitvector)
+    #for b in boardDriver.asics[0].gen_config_vector_SPI(targetChip=0):
+    #        print(int(b), end="")
+    #print(flush=True)
     payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0)
-    print(payload)
-    boardDriver.asics[0].writeSPI(payload)
+    for b in payload:
+        print(int(b), end="")
+    print(flush=True)
+    await boardDriver.asics[0].writeSPI(payload)
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    await buffer_flush(boardDriver, 0)
+
+    # Main loop
+    dataStream_lst = []
+    bufferLength_lst = []
+    if args.runTime is not None: 
+        end_time=time.time()+(args.runTime*60.)
+    else:
+        end_time = float('inf')
+    run = time.time() < end_time
+    while run:
+        try:
+            # Read data
+            task = asyncio.create_task(get_readout(boardDriver))
+            await task
+            buff, readout = task.result()
+            # Store data
+            dataStream_lst.append(readout)
+            bufferLength_lst.append(buff)
+            print(buff, end='\r')
+            # Check time
+            run = time.time() < end_time
+        except KeyboardInterrupt:
+            logger.info("Keyboard Interrupt")
+            run=False
+
+    # End injection
+    if args.inject:
+        logger.debug("stop injection")
+        await astro.stop_injection()
+
+    # Decode data
+    dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
+    class myhack:
+        def __init__(self):
+            self.sampleclock_period_ns = 5
+    _ = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
+
+
 
 
 
