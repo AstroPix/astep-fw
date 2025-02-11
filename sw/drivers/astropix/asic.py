@@ -502,7 +502,9 @@ class Asic():
             # Wait for the current chunk to be written before sending the next one
             while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
                 pass
-            logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
+            #logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
+            #task = asyncio.create_task(asyncio.sleep(1))
+            #await task
 
 
     async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):
@@ -510,4 +512,4 @@ class Asic():
 
         spiBytes = self.createSPIConfigFrame(targetChip = targetChip , broadcast = broadcast)
         logger.info("Writing SPI Config for chip %d,row=%d,len=%d",targetChip,self.row,len(spiBytes))
-        self.writeSPI(spiBytes)
+        await self.writeSPI(spiBytes)

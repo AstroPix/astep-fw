@@ -7,7 +7,7 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 # and eventually there will be a list of which ones are needed to run
 import pandas as pd
 import asyncio
-import time, os, sys, binascii
+import time, os, sys, binascii, math
 from tqdm import tqdm
 import argparse
 
@@ -92,10 +92,10 @@ async def main(args):
     logger.debug("Set sensor clocks.")
     await boardDriver.enableSensorClocks(flush = True)
     # Setup FPGA timestamps
-    logger.debug("Configure FPGA TS freq.")
-    await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
-    logger.debug("Enable FPGA TS.")
-    await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
+    #logger.debug("Configure FPGA TS freq.")
+    #await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
+    #logger.debug("Enable FPGA TS.")
+    #await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
     await boardDriver.configureLayerSPIFrequency(targetFrequencyHz = 1000000, flush = True)
     logger.debug("Instanciate ASIC drivers ...")
@@ -112,8 +112,8 @@ async def main(args):
     # Setup / configure injection
     if args.inject:
         logger.debug("Enable injection pixel")
-        boardDriver.asics[args.inject[0]].enable_injection_col(args.inject[1], args.inject[3], inplace=False)
-        boardDriver.asics[args.inject[0]].enable_injection_row(args.inject[1], args.inject[2], inplace=False)
+        boardDriver.asics[args.inject[0]].enable_inj_col(args.inject[1], args.inject[3], inplace=False)
+        boardDriver.asics[args.inject[0]].enable_inj_row(args.inject[1], args.inject[2], inplace=False)
         boardDriver.asics[args.inject[0]].enable_pixel(chip=args.inject[1], col=args.inject[3], row=args.inject[2], inplace=False)
         logger.debug("Set injection voltage")
         # Priority to command line, defaults to yaml - already in vdac units
@@ -140,12 +140,13 @@ async def main(args):
     for layer in range(len(args.yaml)):
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
     for layer in range(len(args.yaml)):
-        await boardDriver.asics[layer].writeSPIRoutingFrame()
+        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
     await boardDriver.layersDeselectSPI(flush=True)
 
     # Check chips ID here?
     
     # Write configuration to chips
+    #_wait_progress(5)
     for layer in range(len(args.yaml)):#set chipSelect
         await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
     #boardDriver.asics[0].writeConfigSPI()
@@ -153,12 +154,21 @@ async def main(args):
     #        print(int(b), end="")
     #print(flush=True)
     payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0)
-    for b in payload:
-        print(int(b), end="")
-    print(flush=True)
+    #for b in payload:
+    #    print(int(b), end="")
+    #step  = 256
+    #steps = int(math.ceil(len(payload)/step))
+    #for chunk in range(0, len(payload), step):
+    #    chunkBytes = payload[chunk:chunk+step]
+    #    for b in chunkBytes:
+    #        print(int(b), end=" ")
+    #    print("{}/{} len={}".format((chunk/step+1),steps,len(chunkBytes)))
+    #print(flush=True)
     await boardDriver.asics[0].writeSPI(payload)
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await buffer_flush(boardDriver, 0)
+    await buffer_flush(boardDriver, 0)#Exit with hold active
+    await boardDriver.setLayerConfig(layer=0, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
+    
     
     # Final setup
     if args.inject: await injector.start()
@@ -180,18 +190,18 @@ async def main(args):
             # Store data
             dataStream_lst.append(readout)
             bufferLength_lst.append(buff)
-            print("Print data:")
-            print(f"{buff}, {readout}", end='\r', flush=True)
+            print(f"{buff} ", end='\r', flush=True)
             # Check time
             run = time.time() < end_time
-        except KeyboardInterrupt:
-            logger.info("Keyboard Interrupt")
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while in main loop - exiting.")
             run=False
 
     # End injection
     if args.inject: await injector.stop()
 
     # Decode data
+    print(len(bufferLength_lst), max(bufferLength_lst))
     dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
     class myhack:
         def __init__(self):
