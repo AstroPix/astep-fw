@@ -200,6 +200,9 @@ async def main(args):
     # End injection
     if args.inject: await injector.stop()
 
+    # End connection
+    await boardDriver.close()
+
     # Decode data
     print(len(bufferLength_lst), max(bufferLength_lst))
     dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
