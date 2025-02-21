@@ -441,7 +441,7 @@ class Asic():
 
     async def writeSPIRoutingFrame(self, firstChipID: int = 0x00):
         #print(bin(SPI_HEADER_ROUTING | firstChipID))
-        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*2,True)
+        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4,True)
 
     def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0)  -> bytearray:
         """
@@ -481,7 +481,7 @@ class Asic():
         if load:
             data.extend([SPI_SR_LOAD] * n_load)
 
-        # Append 4 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
+        # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
         data.extend([SPI_EMPTY_BYTE] * ((self._num_chips-1) *4))
 
 
@@ -496,6 +496,11 @@ class Asic():
         steps = int(math.ceil(len(payload)/step))
         for chunk in range(0, len(payload), step):
             chunkBytes = payload[chunk:chunk+step]
+
+            #if len(chunkBytes) != 256:
+            #    task = asyncio.create_task(asyncio.sleep(20))
+            #    await task
+            
             logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
             await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
 
@@ -503,8 +508,7 @@ class Asic():
             while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
                 pass
             #logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
-            #task = asyncio.create_task(asyncio.sleep(1))
-            #await task
+
 
 
     async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):

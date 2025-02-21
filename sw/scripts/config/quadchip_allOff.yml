@@ -141,7 +141,7 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 625]
+            thpix:              [10, 625] # 625=100mV
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]

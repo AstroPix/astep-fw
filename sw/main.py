@@ -36,7 +36,7 @@ async def buffer_flush(boardDriver, layer):
     status = await boardDriver.getLayerStatus(layer)
     interruptn = status & 0x1
     #deassert hold
-    await boardDriver.holdLayer(layer, hold=False)
+    if interruptn == 0: await boardDriver.holdLayer(layer, hold=False)
     interupt_counter=0
     while interruptn == 0 and interupt_counter<20:
         logger.info("interrupt low")
@@ -97,7 +97,7 @@ async def main(args):
     #logger.debug("Enable FPGA TS.")
     #await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
-    await boardDriver.configureLayerSPIFrequency(targetFrequencyHz = 1000000, flush = True)
+    await boardDriver.configureLayerSPIDivider(100, flush = True)
     logger.debug("Instanciate ASIC drivers ...")
     # Configure chips
     pathdelim = os.path.sep #determine if Mac or Windows separators in path name
@@ -119,7 +119,7 @@ async def main(args):
         # Priority to command line, defaults to yaml - already in vdac units
         try:
             if args.vinj is not None:
-                boardDriver.asics[args.inject[0]].asic_config[f"config_{args.inject[1]}"]["vdacs"]["vinj"] = int(args.vinj/1000*1024/1.8)#1.8 V coded on 10 bits
+                boardDriver.asics[args.inject[0]].asic_config[f"config_{args.inject[1]}"]["vdacs"]["vinj"][1] = int(args.vinj/1000*1024/1.8)#1.8 V coded on 10 bits
             injector = boardDriver.getInjectionBoard(slot = 3)#ShortHand to configure on-chip injector
             injector.period, injector.clkdiv, injector.initdelay, injector.cycle, injector.pulsesperset = 100, 300, 100, 0, 1#Default set of parameters
             await boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)#ShortHand for writing the correct registers on-chip, ignore reference to Gecco
@@ -138,7 +138,8 @@ async def main(args):
     logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
     #_wait_progress(2)
     for layer in range(len(args.yaml)):
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
+    await boardDriver.layersSelectSPI(flush=True)
     for layer in range(len(args.yaml)):
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
     await boardDriver.layersDeselectSPI(flush=True)
@@ -147,13 +148,17 @@ async def main(args):
     
     # Write configuration to chips
     #_wait_progress(5)
-    for layer in range(len(args.yaml)):#set chipSelect
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    #for layer in range(len(args.yaml)):#set everytinhg but chipSelect
+    #    await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
+    
+    # Automated procedure (not working?)
     #boardDriver.asics[0].writeConfigSPI()
+    
+    # Inspect frame of a single chip config
     #for b in boardDriver.asics[0].gen_config_vector_SPI(targetChip=0):
     #        print(int(b), end="")
     #print(flush=True)
-    payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0)
+    #payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=5, broadcast=False, targetChip=1)
     #for b in payload:
     #    print(int(b), end="")
     #step  = 256
@@ -164,10 +169,44 @@ async def main(args):
     #        print(int(b), end=" ")
     #    print("{}/{} len={}".format((chunk/step+1),steps,len(chunkBytes)))
     #print(flush=True)
-    await boardDriver.asics[0].writeSPI(payload)
-    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await buffer_flush(boardDriver, 0)#Exit with hold active
-    await boardDriver.setLayerConfig(layer=0, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
+    #await boardDriver.asics[0].writeSPI(payload)
+    
+    # Loop over N chips
+    #for i in range(args.chipsPerRow[0]-1, -1, -1):
+#    for i in range(args.chipsPerRow[0]):
+#        #_wait_progress(2)
+#        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+#        payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
+#        await boardDriver.asics[0].writeSPI(payload)
+#        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    
+    # With broadcast
+    #_wait_progress(20)
+    #await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+    #await boardDriver.asics[0].writeConfigSPI(broadcast = True, targetChip = 1)
+    #await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+
+
+    # This is the current test zone
+    layer = 0
+    payload0 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0) # Will set injector ON in command line
+    payload1 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=1) # Injector OFF by default
+    route = payload0[0]
+    for chip in [1, 2]:  #   Change number and ID of chips to configure HERE
+        
+        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        if chip == 1:   #   Change chip ID whose injector is ON HERE
+            payload0[0]=route+chip
+            await boardDriver.asics[layer].writeSPI(payload0)
+        else:
+            payload1[0]=route+chip
+            await boardDriver.asics[layer].writeSPI(payload1)
+        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+        #_wait_progress(1)
+
+    # Get ready to read
+    await buffer_flush(boardDriver, layer=layer)#Exit with hold active
+    await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
     
     
     # Final setup
@@ -190,7 +229,7 @@ async def main(args):
             # Store data
             dataStream_lst.append(readout)
             bufferLength_lst.append(buff)
-            print(f"{buff} ", end='\r', flush=True)
+            print(f"{buff}    ", end='\r', flush=True)
             # Check time
             run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -205,11 +244,12 @@ async def main(args):
 
     # Decode data
     print(len(bufferLength_lst), max(bufferLength_lst))
-    dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-    class myhack:
-        def __init__(self):
-            self.sampleclock_period_ns = 5
-    _ = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
+    if True:
+        dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
+        class myhack:
+            def __init__(self):
+                self.sampleclock_period_ns = 5
+        _ = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
 
 
 
