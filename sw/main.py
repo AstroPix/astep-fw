@@ -97,7 +97,7 @@ async def main(args):
     #logger.debug("Enable FPGA TS.")
     #await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
-    await boardDriver.configureLayerSPIDivider(100, flush = True)
+    await boardDriver.configureLayerSPIDivider(20, flush = True)
     logger.debug("Instanciate ASIC drivers ...")
     # Configure chips
     pathdelim = os.path.sep #determine if Mac or Windows separators in path name
@@ -191,9 +191,11 @@ async def main(args):
     layer = 0
     payload0 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0) # Will set injector ON in command line
     payload1 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=1) # Injector OFF by default
+    #for i, (b0, b1) in enumerate(zip(payload0, payload1)):
+    #    print("{}\t{} {}".format(i, b0, b1))
     route = payload0[0]
-    for chip in [1, 2]:  #   Change number and ID of chips to configure HERE
-        
+    
+    for chip in [0, 1, 2, 3]:  #   Change number and ID of chips to configure HERE
         await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
         if chip == 1:   #   Change chip ID whose injector is ON HERE
             payload0[0]=route+chip
@@ -204,8 +206,19 @@ async def main(args):
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
         #_wait_progress(1)
 
+    if 1:# True to reset and re-send routing frame - necessary when configuring >2 chips
+        await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
+        await asyncio.sleep(.5)
+        await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+
+        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
+        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    
     # Get ready to read
+    await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
     await buffer_flush(boardDriver, layer=layer)#Exit with hold active
+    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
     
     
