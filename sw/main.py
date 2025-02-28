@@ -63,7 +63,7 @@ def dataParse_autoread(data_lst, buffer_lst, bitfile:str = None):
     for i, buff in enumerate(buffer_lst):
         if buff>0:
             readout_data = data_lst[i][:buff]
-            logger.info(binascii.hexlify(readout_data))
+            #logger.info(binascii.hexlify(readout_data))
             allData+=readout_data
             if bitfile:
                 bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
@@ -130,98 +130,27 @@ async def main(args):
     if args.analog:
         logger.debug("enable analog")
         boardDriver.asics[args.analog[0]].enable_ampout_col(args.analog[1], args.analog[2], inplace=False)
-    # Reset chips
-    await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
-    await asyncio.sleep(.5)
-    await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
-    # Set routing
-    logger.info(f"Writting SPI Routing frame for layers {range(len(args.yaml))}")
-    #_wait_progress(2)
+    
+    # Reset layers without any other changes
+    await boardDriver.resetLayers()
+
+
+    # Set chip IDs
     for layer in range(len(args.yaml)):
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
-    await boardDriver.layersSelectSPI(flush=True)
-    for layer in range(len(args.yaml)):
-        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
-    await boardDriver.layersDeselectSPI(flush=True)
-
-    # Check chips ID here?
-    
-    # Write configuration to chips
-    #_wait_progress(5)
-    #for layer in range(len(args.yaml)):#set everytinhg but chipSelect
-    #    await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
-    
-    # Automated procedure (not working?)
-    #boardDriver.asics[0].writeConfigSPI()
-    
-    # Inspect frame of a single chip config
-    #for b in boardDriver.asics[0].gen_config_vector_SPI(targetChip=0):
-    #        print(int(b), end="")
-    #print(flush=True)
-    #payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=5, broadcast=False, targetChip=1)
-    #for b in payload:
-    #    print(int(b), end="")
-    #step  = 256
-    #steps = int(math.ceil(len(payload)/step))
-    #for chunk in range(0, len(payload), step):
-    #    chunkBytes = payload[chunk:chunk+step]
-    #    for b in chunkBytes:
-    #        print(int(b), end=" ")
-    #    print("{}/{} len={}".format((chunk/step+1),steps,len(chunkBytes)))
-    #print(flush=True)
-    #await boardDriver.asics[0].writeSPI(payload)
-    
-    # Loop over N chips
-    #for i in range(args.chipsPerRow[0]-1, -1, -1):
-#    for i in range(args.chipsPerRow[0]):
-#        #_wait_progress(2)
-#        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-#        payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
-#        await boardDriver.asics[0].writeSPI(payload)
-#        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    
-    # With broadcast
-    #_wait_progress(20)
-    #await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    #await boardDriver.asics[0].writeConfigSPI(broadcast = True, targetChip = 1)
-    #await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-
-
-    # This is the current test zone
-    layer = 0
-    payload0 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0) # Will set injector ON in command line
-    payload1 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=1) # Injector OFF by default
-    #for i, (b0, b1) in enumerate(zip(payload0, payload1)):
-    #    print("{}\t{} {}".format(i, b0, b1))
-    route = payload0[0]
-    
-    for chip in [0, 1, 2, 3]:  #   Change number and ID of chips to configure HERE
-        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-        if chip == 1:   #   Change chip ID whose injector is ON HERE
-            payload0[0]=route+chip
-            await boardDriver.asics[layer].writeSPI(payload0)
-        else:
-            payload1[0]=route+chip
-            await boardDriver.asics[layer].writeSPI(payload1)
-        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-        #_wait_progress(1)
-
-    if 1:# True to reset and re-send routing frame - necessary when configuring >2 chips
-        await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
-        await asyncio.sleep(.5)
-        await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
-
-        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+
+    # Set layer configs
+    for layer in range(len(args.yaml)):
+        for i in range(args.chipsPerRow[layer]):
+            #_wait_progress(2)
+            await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
+            payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
+            await boardDriver.asics[layer].writeSPI(payload)
+            await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     
-    # Get ready to read
-    await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(boardDriver, layer=layer)#Exit with hold active
-    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
-    
-    
+
     # Final setup
     if args.inject: await injector.start()
     dataStream_lst = []
@@ -230,7 +159,15 @@ async def main(args):
         end_time=time.time()+(args.runTime*60.)
     else:
         end_time = float('inf')
-    
+    # Flush old data
+    for layer in range(len(args.yaml)):
+        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        await buffer_flush(boardDriver, layer=layer)#Exit with hold active
+        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    for layer in range(len(args.yaml)):
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
+
+
     # Main loop
     run = time.time() < end_time
     while run:
@@ -256,13 +193,24 @@ async def main(args):
     await boardDriver.close()
 
     # Decode data
+    class myhack:
+        def __init__(self):
+            self.sampleclock_period_ns = 10
     print(len(bufferLength_lst), max(bufferLength_lst))
-    if True:
+
+    # Save data
+    if args.inject or True:
         dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        class myhack:
-            def __init__(self):
-                self.sampleclock_period_ns = 5
-        _ = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
+        df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
+        if len(df) > 0:
+            csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+            df.columns = csvframe
+            df.to_csv(args.outputPrefix+".csv")
+        else:
+            logger.warning("No data written to disk because none have been received.")
+    else: # TBC
+        for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
+            df = drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=True)
 
 
 
@@ -289,7 +237,7 @@ if __name__ == "__main__":
                         help = 'Maximum run time (in minutes). Default: NONE (run until user CTL+C)')
     
     # Options related to Setup / Configuration of system
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadChip_allOff'], nargs="+", 
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadchip_allOff'], nargs="+", 
                         help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. \
                                 One file must be passed for each layer, from layer #0 to layer #2. \
                                 Default: config/quadChip_allOff (All pixels off, only fisrt layer is configured)')
@@ -358,3 +306,76 @@ if __name__ == "__main__":
 
 
     asyncio.run(main(args))
+
+
+
+"""
+
+    # Check chips ID here?
+    
+    # Write configuration to chips
+    #_wait_progress(5)
+    #for layer in range(len(args.yaml)):#set everytinhg but chipSelect
+    #    await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
+    
+    # Automated procedure (not working?)
+    #boardDriver.asics[0].writeConfigSPI()
+    
+    # Inspect frame of a single chip config
+    #for b in boardDriver.asics[0].gen_config_vector_SPI(targetChip=0):
+    #        print(int(b), end="")
+    #print(flush=True)
+    #payload = boardDriver.asics[0].createSPIConfigFrame(load=True, n_load=5, broadcast=False, targetChip=1)
+    #for b in payload:
+    #    print(int(b), end="")
+    #step  = 256
+    #steps = int(math.ceil(len(payload)/step))
+    #for chunk in range(0, len(payload), step):
+    #    chunkBytes = payload[chunk:chunk+step]
+    #    for b in chunkBytes:
+    #        print(int(b), end=" ")
+    #    print("{}/{} len={}".format((chunk/step+1),steps,len(chunkBytes)))
+    #print(flush=True)
+    #await boardDriver.asics[0].writeSPI(payload)
+    
+    # Loop over N chips
+    #for i in range(args.chipsPerRow[0]-1, -1, -1):
+    
+    # With broadcast
+    #_wait_progress(20)
+    #await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+    #await boardDriver.asics[0].writeConfigSPI(broadcast = True, targetChip = 1)
+    #await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+
+    if False:
+        # This is the current test zone
+        layer = 0
+        payload0 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=0) # Will set injector ON in command line
+        payload1 = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=1) # Injector OFF by default
+        #for i, (b0, b1) in enumerate(zip(payload0, payload1)):
+        #    print("{}\t{} {}".format(i, b0, b1))
+        route = payload0[0]
+        
+        for chip in [0, 1, 2, 3]:  #   Change number and ID of chips to configure HERE
+            await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+            if chip == 3:   #   Change chip ID whose injector is ON HERE
+                payload0[0]=route+chip
+                await boardDriver.asics[layer].writeSPI(payload0)
+            else:
+                payload1[0]=route+chip
+                await boardDriver.asics[layer].writeSPI(payload1)
+            await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+            #_wait_progress(1)
+
+    if 0:# True to reset and re-send routing frame - necessary when configuring >2 chips - not anymore
+        await boardDriver.setLayerConfig(layer=0, reset=True, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)#Reset is shared
+        await asyncio.sleep(.5)
+        await boardDriver.setLayerConfig(layer=0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+
+        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
+        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+
+
+
+"""

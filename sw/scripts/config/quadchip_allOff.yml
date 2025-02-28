@@ -24,7 +24,7 @@ astropix3:
         rows: 35
     config_0:
         digitalconfig:
-            interrupt_pushpull: [1, 0b1]
+            interrupt_pushpull: [1, 0b0]
             en_inj:             [18, 0b0]
             reset:              [1, 0b0]
             extrabits:          [15, 0b0]
@@ -105,7 +105,7 @@ astropix3:
 
     config_1:
         digitalconfig:
-            interrupt_pushpull: [1, 0b1]
+            interrupt_pushpull: [1, 0b0]
             en_inj:             [18, 0b0]
             reset:              [1, 0b0]
             extrabits:          [15, 0b0]
@@ -186,7 +186,7 @@ astropix3:
 
     config_2:
         digitalconfig:
-            interrupt_pushpull: [1, 0b1]
+            interrupt_pushpull: [1, 0b0]
             en_inj:             [18, 0b0]
             reset:              [1, 0b0]
             extrabits:          [15, 0b0]
@@ -267,7 +267,7 @@ astropix3:
 
     config_3:
         digitalconfig:
-            interrupt_pushpull: [1, 0b1]
+            interrupt_pushpull: [1, 0b0]
             en_inj:             [18, 0b0]
             reset:              [1, 0b0]
             extrabits:          [15, 0b0]

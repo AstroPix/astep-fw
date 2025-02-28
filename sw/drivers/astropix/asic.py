@@ -61,7 +61,7 @@ class Asic():
         ## Added 09/23 Richard
         self.rfg = rfg
         self.row = row  ## Row ID used to send the bytes to the right firmware interface
-        self.rfgSRRegisterName = "LAYERS_SR_OUT"
+        self.rfgSRRegisterName = srRegisterName
 
 
     @property
