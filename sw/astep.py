@@ -156,7 +156,7 @@ class astepRun:
             self.boardDriver.setupASICS(version = self.chipversion, rows = rows, chipsPerRow = chipsPerRow , configFile = ymlpath )
             ## Get asic for each row aka each daisy chain
             for r in range(rows):
-                self.asics.append(self.boardDriver.getAsic(row = r-1))
+                self.asics.append(self.boardDriver.getAsic(row = r))
         except FileNotFoundError as e :
             logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
             raise e
