@@ -273,13 +273,19 @@ class BoardDriver():
         #await self.setLayerReset(layer = layer, reset = False , flush = True )
         await self.setLayerConfig(layer=layer, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
 
-    async def resetLayers(self, waitTime: float = 0.5):
+    async def resetLayers(self, waitTime: float = 0.5, flush=True):
         """Reset all layers because the reset line is shared.
 
         Args:
             waitTime (float):  Reset duration - Default 0.5s
         """
-        await self.resetLayer(0, waitTime)
+        #await self.resetLayer(0, waitTime)
+        layer0Cfg = await self.rfg.read_layer_0_cfg_ctrl()
+        layer0Cfg |= (1<<1)
+        await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
+        await asyncio.sleep(waitTime)
+        layer0Cfg &= ~(1<<1)
+        await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
 
     @deprecated("Please use clearer setLayerConfig method")
     async def setLayerReset(self,layer:int, reset : bool, disable_autoread : bool  = True, modify : bool = False, flush = False):

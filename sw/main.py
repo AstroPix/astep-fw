@@ -36,7 +36,7 @@ async def buffer_flush(boardDriver, layer):
     status = await boardDriver.getLayerStatus(layer)
     interruptn = status & 0x1
     #deassert hold
-    if interruptn == 0: await boardDriver.holdLayer(layer, hold=False)
+    if interruptn == 0: await boardDriver.holdLayer(layer, hold=False, flush=True)
     interupt_counter=0
     while interruptn == 0 and interupt_counter<20:
         logger.info("interrupt low")
@@ -48,7 +48,7 @@ async def buffer_flush(boardDriver, layer):
         interruptn = status & 0x1 
         interupt_counter+=1
     #reassert hold to be safe
-    await boardDriver.holdLayer(layer, hold=True) 
+    await boardDriver.holdLayer(layer, hold=True, flush=True) 
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
     await boardDriver.resetLayerStatCounters(layer)
 
@@ -92,14 +92,14 @@ async def main(args):
     logger.debug("Set sensor clocks.")
     await boardDriver.enableSensorClocks(flush = True)
     # Setup FPGA timestamps
-    #logger.debug("Configure FPGA TS freq.")
-    #await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
-    #logger.debug("Enable FPGA TS.")
-    #await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
+    # logger.debug("Configure FPGA TS freq.")
+    # await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
+    # logger.debug("Enable FPGA TS.")
+    # await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
     await boardDriver.configureLayerSPIDivider(20, flush = True)
     logger.debug("Instanciate ASIC drivers ...")
-    # Configure chips
+    # Configure chips in memory
     pathdelim = os.path.sep #determine if Mac or Windows separators in path name
     ymlpath = [os.getcwd()+pathdelim+"scripts"+pathdelim+"config"+pathdelim+ y +".yml" for y in args.yaml] # Define YAML path variables
     try:
@@ -132,25 +132,46 @@ async def main(args):
         boardDriver.asics[args.analog[0]].enable_ampout_col(args.analog[1], args.analog[2], inplace=False)
     
     # Reset layers without any other changes
-    await boardDriver.resetLayers()
+    #await boardDriver.resetLayers()
 
+    layerlst = range(len(args.yaml))
+    #layerlst=[1]
+    for layer in range(3):
+        await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
+    await boardDriver.resetLayers()
+    await asyncio.sleep(0.5)
+    # for layer in layerlst:
+    #     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
 
     # Set chip IDs
-    for layer in range(len(args.yaml)):
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
+    #for layer in layerlst:
+        #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
+    await boardDriver.layersSelectSPI(flush=True)
+    for layer in layerlst:
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
-        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-
+    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    await asyncio.sleep(0.5)
     # Set layer configs
-    for layer in range(len(args.yaml)):
+    for layer in layerlst:
+    #for i in range(max(args.chipsPerRow)):
         for i in range(args.chipsPerRow[layer]):
             #_wait_progress(2)
-            await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
+            #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
+            await boardDriver.layersSelectSPI(flush=True)
+        #for layer in layerlst:
+        #    if i < args.chipsPerRow[layer]:
             payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
             await boardDriver.asics[layer].writeSPI(payload)
             await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    
+    await asyncio.sleep(0.5)
 
+    # Flush old data
+    #for layer in layerlst:
+    await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+    for layer in layerlst:
+        await buffer_flush(boardDriver, layer=layer)#Exit with hold active
+    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    await asyncio.sleep(0.5)
     # Final setup
     if args.inject: await injector.start()
     dataStream_lst = []
@@ -159,32 +180,44 @@ async def main(args):
         end_time=time.time()+(args.runTime*60.)
     else:
         end_time = float('inf')
-    # Flush old data
-    for layer in range(len(args.yaml)):
-        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-        await buffer_flush(boardDriver, layer=layer)#Exit with hold active
-        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    for layer in range(len(args.yaml)):
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout with autoread
-
-
+    
+    for layer in layerlst:
+        #await asyncio.sleep(0.5)
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=not(args.noAutoread), hold=False, chipSelect=True, disableMISO=False, flush=True)#Enable readout
+        #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=)#Flush once
+    
     # Main loop
     run = time.time() < end_time
     while run:
         try:
-            # Read data
-            task = asyncio.create_task(get_readout(boardDriver))
-            await task
-            buff, readout = task.result()
-            # Store data
-            dataStream_lst.append(readout)
-            bufferLength_lst.append(buff)
-            print(f"{buff}    ", end='\r', flush=True)
+            if args.noAutoread:#Manually pull data out of chips - not very stable
+                for layer in layerlst:
+                    await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 22, flush=True)
+                    buff = await boardDriver.readoutGetBufferSize()
+                    if buff > 0:
+                        readout = await boardDriver.readoutReadBytes(88)
+                    # Store data
+                    dataStream_lst.append(readout)
+                    bufferLength_lst.append(buff)
+                    print(f"{buff}    ", end='\r', flush=True)
+            else:
+                # Read data
+                task = asyncio.create_task(get_readout(boardDriver))
+                await task
+                buff, readout = task.result()
+                # Store data
+                dataStream_lst.append(readout)
+                bufferLength_lst.append(buff)
+                print(f"{buff}    ", end='\r', flush=True)
             # Check time
             run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while in main loop - exiting.")
             run=False
+
+    # Pause readout
+    for layer in layerlst:
+        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
 
     # End injection
     if args.inject: await injector.stop()
@@ -199,6 +232,8 @@ async def main(args):
     print(len(bufferLength_lst), max(bufferLength_lst))
 
     # Save data
+    for d in dataStream_lst:
+        logger.info(binascii.hexlify(d))
     if args.inject or True:
         dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
         df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
@@ -209,8 +244,15 @@ async def main(args):
         else:
             logger.warning("No data written to disk because none have been received.")
     else: # TBC
+        csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+        datalst = []
         for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
-            df = drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=True)
+            if buff > 0:
+                datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+        df = pd.concat(datalst)
+        df.columns = csvframe
+        df.to_csv(args.outputPrefix+".csv")
+        
 
 
 
