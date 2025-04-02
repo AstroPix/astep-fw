@@ -130,7 +130,7 @@ async def main(args):
     if args.analog:
         logger.debug("enable analog")
         boardDriver.asics[args.analog[0]].enable_ampout_col(args.analog[1], args.analog[2], inplace=False)
-    
+    #_wait_progress(3)
     # Reset layers without any other changes
     #await boardDriver.resetLayers()
 
@@ -139,20 +139,20 @@ async def main(args):
     for layer in range(3):
         await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
     await boardDriver.resetLayers()
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.2)
     # for layer in layerlst:
     #     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
 
     # Set chip IDs
-    #for layer in layerlst:
+    for layer in layerlst:
         #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
-    await boardDriver.layersSelectSPI(flush=True)
-    for layer in layerlst:
+        await boardDriver.layersSelectSPI(flush=True)
+    #for layer in layerlst:
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
-    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await asyncio.sleep(0.5)
+        await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+        await asyncio.sleep(0.2)
     # Set layer configs
-    for layer in layerlst:
+    #for layer in layerlst:
     #for i in range(max(args.chipsPerRow)):
         for i in range(args.chipsPerRow[layer]):
             #_wait_progress(2)
@@ -163,7 +163,7 @@ async def main(args):
             payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
             await boardDriver.asics[layer].writeSPI(payload)
             await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
 
     # Flush old data
     #for layer in layerlst:
@@ -171,7 +171,7 @@ async def main(args):
     for layer in layerlst:
         await buffer_flush(boardDriver, layer=layer)#Exit with hold active
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.2)
     # Final setup
     if args.inject: await injector.start()
     dataStream_lst = []
@@ -192,10 +192,10 @@ async def main(args):
         try:
             if args.noAutoread:#Manually pull data out of chips - not very stable
                 for layer in layerlst:
-                    await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 22, flush=True)
+                    await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 10, flush=True)
                     buff = await boardDriver.readoutGetBufferSize()
-                    if buff > 0:
-                        readout = await boardDriver.readoutReadBytes(88)
+                    #if buff > 0:
+                    readout = await boardDriver.readoutReadBytes(22)
                     # Store data
                     dataStream_lst.append(readout)
                     bufferLength_lst.append(buff)
