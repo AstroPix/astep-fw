@@ -36,7 +36,7 @@ async def buffer_flush(boardDriver, layer):
     status = await boardDriver.getLayerStatus(layer)
     interruptn = status & 0x1
     #deassert hold
-    if interruptn == 0: await boardDriver.holdLayer(layer, hold=False, flush=True)
+    if interruptn == 0: await boardDriver.holdLayers(hold=False, flush=True)
     interupt_counter=0
     while interruptn == 0 and interupt_counter<20:
         logger.info("interrupt low")
@@ -48,7 +48,7 @@ async def buffer_flush(boardDriver, layer):
         interruptn = status & 0x1 
         interupt_counter+=1
     #reassert hold to be safe
-    await boardDriver.holdLayer(layer, hold=True, flush=True) 
+    await boardDriver.holdLayers(hold=True, flush=True) 
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
     await boardDriver.resetLayerStatCounters(layer)
 
@@ -70,6 +70,17 @@ def dataParse_autoread(data_lst, buffer_lst, bitfile:str = None):
     ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
     return allData
 
+async def printStatus(boardDriver, time=0, buff=0):
+    status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
+    ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
+    print("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b} 1={1[1]:02b}-{2[1]:06b} 2={1[2]:02b}-{2[2]:06b}".format(buff, status, ctrl, time=time), flush=True)
+
+
+
+# Needed to decode data
+class myhack:
+    def __init__(self):
+        self.sampleclock_period_ns = 10
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -134,44 +145,148 @@ async def main(args):
     # Reset layers without any other changes
     #await boardDriver.resetLayers()
 
+    # TEST RANGE
+    #cycle CS to trigger oscilloscope
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # for layer in range(3):
+    #     await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=True, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=True, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=True, autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.2)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=True, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(0, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(1, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # await boardDriver.setLayerConfig(2, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=False, flush=True)
+    # time.sleep(.1)
+    # buff, readout = await(get_readout(boardDriver))
+    # readout_data = readout[:buff]
+    # logger.info(f"{buff} bytes in buffer")
+    # logger.info(binascii.hexlify(readout_data)) 
+    # df = drivers.astropix.decode.decode_readout(myhack(), logger, readout_data, 0, printer=True)
+    # time.sleep(.1)
+    # time.sleep(.1)
+    # for layer in range(3):
+    #     print("layer {}: {}".format(layer, bin(await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")())))
+    # time.sleep(.1)
+    # return
+
+
     layerlst = range(len(args.yaml))
     #layerlst=[1]
-    for layer in range(3):
-        await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
-    await boardDriver.resetLayers()
-    await asyncio.sleep(0.2)
+    # for layer in range(3):
+    #     await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    # await boardDriver.holdLayers(hold=True, flush=True)
+    # for layer in range(3):
+    #     regval = await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")()
+    #     print(bin(regval))
+    await boardDriver.disableLayersReadout(flush=True)#Hold, disableMISO, disableAutoread, CS=inactive
+    await boardDriver.resetLayers()#Toggle RST
+    #await asyncio.sleep(0.2)
     # for layer in layerlst:
     #     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
 
     # Set chip IDs
+    # for layer in range(3):
+    #     regval = await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")()
+    #     print(bin(regval))
     for layer in layerlst:
         #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
-        await boardDriver.layersSelectSPI(flush=True)
+        #await boardDriver.layerSelectSPI(layer, True, flush=True)
+        await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+        # print("layer {}: {}".format(layer, bin(await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")())))
     #for layer in layerlst:
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-        await asyncio.sleep(0.2)
+        #await boardDriver.layerSelectSPI(layer, False, flush=True)#Unset chipSelect
+        
+        #await asyncio.sleep(0.2)
     # Set layer configs
     #for layer in layerlst:
     #for i in range(max(args.chipsPerRow)):
         for i in range(args.chipsPerRow[layer]):
             #_wait_progress(2)
             #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
-            await boardDriver.layersSelectSPI(flush=True)
+            #await boardDriver.layerSelectSPI(layer, True, flush=True)
+            await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+            # print("layer {}, chip {}: {}".format(layer, i, bin(await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")())))
         #for layer in layerlst:
         #    if i < args.chipsPerRow[layer]:
             payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
             await boardDriver.asics[layer].writeSPI(payload)
+            #await boardDriver.layerSelectSPI(layer, False, flush=True)#Unset chipSelect
             await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-        await asyncio.sleep(0.1)
-
+        #await asyncio.sleep(0.1)
+    # for layer in range(3):
+        # regval = await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")()
+        # print(bin(regval))
     # Flush old data
     #for layer in layerlst:
     await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
     for layer in layerlst:
         await buffer_flush(boardDriver, layer=layer)#Exit with hold active
+
+# Atten-tchun: hold is shared so interrupt can go back up in th e layer we're not flushing ...
+
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-    await asyncio.sleep(0.2)
+    #await asyncio.sleep(0.2)
     # Final setup
     if args.inject: await injector.start()
     dataStream_lst = []
@@ -181,25 +296,30 @@ async def main(args):
     else:
         end_time = float('inf')
     
-    for layer in layerlst:
-        #await asyncio.sleep(0.5)
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=not(args.noAutoread), hold=False, chipSelect=True, disableMISO=False, flush=True)#Enable readout
-        #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=)#Flush once
+    await boardDriver.enableLayersReadout(layerlst, autoread=not(args.noAutoread), flush=True)
+    # for layer in layerlst:
+    #     #await asyncio.sleep(0.5)
+    #     await boardDriver.setLayerConfig(layer=layer, reset=False, autoread=not(args.noAutoread), hold=False, chipSelect=False, disableMISO=False, flush=True)#Enable readout
+    # await boardDriver.layersSelectSPI()
+    # await boardDriver.holdLayers(hold=False, flush=True)
+    #     #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=True, hold=False, chipSelect=True, disableMISO=False, flush=)#Flush once
     
     # Main loop
     run = time.time() < end_time
     while run:
         try:
             if args.noAutoread:#Manually pull data out of chips - not very stable
-                for layer in layerlst:
-                    await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 10, flush=True)
-                    buff = await boardDriver.readoutGetBufferSize()
-                    #if buff > 0:
-                    readout = await boardDriver.readoutReadBytes(22)
-                    # Store data
-                    dataStream_lst.append(readout)
-                    bufferLength_lst.append(buff)
-                    print(f"{buff}    ", end='\r', flush=True)
+                task = asyncio.create_task(asyncio.sleep(1))
+                await task
+                # for layer in layerlst:
+                #     await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 10, flush=True)
+                #     buff = await boardDriver.readoutGetBufferSize()
+                #     #if buff > 0:
+                #     readout = await boardDriver.readoutReadBytes(22)
+                #     # Store data
+                #     dataStream_lst.append(readout)
+                #     bufferLength_lst.append(buff)
+                #     print(f"{buff}    ", end='\r', flush=True)
             else:
                 # Read data
                 task = asyncio.create_task(get_readout(boardDriver))
@@ -208,50 +328,58 @@ async def main(args):
                 # Store data
                 dataStream_lst.append(readout)
                 bufferLength_lst.append(buff)
-                print(f"{buff}    ", end='\r', flush=True)
+                await printStatus(boardDriver, time.time()-end_time, buff=buff)
             # Check time
             run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while in main loop - exiting.")
             run=False
-
+    await printStatus(boardDriver, time.time()-end_time)
     # Pause readout
-    for layer in layerlst:
-        await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
-
+    await boardDriver.disableLayersReadout(flush=True)
+    # for layer in range(3):
+    #     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=False, chipSelect=False, disableMISO=True, flush=True)
+    
+    await printStatus(boardDriver, time.time()-end_time)
     # End injection
     if args.inject: await injector.stop()
-
+    
+    await printStatus(boardDriver, time.time()-end_time)
     # End connection
     await boardDriver.close()
 
-    # Decode data
-    class myhack:
-        def __init__(self):
-            self.sampleclock_period_ns = 10
-    print(len(bufferLength_lst), max(bufferLength_lst))
-
-    # Save data
-    for d in dataStream_lst:
-        logger.info(binascii.hexlify(d))
-    if args.inject or True:
-        dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
-        if len(df) > 0:
+    #Process data
+    if args.noAutoread:
+    #if was not autoreading, process the info that was collected
+        # logger.debug("read out buffer")
+        buff, readout = await(get_readout(boardDriver))
+        readout_data = readout[:buff]
+        # logger.info(binascii.hexlify(readout_data))
+        logger.info(f"{buff} bytes in buffer")
+        df = drivers.astropix.decode.decode_readout(myhack(), logger, readout_data, 0, printer=True)
+    else:
+        print(len(bufferLength_lst), max(bufferLength_lst))
+        # Save data
+        # for d in dataStream_lst:
+        #     logger.info(binascii.hexlify(d))
+        if args.inject or False:
+            dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
+            df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
+            if len(df) > 0:
+                csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+                df.columns = csvframe
+                df.to_csv(args.outputPrefix+".csv")
+            else:
+                logger.warning("No data written to disk because none have been received.")
+        else: # TBC
             csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+            datalst = []
+            for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
+                if buff > 0:
+                    datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+            df = pd.concat(datalst)
             df.columns = csvframe
             df.to_csv(args.outputPrefix+".csv")
-        else:
-            logger.warning("No data written to disk because none have been received.")
-    else: # TBC
-        csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
-        datalst = []
-        for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
-            if buff > 0:
-                datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
-        df = pd.concat(datalst)
-        df.columns = csvframe
-        df.to_csv(args.outputPrefix+".csv")
         
 
 

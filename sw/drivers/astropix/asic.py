@@ -489,8 +489,11 @@ class Asic():
 
         return data
     
-    async def writeSPI(self, payload):
+    async def writeSPI(self, payload, timeout=1.):
         """Writes the payload over SPI
+        :param payload: bytearray to be written (by chunks of 256 bytes)
+        :param timeout: maximum duration allowed for a single chunk
+        :raises: RuntimeError if a chunks times out
         """
         step  = 256
         steps = int(math.ceil(len(payload)/step))
@@ -505,9 +508,13 @@ class Asic():
             await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
 
             # Wait for the current chunk to be written before sending the next one
-            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
-                pass
+            maxtime = time.time()+timeout
+            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0 and time.time() <= maxtime):
+                time.sleep(0.05)
+                #pass
             #logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
+            if time.time() > maxtime:
+                raise RuntimeError("Chunck {}/{} len={} timed out".format(int(chunk/step+1),steps,len(chunkBytes)))
 
 
 
