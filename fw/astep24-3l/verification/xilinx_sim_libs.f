@@ -2,7 +2,9 @@
 ${XILINX_VIVADO}/data/verilog/src/glbl.v
 
 ## Xilinx sim
-${BASE}/fw/common/xilinx-ip/top_clocking_core_io_uart/top_clocking_core_io_uart_sim_netlist.v
+#${BASE}/fw/common/xilinx-ip/top_clocking_core_io_uart/top_clocking_core_io_uart_sim_netlist.v
+${BASE}/fw/common/xilinx-ip/top_clocking_core_io_uart/top_clocking_core_io_uart_clk_wiz.v
+${BASE}/fw/common/xilinx-ip/top_clocking_core_io_uart/top_clocking_core_io_uart.v
 
 
 ${BASE}/fw/common/xilinx-ip/axi_uartlite_core/axi_uartlite_core_sim_netlist.v

@@ -243,6 +243,8 @@ module astep24_3l_top(
     wire [31:0] layer_2_loopback_mosi_read_size;
 
     wire layer_0_cfg_ctrl_loopback,layer_1_cfg_ctrl_loopback,layer_2_cfg_ctrl_loopback;
+
+    wire layer_0_stat_wronglength_counter_enable,layer_1_stat_wronglength_counter_enable,layer_2_stat_wronglength_counter_enable;
     
     main_rfg  main_rfg_I (
             
@@ -338,6 +340,10 @@ module astep24_3l_top(
         .layer_0_stat_idle_counter_enable(layer_0_stat_idle_counter_enable),
         .layer_1_stat_idle_counter_enable(layer_1_stat_idle_counter_enable),
         .layer_2_stat_idle_counter_enable(layer_2_stat_idle_counter_enable),
+
+        .layer_0_stat_wronglength_counter_enable(layer_0_stat_wronglength_counter_enable),
+        .layer_1_stat_wronglength_counter_enable(layer_1_stat_wronglength_counter_enable),
+        .layer_2_stat_wronglength_counter_enable(layer_2_stat_wronglength_counter_enable),
   
         .layer_0_mosi_m_axis_tdata(layer_0_mosi_tdata),
         .layer_0_mosi_m_axis_tvalid(layer_0_mosi_tvalid),
@@ -570,7 +576,12 @@ module astep24_3l_top(
         .layers_stat_count_idle({
             layer_2_stat_idle_counter_enable,
             layer_1_stat_idle_counter_enable,
-            layer_0_stat_idle_counter_enable})
+            layer_0_stat_idle_counter_enable}),
+        .layers_stat_wronglength({
+            layer_2_stat_wronglength_counter_enable,
+            layer_1_stat_wronglength_counter_enable,
+            layer_0_stat_wronglength_counter_enable
+        })
     );
 
     // Injection Generator

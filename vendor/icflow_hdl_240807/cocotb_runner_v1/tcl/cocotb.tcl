@@ -30,6 +30,11 @@ proc coco_parameters args {
         set ::IC_SIM_SIMULATOR xcelium
 
         
+        
+    }
+
+    ## XRUN parameters
+    if {$::::IC_SIM_SIMULATOR == "xcelium"} {
         ## F File support
         if {[llength $::IC_NETLIST_F]>0} {
             icInfo "Using F File for Xcelium"
@@ -42,8 +47,9 @@ proc coco_parameters args {
         }
 
         ## INDAGO
+        lappend ::IC_SIM_EXTRA_ARGS -input probes.tcl
         if {[icflow::utils::icIsToolPresent indago]} {
-            lappend ::IC_SIM_EXTRA_ARGS -debug_opts indago_pp -input probes.tcl
+            lappend ::IC_SIM_EXTRA_ARGS -debug_opts indago_pp
         }
     }
 
@@ -110,13 +116,14 @@ proc coco_sim args {
     ## We are writing the command to a shell file so we can source the python env before calling make
     ## This is the only way at the moment to run cocotb from tcl script without requiring python env to be sourced by the user externally
     #set moduleName [lindex [split [file tail $::IC_SIM_TB] .] 0]
-    set commandString "source .venv/bin/activate && make -f Makefile.run \
+    set commandString "source /eda/tools.sh && source .venv/bin/activate && make -f Makefile.run \
                 COCOTB_ANSI_OUTPUT=1 \
                 SIM=$::IC_SIM_SIMULATOR \
                 EXTRA_ARGS='[join $::IC_SIM_EXTRA_ARGS " "]' \
                 GUI=$::IC_SIM_UI WAVES=1 MODULE=$::IC_SIM_TB TOPLEVEL=$::IC_TOP VERILOG_SOURCES=[join $netlist " "] sim"
     set runScript [open $::IC_SIM_BUILD/run_simulation.sh w+]
     puts $runScript "#!/bin/bash"
+    puts $runScript "source /eda/tools.sh"
     puts $runScript $commandString
     #puts $runScript "npm run report"
     close $runScript

@@ -55,7 +55,8 @@ module layers_readout_switched #(
     // Statistics
     //----------------------
     output wire [LAYER_COUNT-1:0]       layers_stat_count_idle,
-    output wire [LAYER_COUNT-1:0]       layers_stat_count_frame
+    output wire [LAYER_COUNT-1:0]       layers_stat_count_frame,
+    output wire [LAYER_COUNT-1:0]       layers_stat_wronglength
 
 
 );
@@ -108,7 +109,8 @@ module layers_readout_switched #(
                 .cfg_disable_miso(config_layers_disable_miso[li]),
                 .status_frame_decoding(layers_status_frame_decoding[li]),
                 .stat_frame_detected(layers_stat_count_frame[li]),
-                .stat_idle_detected(layers_stat_count_idle[li])
+                .stat_idle_detected(layers_stat_count_idle[li]),
+                .stat_wronglength_detected(layers_stat_wronglength[li])
             );
           
 

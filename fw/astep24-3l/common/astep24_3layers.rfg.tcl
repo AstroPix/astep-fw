@@ -55,6 +55,7 @@ set baseRegisters [subst {
         [rrepeat 3 {LAYER_${i}_STATUS               -sw_read_only  -bits { {interruptn -input} {frame_decoding -input} } -doc "Layer $i status bits"} ]
         [rrepeat 3 {LAYER_${i}_STAT_FRAME_COUNTER  -size 32  -counter -enable -hw_ignore -doc "Counts the number of data frames"}]
         [rrepeat 3 {LAYER_${i}_STAT_IDLE_COUNTER   -size 32  -counter -enable -hw_ignore -doc "Counts the number of Idle bytes"}]
+        [rrepeat 3 {LAYER_${i}_STAT_WRONGLENGTH_COUNTER   -size 32  -counter -enable -hw_ignore -doc "Counts the number of Astropix frames that have a length different than 4 (bytes)"}]
         [rrepeat 3 {LAYER_${i}_MOSI                 -fifo_axis_master -with_tlast -write_count -doc "FIFO to send bytes to Layer $i Astropix"}]
 
         [rrepeat 3 {LAYER_${i}_LOOPBACK_MISO  -fifo_axis_master -write_count -doc "FIFO to send bytes to Layer $i Astropix throug internal slave loopback"}]

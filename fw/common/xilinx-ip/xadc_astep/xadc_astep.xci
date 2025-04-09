@@ -3,7 +3,7 @@
   "ip_inst": {
     "xci_name": "xadc_astep",
     "component_reference": "xilinx.com:ip:xadc_wiz:3.3",
-    "ip_revision": "9",
+    "ip_revision": "11",
     "gen_directory": ".",
     "parameters": {
       "component_parameters": {
@@ -263,12 +263,12 @@
       },
       "runtime_parameters": {
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
-        "IPREVISION": [ { "value": "9" } ],
+        "IPREVISION": [ { "value": "11" } ],
         "MANAGED": [ { "value": "TRUE" } ],
         "OUTPUTDIR": [ { "value": "." } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
-        "SWVERSION": [ { "value": "2023.2.1" } ],
+        "SWVERSION": [ { "value": "2024.2" } ],
         "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
