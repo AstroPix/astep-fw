@@ -391,14 +391,19 @@ class BoardDriver():
         :param autoread: bool, True for autoread
         :param flush:
         """
-        regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
-        for layer in range(3):
-            regval[layer] = (regval[layer] | 0b010100) & 0b110111
-        for layer in layerlst:
-            regval[layer] = (regval[layer] | 0b001000) & 0b101011 if autoread else (regval[layer] | 0b001100) & 0b101111
-        for layer in range(3):
-            await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
-        await self.holdLayers(hold=False, flush=flush)
+        await self.disableLayersReadout(flush=True)
+        if 0 in layerlst: await self.setLayerConfig(layer=0, hold=True, reset=False, autoread=autoread, chipSelect=True, disableMISO=False, flush=True)
+        if 1 in layerlst: await self.setLayerConfig(layer=1, hold=False, reset=False, autoread=autoread, chipSelect=True, disableMISO=False, flush=True)
+        if 2 in layerlst: await self.setLayerConfig(layer=2, hold=False, reset=False, autoread=autoread, chipSelect=True, disableMISO=False, flush=True)
+        await self.holdLayers(hold=False, flush=True)
+        # regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
+        # for layer in range(3):
+        #     regval[layer] = (regval[layer] | 0b010100) & 0b110111
+        # for layer in layerlst:
+        #     regval[layer] = (regval[layer] | 0b001000) & 0b101011 if autoread else (regval[layer] | 0b001100) & 0b101111
+        # for layer in range(3):
+        #     await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
+        # await self.holdLayers(hold=False, flush=flush)
 
     async def disableLayersReadout(self, flush:bool = False):
         """
@@ -406,12 +411,15 @@ class BoardDriver():
          - Raise shared Hold
          - Disable autoread, chipselect and MISO
         """
-        await self.holdLayers(hold=True, flush=flush)
-        regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
-        for layer in range(3):
-            regval[layer] = (regval[layer] | 0b010100) & 0b110111
-        for layer in range(3):
-            await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
+        await self.setLayerConfig(layer=0, hold=True, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
+        await self.setLayerConfig(layer=1, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
+        await self.setLayerConfig(layer=2, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
+        # await self.holdLayers(hold=True, flush=flush)
+        # regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
+        # for layer in range(3):
+        #     regval[layer] = (regval[layer] | 0b010100) & 0b110111
+        # for layer in range(3):
+        #     await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
 
 
     async def writeLayerBytes(self,layer : int , bytes: bytearray,flush:bool = False):

@@ -29,24 +29,29 @@ def _wait_progress(seconds:float=2):
     except KeyboardInterrupt:
         pass
 
-async def buffer_flush(boardDriver, layer):
+async def buffer_flush(boardDriver):
     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
     #Flush data from sensor
     logger.info("Flush chip before data collection")
-    status = await boardDriver.getLayerStatus(layer)
-    interruptn = status & 0x1
+    interruptn = [1, 1, 1]
+    for layer in range(3):
+        interruptn[layer] &= await boardDriver.getLayerStatus(layer)
     #deassert hold
-    if interruptn == 0: await boardDriver.holdLayers(hold=False, flush=True)
+    if 0 in interruptn: await boardDriver.holdLayers(hold=False, flush=True)
     interupt_counter=0
-    while interruptn == 0 and interupt_counter<20:
+    while 0 in interruptn and interupt_counter<20:
         logger.info("interrupt low")
-        await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+        for layer, i in enumerate(interruptn):
+            if i == 0:
+                await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
         nmbBytes = await boardDriver.readoutGetBufferSize()
         if nmbBytes > 0:
                 await boardDriver.readoutReadBytes(1024)
-        status = await boardDriver.getLayerStatus(layer)
-        interruptn = status & 0x1 
+        interruptn = [1, 1, 1]
+        for layer in range(3):
+            interruptn[layer] &= await boardDriver.getLayerStatus(layer)
         interupt_counter+=1
+        logger.info(f"Buffer size = {nmbBytes} B")
     #reassert hold to be safe
     await boardDriver.holdLayers(hold=True, flush=True) 
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
@@ -73,7 +78,7 @@ def dataParse_autoread(data_lst, buffer_lst, bitfile:str = None):
 async def printStatus(boardDriver, time=0, buff=0):
     status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
     ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
-    print("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b} 1={1[1]:02b}-{2[1]:06b} 2={1[2]:02b}-{2[2]:06b}".format(buff, status, ctrl, time=time), flush=True)
+    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b} 1={1[1]:02b}-{2[1]:06b} 2={1[2]:02b}-{2[2]:06b}".format(buff, status, ctrl, time=time))
 
 
 
@@ -109,6 +114,12 @@ async def main(args):
     # await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
     logger.debug("Configure SPI frequency.")
     await boardDriver.configureLayerSPIDivider(20, flush = True)
+    logger.debug("Configure number of bytes read after interrupt in readout")
+    nodatacontinue = await boardDriver.rfg.read_layers_cfg_nodata_continue()
+    logger.info(f"Nodatacontinue bytes={nodatacontinue}")
+    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=5, flush=True)
+    nodatacontinue = await boardDriver.rfg.read_layers_cfg_nodata_continue()
+    logger.info(f"Nodatacontinue bytes={nodatacontinue}")
     logger.debug("Instanciate ASIC drivers ...")
     # Configure chips in memory
     pathdelim = os.path.sep #determine if Mac or Windows separators in path name
@@ -237,8 +248,10 @@ async def main(args):
     # for layer in range(3):
     #     regval = await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")()
     #     print(bin(regval))
+    await printStatus(boardDriver, -1.1)
     await boardDriver.disableLayersReadout(flush=True)#Hold, disableMISO, disableAutoread, CS=inactive
     await boardDriver.resetLayers()#Toggle RST
+    await printStatus(boardDriver, -1.2)
     #await asyncio.sleep(0.2)
     # for layer in layerlst:
     #     await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=False, disableMISO=True, flush=True)
@@ -248,6 +261,7 @@ async def main(args):
     #     regval = await getattr(boardDriver.rfg, f"read_layer_{layer}_cfg_ctrl")()
     #     print(bin(regval))
     for layer in layerlst:
+        # if layer==1: _wait_progress()
         #await boardDriver.setLayerConfig(layer=layer, reset=False , autoread=False, hold=True, chipSelect=True, disableMISO=True, flush=True)#Set chipSelect
         #await boardDriver.layerSelectSPI(layer, True, flush=True)
         await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
@@ -279,13 +293,12 @@ async def main(args):
         # print(bin(regval))
     # Flush old data
     #for layer in layerlst:
+    await printStatus(boardDriver, -1.3)
     await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    for layer in layerlst:
-        await buffer_flush(boardDriver, layer=layer)#Exit with hold active
-
-# Atten-tchun: hold is shared so interrupt can go back up in th e layer we're not flushing ...
-
+    await buffer_flush(boardDriver)#Exit with hold active
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    await printStatus(boardDriver, -1.4)
+
     #await asyncio.sleep(0.2)
     # Final setup
     if args.inject: await injector.start()
@@ -360,8 +373,8 @@ async def main(args):
     else:
         print(len(bufferLength_lst), max(bufferLength_lst))
         # Save data
-        # for d in dataStream_lst:
-        #     logger.info(binascii.hexlify(d))
+        for d in dataStream_lst:
+            logger.info(binascii.hexlify(d))
         if args.inject or False:
             dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
             df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)

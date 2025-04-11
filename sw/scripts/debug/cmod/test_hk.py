@@ -101,11 +101,11 @@ async def main(ramp):
     if ramp == "up":
         for v in [.5, 1., 1.5, 1.9, 2.05]:
             await setHV(setVoltage=v)
-            time.sleep(2)
+            time.sleep(1)
     elif ramp == "down":
         for v in [1.9, 1.5, 1., .5, 0.]:
             await setHV(setVoltage=v)
-            time.sleep(2)
+            time.sleep(1)
     else:
         await setHV(setVoltage=0.   ) #1.825V = 150V pre-1Mohm Res, #2.05V = 150V post-1MOhm Res
 
