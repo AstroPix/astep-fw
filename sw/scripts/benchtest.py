@@ -85,12 +85,11 @@ async def main(args, saveName):
                 try:
                     args.vinj = astro.boardDriver.getAsic(row=args.inject[0]).asic_config[f'config_{args.inject[1]}']['vdacs']['vinj'][1]
                 except (KeyError, IndexError):
-                    logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
+                    logger.error(f"Injection arguments layer={args.inject[0]-1}, chip={args.inject[1]} invalid. Cannot initialize injection.")
                     args.inject = None
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj, is_mV=False)
             else:
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
-    #else: #no injection
     if args.analog:
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
@@ -368,8 +367,6 @@ if __name__ == "__main__":
     if args.printHits and args.noAutoread:
         logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
 
-    #print(args.analog)
-    #print(args.inject)
 
     #print(args.yaml)
     #print(args.chipsPerRow)
@@ -387,10 +384,5 @@ if __name__ == "__main__":
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},column={0[2]}".format(args.analog))
     if args.inject is not None and (len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0):
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
-
-
-    #sys.exit(0)
-
-
 
     asyncio.run(main(args, saveName))

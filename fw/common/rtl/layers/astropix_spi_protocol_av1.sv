@@ -10,7 +10,8 @@ module astropix_spi_protocol_av1 #(
     parameter DEST_WIDTH = 8,
     parameter USER_WIDTH = 1,
     parameter LAYER_ID = 3'h0,
-    parameter IDLE_BYTE = 8'h3D)(
+    parameter IDLE_BYTE = 8'h3D,
+    parameter ASTROPIX_PAYLOAD_LENGTH = 3'd4)(
 
 
     // System clock and control
@@ -40,6 +41,7 @@ module astropix_spi_protocol_av1 #(
     // Statistics 
     output reg                    stat_frame_detected,
     output reg                    stat_idle_detected,
+    output reg                    stat_wronglength_detected,
 
     // Status
     output reg                    status_frame_decoding,
@@ -94,6 +96,7 @@ module astropix_spi_protocol_av1 #(
 
             stat_frame_detected     <= 1'b0;
             stat_idle_detected      <= 1'b0;
+            stat_wronglength_detected <= 1'b0;
 
             status_frame_decoding   <= 1'b0;
         end
@@ -110,7 +113,7 @@ module astropix_spi_protocol_av1 #(
                 
                 if (nodata_continue_counter==0) begin
                     readout_active <= 1'b0;
-                end else begin
+                end else if (slave_byte_available) begin
                     nodata_continue_counter <= nodata_continue_counter -1;
                 end 
 
@@ -168,16 +171,24 @@ module astropix_spi_protocol_av1 #(
                 HEADER_LENGTH: begin 
                     stat_frame_detected          <= 1'b0;
 
+                    
+
                     // Send Header ID
                     if (master_byte_valid) begin 
                         protocol_state          <= HEADER_ID;
                         m_axis_tdata            <= LAYER_ID;
+
+                        if (receive_frame_length_frozen!=ASTROPIX_PAYLOAD_LENGTH) begin
+                            stat_wronglength_detected <= 1'b1;
+                        end
                     end
                     
 
                 end
 
                 HEADER_ID: begin 
+
+                    stat_wronglength_detected <= 1'b0;
 
                     // Send Frame
                     if (master_byte_valid) begin 

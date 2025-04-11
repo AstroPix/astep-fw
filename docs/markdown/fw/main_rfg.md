@@ -27,40 +27,43 @@
 |0x2f | [layer_0_stat_idle_counter](#layer_0_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes|
 |0x33 | [layer_1_stat_idle_counter](#layer_1_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes|
 |0x37 | [layer_2_stat_idle_counter](#layer_2_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes|
-|0x3b | [layer_0_mosi](#layer_0_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix|
-|0x3c | [layer_0_mosi_write_size](#layer_0_mosi_write_size) | 32 |  | Number of entries in layer_0_mosi fifo|
-|0x40 | [layer_1_mosi](#layer_1_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix|
-|0x41 | [layer_1_mosi_write_size](#layer_1_mosi_write_size) | 32 |  | Number of entries in layer_1_mosi fifo|
-|0x45 | [layer_2_mosi](#layer_2_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix|
-|0x46 | [layer_2_mosi_write_size](#layer_2_mosi_write_size) | 32 |  | Number of entries in layer_2_mosi fifo|
-|0x4a | [layer_0_loopback_miso](#layer_0_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix throug internal slave loopback|
-|0x4b | [layer_0_loopback_miso_write_size](#layer_0_loopback_miso_write_size) | 32 |  | Number of entries in layer_0_loopback_miso fifo|
-|0x4f | [layer_1_loopback_miso](#layer_1_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix throug internal slave loopback|
-|0x50 | [layer_1_loopback_miso_write_size](#layer_1_loopback_miso_write_size) | 32 |  | Number of entries in layer_1_loopback_miso fifo|
-|0x54 | [layer_2_loopback_miso](#layer_2_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix throug internal slave loopback|
-|0x55 | [layer_2_loopback_miso_write_size](#layer_2_loopback_miso_write_size) | 32 |  | Number of entries in layer_2_loopback_miso fifo|
-|0x59 | [layer_0_loopback_mosi](#layer_0_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
-|0x5a | [layer_0_loopback_mosi_read_size](#layer_0_loopback_mosi_read_size) | 32 |  | Number of entries in layer_0_loopback_mosi fifo|
-|0x5e | [layer_1_loopback_mosi](#layer_1_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
-|0x5f | [layer_1_loopback_mosi_read_size](#layer_1_loopback_mosi_read_size) | 32 |  | Number of entries in layer_1_loopback_mosi fifo|
-|0x63 | [layer_2_loopback_mosi](#layer_2_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
-|0x64 | [layer_2_loopback_mosi_read_size](#layer_2_loopback_mosi_read_size) | 32 |  | Number of entries in layer_2_loopback_mosi fifo|
-|0x68 | [layers_cfg_frame_tag_counter_ctrl](#layers_cfg_frame_tag_counter_ctrl) | 8 |  | A few bits to control the Frame Tagging Counter|
-|0x69 | [layers_cfg_frame_tag_counter_trigger](#layers_cfg_frame_tag_counter_trigger) | 32 | Counter w/ Interrupt | This Interrupt Counter provides the enable signal for the frame tag counter|
-|0x6d | [layers_cfg_frame_tag_counter](#layers_cfg_frame_tag_counter) | 32 | Counter w/o Interrupt | Counter to tag frames upon detection (Counter value added to frame output)|
-|0x71 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout|
-|0x72 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register|
-|0x73 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs)|
-|0x74 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator|
-|0x75 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator|
-|0x76 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator|
-|0x77 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo|
-|0x78 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo|
-|0x7c | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating.|
-|0x7d | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information.|
-|0x7e | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards|
-|0x7f | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  | |
-|0x83 | [layers_cfg_frame_tag_counter_trigger_match](#layers_cfg_frame_tag_counter_trigger_match) | 32 |  | |
+|0x3b | [layer_0_stat_wronglength_counter](#layer_0_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes)|
+|0x3f | [layer_1_stat_wronglength_counter](#layer_1_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes)|
+|0x43 | [layer_2_stat_wronglength_counter](#layer_2_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes)|
+|0x47 | [layer_0_mosi](#layer_0_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix|
+|0x48 | [layer_0_mosi_write_size](#layer_0_mosi_write_size) | 32 |  | Number of entries in layer_0_mosi fifo|
+|0x4c | [layer_1_mosi](#layer_1_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix|
+|0x4d | [layer_1_mosi_write_size](#layer_1_mosi_write_size) | 32 |  | Number of entries in layer_1_mosi fifo|
+|0x51 | [layer_2_mosi](#layer_2_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix|
+|0x52 | [layer_2_mosi_write_size](#layer_2_mosi_write_size) | 32 |  | Number of entries in layer_2_mosi fifo|
+|0x56 | [layer_0_loopback_miso](#layer_0_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix throug internal slave loopback|
+|0x57 | [layer_0_loopback_miso_write_size](#layer_0_loopback_miso_write_size) | 32 |  | Number of entries in layer_0_loopback_miso fifo|
+|0x5b | [layer_1_loopback_miso](#layer_1_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix throug internal slave loopback|
+|0x5c | [layer_1_loopback_miso_write_size](#layer_1_loopback_miso_write_size) | 32 |  | Number of entries in layer_1_loopback_miso fifo|
+|0x60 | [layer_2_loopback_miso](#layer_2_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix throug internal slave loopback|
+|0x61 | [layer_2_loopback_miso_write_size](#layer_2_loopback_miso_write_size) | 32 |  | Number of entries in layer_2_loopback_miso fifo|
+|0x65 | [layer_0_loopback_mosi](#layer_0_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
+|0x66 | [layer_0_loopback_mosi_read_size](#layer_0_loopback_mosi_read_size) | 32 |  | Number of entries in layer_0_loopback_mosi fifo|
+|0x6a | [layer_1_loopback_mosi](#layer_1_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
+|0x6b | [layer_1_loopback_mosi_read_size](#layer_1_loopback_mosi_read_size) | 32 |  | Number of entries in layer_1_loopback_mosi fifo|
+|0x6f | [layer_2_loopback_mosi](#layer_2_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback|
+|0x70 | [layer_2_loopback_mosi_read_size](#layer_2_loopback_mosi_read_size) | 32 |  | Number of entries in layer_2_loopback_mosi fifo|
+|0x74 | [layers_cfg_frame_tag_counter_ctrl](#layers_cfg_frame_tag_counter_ctrl) | 8 |  | A few bits to control the Frame Tagging Counter|
+|0x75 | [layers_cfg_frame_tag_counter_trigger](#layers_cfg_frame_tag_counter_trigger) | 32 | Counter w/ Interrupt | This Interrupt Counter provides the enable signal for the frame tag counter|
+|0x79 | [layers_cfg_frame_tag_counter](#layers_cfg_frame_tag_counter) | 32 | Counter w/o Interrupt | Counter to tag frames upon detection (Counter value added to frame output)|
+|0x7d | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout|
+|0x7e | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register|
+|0x7f | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs)|
+|0x80 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator|
+|0x81 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator|
+|0x82 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator|
+|0x83 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo|
+|0x84 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo|
+|0x88 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating.|
+|0x89 | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information.|
+|0x8a | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards|
+|0x8b | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  | |
+|0x8f | [layers_cfg_frame_tag_counter_trigger_match](#layers_cfg_frame_tag_counter_trigger_match) | 32 |  | |
 
 
 ## <a id='hk_firmware_id'></a>hk_firmware_id
@@ -435,13 +438,52 @@
 
 
 
+## <a id='layer_0_stat_wronglength_counter'></a>layer_0_stat_wronglength_counter
+
+
+> Counts the number of Astropix frames that have a length different than 4 (bytes)
+
+
+**Address**: 0x3b
+
+
+
+
+
+
+## <a id='layer_1_stat_wronglength_counter'></a>layer_1_stat_wronglength_counter
+
+
+> Counts the number of Astropix frames that have a length different than 4 (bytes)
+
+
+**Address**: 0x3f
+
+
+
+
+
+
+## <a id='layer_2_stat_wronglength_counter'></a>layer_2_stat_wronglength_counter
+
+
+> Counts the number of Astropix frames that have a length different than 4 (bytes)
+
+
+**Address**: 0x43
+
+
+
+
+
+
 ## <a id='layer_0_mosi'></a>layer_0_mosi
 
 
 > FIFO to send bytes to Layer 0 Astropix
 
 
-**Address**: 0x3b
+**Address**: 0x47
 
 
 
@@ -454,7 +496,7 @@
 > Number of entries in layer_0_mosi fifo
 
 
-**Address**: 0x3c
+**Address**: 0x48
 
 
 
@@ -467,7 +509,7 @@
 > FIFO to send bytes to Layer 1 Astropix
 
 
-**Address**: 0x40
+**Address**: 0x4c
 
 
 
@@ -480,7 +522,7 @@
 > Number of entries in layer_1_mosi fifo
 
 
-**Address**: 0x41
+**Address**: 0x4d
 
 
 
@@ -493,7 +535,7 @@
 > FIFO to send bytes to Layer 2 Astropix
 
 
-**Address**: 0x45
+**Address**: 0x51
 
 
 
@@ -506,7 +548,7 @@
 > Number of entries in layer_2_mosi fifo
 
 
-**Address**: 0x46
+**Address**: 0x52
 
 
 
@@ -519,7 +561,7 @@
 > FIFO to send bytes to Layer 0 Astropix throug internal slave loopback
 
 
-**Address**: 0x4a
+**Address**: 0x56
 
 
 
@@ -532,7 +574,7 @@
 > Number of entries in layer_0_loopback_miso fifo
 
 
-**Address**: 0x4b
+**Address**: 0x57
 
 
 
@@ -545,7 +587,7 @@
 > FIFO to send bytes to Layer 1 Astropix throug internal slave loopback
 
 
-**Address**: 0x4f
+**Address**: 0x5b
 
 
 
@@ -558,7 +600,7 @@
 > Number of entries in layer_1_loopback_miso fifo
 
 
-**Address**: 0x50
+**Address**: 0x5c
 
 
 
@@ -571,7 +613,7 @@
 > FIFO to send bytes to Layer 2 Astropix throug internal slave loopback
 
 
-**Address**: 0x54
+**Address**: 0x60
 
 
 
@@ -584,7 +626,7 @@
 > Number of entries in layer_2_loopback_miso fifo
 
 
-**Address**: 0x55
+**Address**: 0x61
 
 
 
@@ -597,7 +639,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x59
+**Address**: 0x65
 
 
 
@@ -610,7 +652,7 @@
 > Number of entries in layer_0_loopback_mosi fifo
 
 
-**Address**: 0x5a
+**Address**: 0x66
 
 
 
@@ -623,7 +665,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x5e
+**Address**: 0x6a
 
 
 
@@ -636,7 +678,7 @@
 > Number of entries in layer_1_loopback_mosi fifo
 
 
-**Address**: 0x5f
+**Address**: 0x6b
 
 
 
@@ -649,7 +691,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x63
+**Address**: 0x6f
 
 
 
@@ -662,7 +704,7 @@
 > Number of entries in layer_2_loopback_mosi fifo
 
 
-**Address**: 0x64
+**Address**: 0x70
 
 
 
@@ -675,7 +717,7 @@
 > A few bits to control the Frame Tagging Counter
 
 
-**Address**: 0x68
+**Address**: 0x74
 
 
 **Reset Value**: 8'h1
@@ -697,7 +739,7 @@
 > This Interrupt Counter provides the enable signal for the frame tag counter
 
 
-**Address**: 0x69
+**Address**: 0x75
 
 
 
@@ -710,7 +752,7 @@
 > Counter to tag frames upon detection (Counter value added to frame output)
 
 
-**Address**: 0x6d
+**Address**: 0x79
 
 
 
@@ -723,7 +765,7 @@
 > Number of IDLE Bytes until stopping readout
 
 
-**Address**: 0x71
+**Address**: 0x7d
 
 
 **Reset Value**: 8'd5
@@ -737,7 +779,7 @@
 > Shift Register Configuration I/O Control register
 
 
-**Address**: 0x72
+**Address**: 0x7e
 
 
 
@@ -760,7 +802,7 @@
 > Shift Register Configuration Input control (Readback enable and layers inputs)
 
 
-**Address**: 0x73
+**Address**: 0x7f
 
 
 
@@ -781,7 +823,7 @@
 > Control bits for the Injection Pattern Generator
 
 
-**Address**: 0x74
+**Address**: 0x80
 
 
 **Reset Value**: 8'b00000110
@@ -806,7 +848,7 @@
 > Address for register to write in Injection Pattern Generator
 
 
-**Address**: 0x75
+**Address**: 0x81
 
 
 
@@ -819,7 +861,7 @@
 > Data for register to write in Injection Pattern Generator
 
 
-**Address**: 0x76
+**Address**: 0x82
 
 
 
@@ -832,7 +874,7 @@
 > Reads from the readout data fifo
 
 
-**Address**: 0x77
+**Address**: 0x83
 
 
 
@@ -845,7 +887,7 @@
 > Number of entries in layers_readout fifo
 
 
-**Address**: 0x78
+**Address**: 0x84
 
 
 
@@ -858,7 +900,7 @@
 > Configuration register for I/O multiplexers and gating.
 
 
-**Address**: 0x7c
+**Address**: 0x88
 
 
 **Reset Value**: 8'b00001000
@@ -882,7 +924,7 @@
 > This register is connected to the Board's LED. See target documentation for detailed connection information.
 
 
-**Address**: 0x7d
+**Address**: 0x89
 
 
 
@@ -895,7 +937,7 @@
 > Shift Register Control for Gecco Cards
 
 
-**Address**: 0x7e
+**Address**: 0x8a
 
 
 
@@ -915,7 +957,7 @@
 > 
 
 
-**Address**: 0x7f
+**Address**: 0x8b
 
 
 **Reset Value**: 32'd10
@@ -929,7 +971,7 @@
 > 
 
 
-**Address**: 0x83
+**Address**: 0x8f
 
 
 **Reset Value**: 32'd4

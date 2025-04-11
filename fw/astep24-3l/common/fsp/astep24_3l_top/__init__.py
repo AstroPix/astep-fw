@@ -34,40 +34,43 @@ LAYER_2_STAT_FRAME_COUNTER = 0x2b
 LAYER_0_STAT_IDLE_COUNTER = 0x2f
 LAYER_1_STAT_IDLE_COUNTER = 0x33
 LAYER_2_STAT_IDLE_COUNTER = 0x37
-LAYER_0_MOSI = 0x3b
-LAYER_0_MOSI_WRITE_SIZE = 0x3c
-LAYER_1_MOSI = 0x40
-LAYER_1_MOSI_WRITE_SIZE = 0x41
-LAYER_2_MOSI = 0x45
-LAYER_2_MOSI_WRITE_SIZE = 0x46
-LAYER_0_LOOPBACK_MISO = 0x4a
-LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x4b
-LAYER_1_LOOPBACK_MISO = 0x4f
-LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x50
-LAYER_2_LOOPBACK_MISO = 0x54
-LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x55
-LAYER_0_LOOPBACK_MOSI = 0x59
-LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x5a
-LAYER_1_LOOPBACK_MOSI = 0x5e
-LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x5f
-LAYER_2_LOOPBACK_MOSI = 0x63
-LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x64
-LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x68
-LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x69
-LAYERS_CFG_FRAME_TAG_COUNTER = 0x6d
-LAYERS_CFG_NODATA_CONTINUE = 0x71
-LAYERS_SR_OUT = 0x72
-LAYERS_SR_IN = 0x73
-LAYERS_INJ_CTRL = 0x74
-LAYERS_INJ_WADDR = 0x75
-LAYERS_INJ_WDATA = 0x76
-LAYERS_READOUT = 0x77
-LAYERS_READOUT_READ_SIZE = 0x78
-IO_CTRL = 0x7c
-IO_LED = 0x7d
-GECCO_SR_CTRL = 0x7e
-HK_CONVERSION_TRIGGER_MATCH = 0x7f
-LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x83
+LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3b
+LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x3f
+LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x43
+LAYER_0_MOSI = 0x47
+LAYER_0_MOSI_WRITE_SIZE = 0x48
+LAYER_1_MOSI = 0x4c
+LAYER_1_MOSI_WRITE_SIZE = 0x4d
+LAYER_2_MOSI = 0x51
+LAYER_2_MOSI_WRITE_SIZE = 0x52
+LAYER_0_LOOPBACK_MISO = 0x56
+LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x57
+LAYER_1_LOOPBACK_MISO = 0x5b
+LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5c
+LAYER_2_LOOPBACK_MISO = 0x60
+LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x61
+LAYER_0_LOOPBACK_MOSI = 0x65
+LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x66
+LAYER_1_LOOPBACK_MOSI = 0x6a
+LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
+LAYER_2_LOOPBACK_MOSI = 0x6f
+LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
+LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x74
+LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x75
+LAYERS_CFG_FRAME_TAG_COUNTER = 0x79
+LAYERS_CFG_NODATA_CONTINUE = 0x7d
+LAYERS_SR_OUT = 0x7e
+LAYERS_SR_IN = 0x7f
+LAYERS_INJ_CTRL = 0x80
+LAYERS_INJ_WADDR = 0x81
+LAYERS_INJ_WDATA = 0x82
+LAYERS_READOUT = 0x83
+LAYERS_READOUT_READ_SIZE = 0x84
+IO_CTRL = 0x88
+IO_LED = 0x89
+GECCO_SR_CTRL = 0x8a
+HK_CONVERSION_TRIGGER_MATCH = 0x8b
+LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x8f
 
 
 
@@ -101,40 +104,43 @@ class main_rfg(AbstractRFG):
         LAYER_0_STAT_IDLE_COUNTER = 0x2f
         LAYER_1_STAT_IDLE_COUNTER = 0x33
         LAYER_2_STAT_IDLE_COUNTER = 0x37
-        LAYER_0_MOSI = 0x3b
-        LAYER_0_MOSI_WRITE_SIZE = 0x3c
-        LAYER_1_MOSI = 0x40
-        LAYER_1_MOSI_WRITE_SIZE = 0x41
-        LAYER_2_MOSI = 0x45
-        LAYER_2_MOSI_WRITE_SIZE = 0x46
-        LAYER_0_LOOPBACK_MISO = 0x4a
-        LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x4b
-        LAYER_1_LOOPBACK_MISO = 0x4f
-        LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x50
-        LAYER_2_LOOPBACK_MISO = 0x54
-        LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x55
-        LAYER_0_LOOPBACK_MOSI = 0x59
-        LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x5a
-        LAYER_1_LOOPBACK_MOSI = 0x5e
-        LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x5f
-        LAYER_2_LOOPBACK_MOSI = 0x63
-        LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x64
-        LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x68
-        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x69
-        LAYERS_CFG_FRAME_TAG_COUNTER = 0x6d
-        LAYERS_CFG_NODATA_CONTINUE = 0x71
-        LAYERS_SR_OUT = 0x72
-        LAYERS_SR_IN = 0x73
-        LAYERS_INJ_CTRL = 0x74
-        LAYERS_INJ_WADDR = 0x75
-        LAYERS_INJ_WDATA = 0x76
-        LAYERS_READOUT = 0x77
-        LAYERS_READOUT_READ_SIZE = 0x78
-        IO_CTRL = 0x7c
-        IO_LED = 0x7d
-        GECCO_SR_CTRL = 0x7e
-        HK_CONVERSION_TRIGGER_MATCH = 0x7f
-        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x83
+        LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3b
+        LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x3f
+        LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x43
+        LAYER_0_MOSI = 0x47
+        LAYER_0_MOSI_WRITE_SIZE = 0x48
+        LAYER_1_MOSI = 0x4c
+        LAYER_1_MOSI_WRITE_SIZE = 0x4d
+        LAYER_2_MOSI = 0x51
+        LAYER_2_MOSI_WRITE_SIZE = 0x52
+        LAYER_0_LOOPBACK_MISO = 0x56
+        LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x57
+        LAYER_1_LOOPBACK_MISO = 0x5b
+        LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5c
+        LAYER_2_LOOPBACK_MISO = 0x60
+        LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x61
+        LAYER_0_LOOPBACK_MOSI = 0x65
+        LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x66
+        LAYER_1_LOOPBACK_MOSI = 0x6a
+        LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
+        LAYER_2_LOOPBACK_MOSI = 0x6f
+        LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
+        LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x74
+        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x75
+        LAYERS_CFG_FRAME_TAG_COUNTER = 0x79
+        LAYERS_CFG_NODATA_CONTINUE = 0x7d
+        LAYERS_SR_OUT = 0x7e
+        LAYERS_SR_IN = 0x7f
+        LAYERS_INJ_CTRL = 0x80
+        LAYERS_INJ_WADDR = 0x81
+        LAYERS_INJ_WDATA = 0x82
+        LAYERS_READOUT = 0x83
+        LAYERS_READOUT_READ_SIZE = 0x84
+        IO_CTRL = 0x88
+        IO_LED = 0x89
+        GECCO_SR_CTRL = 0x8a
+        HK_CONVERSION_TRIGGER_MATCH = 0x8b
+        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x8f
     
     
     
@@ -466,6 +472,54 @@ class main_rfg(AbstractRFG):
     
     async def read_layer_2_stat_idle_counter_raw(self, count : int = 4 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['LAYER_2_STAT_IDLE_COUNTER'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layer_0_stat_wronglength_counter(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_0_STAT_WRONGLENGTH_COUNTER'],value = value,increment = True,valueLength=4)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layer_0_stat_wronglength_counter(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_0_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_0_stat_wronglength_counter_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_0_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layer_1_stat_wronglength_counter(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_1_STAT_WRONGLENGTH_COUNTER'],value = value,increment = True,valueLength=4)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layer_1_stat_wronglength_counter(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_1_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_1_stat_wronglength_counter_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_1_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layer_2_stat_wronglength_counter(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYER_2_STAT_WRONGLENGTH_COUNTER'],value = value,increment = True,valueLength=4)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layer_2_stat_wronglength_counter(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYER_2_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layer_2_stat_wronglength_counter_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYER_2_STAT_WRONGLENGTH_COUNTER'],count = count, increment = True)
         
     
     

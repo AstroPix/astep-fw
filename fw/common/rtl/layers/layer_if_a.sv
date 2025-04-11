@@ -34,7 +34,8 @@ module layer_if_a  #(LAYER_ID = 0)(
     output wire             status_frame_decoding,
 
     output wire				stat_frame_detected,
-    output wire				stat_idle_detected
+    output wire				stat_idle_detected,
+    output wire             stat_wronglength_detected
 );
 
 
@@ -134,7 +135,8 @@ module layer_if_a  #(LAYER_ID = 0)(
         .cfg_layer_reset(cfg_layer_reset),
         .status_frame_decoding(status_frame_decoding),
         .stat_frame_detected(stat_frame_detected),
-        .stat_idle_detected(stat_idle_detected)
+        .stat_idle_detected(stat_idle_detected),
+        .stat_wronglength_detected(stat_wronglength_detected)
     );
 
 
