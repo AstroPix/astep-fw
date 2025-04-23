@@ -37,12 +37,13 @@ async def buffer_flush(boardDriver):
     for layer in range(3):
         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
     #deassert hold
-    if 0 in interruptn: await boardDriver.holdLayers(hold=False, flush=True)
+    # if 0 in interruptn: await boardDriver.holdLayers(hold=False, flush=True)
+    await boardDriver.holdLayers(hold=False, flush=True)
     interupt_counter=0
     while 0 in interruptn and interupt_counter<20:
         logger.info("interrupt low")
         for layer, i in enumerate(interruptn):
-            if i == 0:
+            if i == 0:#if interrupt low
                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
         nmbBytes = await boardDriver.readoutGetBufferSize()
         if nmbBytes > 0:
@@ -52,8 +53,13 @@ async def buffer_flush(boardDriver):
             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
         interupt_counter+=1
         logger.info(f"Buffer size = {nmbBytes} B")
+    # Now all interrupts are high, empty FPGA buffer
+    buff, readout = await get_readout(boardDriver)
     #reassert hold to be safe
-    await boardDriver.holdLayers(hold=True, flush=True) 
+    await boardDriver.holdLayers(hold=True, flush=True)
+    if buff > 0:
+        logger.info(binascii.hexlify(readout))
+        logger.info(f"Buffer size = {buff} B")
     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
     await boardDriver.resetLayerStatCounters(layer)
 
@@ -75,11 +81,12 @@ def dataParse_autoread(data_lst, buffer_lst, bitfile:str = None):
     ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
     return allData
 
-async def printStatus(boardDriver, time=0, buff=0):
+async def printStatus(boardDriver, time=0., buff=0):
     status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
     ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
-    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b} 1={1[1]:02b}-{2[1]:06b} 2={1[2]:02b}-{2[2]:06b}".format(buff, status, ctrl, time=time))
-
+    wrongl = [await boardDriver.getLayerWrongLength(layer) for layer in range(3)]
+    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[1]:04d}"\
+                .format(buff, status, ctrl, wrongl, time=time))
 
 
 # Needed to decode data
@@ -107,6 +114,7 @@ async def main(args):
     logger.info("FPGA test successful.")
     logger.debug("Set sensor clocks.")
     await boardDriver.enableSensorClocks(flush = True)
+    # await boardDriver.ioSetTimestampClock(enable=False, flush=True)
     # Setup FPGA timestamps
     # logger.debug("Configure FPGA TS freq.")
     # await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
@@ -116,10 +124,10 @@ async def main(args):
     await boardDriver.configureLayerSPIDivider(20, flush = True)
     logger.debug("Configure number of bytes read after interrupt in readout")
     nodatacontinue = await boardDriver.rfg.read_layers_cfg_nodata_continue()
-    logger.info(f"Nodatacontinue bytes={nodatacontinue}")
-    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=5, flush=True)
+    logger.info(f"no_data_continue value={nodatacontinue}")
+    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)
     nodatacontinue = await boardDriver.rfg.read_layers_cfg_nodata_continue()
-    logger.info(f"Nodatacontinue bytes={nodatacontinue}")
+    logger.info(f"no_data_continue value={nodatacontinue}")
     logger.debug("Instanciate ASIC drivers ...")
     # Configure chips in memory
     pathdelim = os.path.sep #determine if Mac or Windows separators in path name
@@ -239,6 +247,8 @@ async def main(args):
     # time.sleep(.1)
     # return
 
+    await printStatus(boardDriver)
+    for layer in range(3): await boardDriver.zeroLayerWrongLength(layer, flush=True)
 
     layerlst = range(len(args.yaml))
     #layerlst=[1]
@@ -250,7 +260,7 @@ async def main(args):
     #     print(bin(regval))
     await printStatus(boardDriver, -1.1)
     await boardDriver.disableLayersReadout(flush=True)#Hold, disableMISO, disableAutoread, CS=inactive
-    await boardDriver.resetLayers()#Toggle RST
+    await boardDriver.resetLayersFull()#Toggle RST
     await printStatus(boardDriver, -1.2)
     #await asyncio.sleep(0.2)
     # for layer in layerlst:
@@ -301,9 +311,12 @@ async def main(args):
 
     #await asyncio.sleep(0.2)
     # Final setup
-    if args.inject: await injector.start()
+    if args.inject:
+        await injector.start()
     dataStream_lst = []
     bufferLength_lst = []
+    # else:
+    #     ofile = open()
     if args.runTime is not None: 
         end_time=time.time()+(args.runTime*60.)
     else:
@@ -341,7 +354,12 @@ async def main(args):
                 # Store data
                 dataStream_lst.append(readout)
                 bufferLength_lst.append(buff)
-                await printStatus(boardDriver, time.time()-end_time, buff=buff)
+                if args.inject:
+                    await printStatus(boardDriver, time.time()-end_time, buff=buff)
+                else: #implement data writing in loop here to avoid running out of ram during overnight runs
+                    pass
+                print(f"  {buff:04d}  ", end="\r")
+                # logger.info(binascii.hexlify(readout[:buff]))
             # Check time
             run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -372,9 +390,10 @@ async def main(args):
         df = drivers.astropix.decode.decode_readout(myhack(), logger, readout_data, 0, printer=True)
     else:
         print(len(bufferLength_lst), max(bufferLength_lst))
-        # Save data
-        for d in dataStream_lst:
-            logger.info(binascii.hexlify(d))
+        # Save raw data
+        if not(args.inject):
+            for d in dataStream_lst:
+                logger.info(binascii.hexlify(d))
         if args.inject or False:
             dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
             df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
@@ -390,9 +409,10 @@ async def main(args):
             for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
                 if buff > 0:
                     datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
-            df = pd.concat(datalst)
-            df.columns = csvframe
-            df.to_csv(args.outputPrefix+".csv")
+            if max(bufferLength_lst) > 0:
+                df = pd.concat(datalst)
+                df.columns = csvframe
+                df.to_csv(args.outputPrefix+".csv")
         
 
 

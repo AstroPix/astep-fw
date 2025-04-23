@@ -279,13 +279,27 @@ class BoardDriver():
         Args:
             waitTime (float):  Reset duration - Default 0.5s
         """
-        #await self.resetLayer(0, waitTime)
         layer0Cfg = await self.rfg.read_layer_0_cfg_ctrl()
         layer0Cfg |= (1<<1)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
         await asyncio.sleep(waitTime)
         layer0Cfg &= ~(1<<1)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg,flush)
+
+    async def resetLayersFull(self, waitTime: float = 0.5, flush=True):
+        """Reset all layers because the reset line is shared.
+
+        Args:
+            waitTime (float):  Reset duration - Default 0.5s
+        """
+        layersCfg = [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
+        for layer in range(3):
+            layersCfg[layer] |= (1<<1)
+            await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(layersCfg[layer], flush)
+        await asyncio.sleep(waitTime)
+        for layer in range(3):
+            layersCfg[layer] &= ~(1<<1)
+            await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(layersCfg[layer], flush)
 
     # @deprecated("Please use clearer setLayerConfig method")
     # async def setLayerReset(self,layer:int, reset : bool, disable_autoread : bool  = True, modify : bool = False, flush = False):
@@ -446,6 +460,13 @@ class BoardDriver():
 
     async def getLayerControl(self,layer:int):
         return await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
+    
+    async def getLayerWrongLength(self, layer:int):
+        return await getattr(self.rfg, f"read_layer_{layer}_stat_wronglength_counter")()
+
+    async def zeroLayerWrongLength(self, layer:int, flush:bool =True):
+        await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(0, flush=flush)
+
     
     async def assertLayerNotInReset(self,layer:int):
         ctrlReg = await self.getLayerControl(layer)
