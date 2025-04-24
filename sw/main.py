@@ -94,6 +94,18 @@ class myhack:
     def __init__(self):
         self.sampleclock_period_ns = 10
 
+def bin2csv(fprefix):
+    with open("{}.bin".format(fprefix), "rb") as ofile:
+        datalst = []
+        i = 0
+        while (data := ofile.read(4096)):
+            datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+            i += 1
+    csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+    df = pd.concat(datalst)
+    df.columns = csvframe
+    df.to_csv(fprefix+".csv")
+
 #######################################################
 #################### MAIN FUNCTION ####################
 
@@ -313,10 +325,10 @@ async def main(args):
     # Final setup
     if args.inject:
         await injector.start()
-    dataStream_lst = []
-    bufferLength_lst = []
-    # else:
-    #     ofile = open()
+        dataStream_lst = []
+        bufferLength_lst = []
+    else:
+        ofile = open("{}.bin".format(args.outputPrefix), "wb")
     if args.runTime is not None: 
         end_time=time.time()+(args.runTime*60.)
     else:
@@ -351,13 +363,13 @@ async def main(args):
                 task = asyncio.create_task(get_readout(boardDriver))
                 await task
                 buff, readout = task.result()
-                # Store data
-                dataStream_lst.append(readout)
-                bufferLength_lst.append(buff)
                 if args.inject:
+                    # Store data
+                    dataStream_lst.append(readout)
+                    bufferLength_lst.append(buff)
                     await printStatus(boardDriver, time.time()-end_time, buff=buff)
                 else: #implement data writing in loop here to avoid running out of ram during overnight runs
-                    pass
+                    ofile.write(readout)
                 print(f"  {buff:04d}  ", end="\r")
                 # logger.info(binascii.hexlify(readout[:buff]))
             # Check time
@@ -374,6 +386,7 @@ async def main(args):
     await printStatus(boardDriver, time.time()-end_time)
     # End injection
     if args.inject: await injector.stop()
+    else: ofile.close()
     
     await printStatus(boardDriver, time.time()-end_time)
     # End connection
@@ -389,12 +402,12 @@ async def main(args):
         logger.info(f"{buff} bytes in buffer")
         df = drivers.astropix.decode.decode_readout(myhack(), logger, readout_data, 0, printer=True)
     else:
-        print(len(bufferLength_lst), max(bufferLength_lst))
-        # Save raw data
-        if not(args.inject):
-            for d in dataStream_lst:
-                logger.info(binascii.hexlify(d))
-        if args.inject or False:
+        if args.inject:
+            print(len(bufferLength_lst), max(bufferLength_lst))
+            # Save raw data # Now done in-loop
+            # if not(args.inject):
+            #     for d in dataStream_lst:
+            #         logger.info(binascii.hexlify(d))
             dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
             df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=True)
             if len(df) > 0:
@@ -403,16 +416,8 @@ async def main(args):
                 df.to_csv(args.outputPrefix+".csv")
             else:
                 logger.warning("No data written to disk because none have been received.")
-        else: # TBC
-            csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
-            datalst = []
-            for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
-                if buff > 0:
-                    datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
-            if max(bufferLength_lst) > 0:
-                df = pd.concat(datalst)
-                df.columns = csvframe
-                df.to_csv(args.outputPrefix+".csv")
+        else:
+            bin2csv(args.outputPrefix)
         
 
 
@@ -580,5 +585,14 @@ if __name__ == "__main__":
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
 
 
+                csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+                datalst = []
+                for i, (buff, data) in enumerate(zip(bufferLength_lst, dataStream_lst)):
+                    if buff > 0:
+                        datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+                if max(bufferLength_lst) > 0:
+                    df = pd.concat(datalst)
+                    df.columns = csvframe
+                    df.to_csv(args.outputPrefix+".csv")
 
 """
