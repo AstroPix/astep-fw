@@ -122,12 +122,10 @@ async def main(args):
     logger.info("FPGA test successful.")
     logger.debug("Set sensor clocks.")
     await boardDriver.enableSensorClocks(flush = True)
-    # await boardDriver.ioSetTimestampClock(enable=False, flush=True)
     # Setup FPGA timestamps
-    # logger.debug("Configure FPGA TS freq.")
-    # await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
-    # logger.debug("Enable FPGA TS.")
-    # await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
+    await boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = 1000000, flush = True)
+    await boardDriver.layersConfigFPGATimestamp(enable = True, force = False, source_match_counter = True, source_external = False, flush = True)
+
     logger.debug("Configure SPI readout")
     await boardDriver.configureLayerSPIDivider(20, flush = True)
     await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)
