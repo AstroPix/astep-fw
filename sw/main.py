@@ -19,15 +19,15 @@ import drivers.astropix.decode
 import logging
 
 
-async def buffer_flush(boardDriver):
+async def buffer_flush(boardDriver, layerlst = range(3)):
     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
     # Flush data from sensor
     logger.info("Flush chip before data collection")
     # Deassert hold
     await boardDriver.holdLayers(hold=False, flush=True)
     # Flush chips and SPI lines
-    interruptn = [1, 1, 1]
-    for layer in range(3):
+    interruptn = [1 for i in layerlst]
+    for layer in layerlst:
         await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
     # Keep flushing until interrupt is high
@@ -40,8 +40,8 @@ async def buffer_flush(boardDriver):
         nmbBytes = await boardDriver.readoutGetBufferSize()
         if nmbBytes > 0:
             await boardDriver.readoutReadBytes(1024)
-        interruptn = [1, 1, 1]
-        for layer in range(3):
+        interruptn = [1 for i in layerlst]
+        for layer in layerlst:
             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
         interupt_counter+=1
         logger.info(f"Buffer size = {nmbBytes} B")
