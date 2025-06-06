@@ -96,6 +96,7 @@ def bin2csv(fprefix):
         i = 0
         while (data := ofile.read(4096)):
             datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+            # logger.info(binascii.hexlify(data))
             i += 1
     csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
     df = pd.concat(datalst)
@@ -209,6 +210,7 @@ async def main(args):
         try:
             # Read data
             task = asyncio.create_task(get_readout(boardDriver))
+            #task = asyncio.create_task(getBuffer(boardDriver))
             await task
             buff, readout = task.result()
             if args.inject:
@@ -218,6 +220,7 @@ async def main(args):
                 await printStatus(boardDriver, time.time()-end_time, buff=buff)
             else:
                 ofile.write(readout)
+                #logger.info(binascii.hexlify(readout))
             print(f"  {buff:04d}  ", end="\r")
             # logger.info(binascii.hexlify(readout[:buff]))
             # Check time

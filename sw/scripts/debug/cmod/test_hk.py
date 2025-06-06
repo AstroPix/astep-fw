@@ -100,7 +100,7 @@ async def main(ramp):
 
     if ramp == "up":
         for v in [.5, 1., 1.5, 1.9, 2.05]:
-            await setHV(setVoltage=v)
+            await setHV(setVoltage=v)  
             time.sleep(1)
     elif ramp == "down":
         for v in [1.9, 1.5, 1., .5, 0.]:
@@ -113,3 +113,4 @@ async def main(ramp):
 
 if __name__ == "__main__":
     asyncio.run(main("down"))
+    #asyncio.run(callHK())
