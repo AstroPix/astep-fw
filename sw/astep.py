@@ -70,7 +70,8 @@ class astepRun:
         logger.info("FPGA test successful.")
         
         # This method asserts the reset signal for .5s by default then deasserts it
-        await self.boardDriver.resetLayer(layer = 0)
+        for layer in range(3):
+            await self.boardDriver.resetLayer(layer = layer) #Make them concurrent?
 
 ##################### YAML INTERACTIONS #########################
 #reading done in core/asic.py
@@ -132,31 +133,29 @@ class astepRun:
 ##################### ASIC METHODS FOR USERS #########################
 
     # Method to initalize the asic. This is taking the place of asic.py. 
-    async def asic_init(self, yaml:str = None, rows:int = 1, chipsPerRow:int = 1):
+    async def asic_init(self, yaml:str = None, chipsPerRow:int = 1):
         """
         self.asic_init() - initalize the asic configuration. Must be called first
         Positional arguments: None
         Optional:
-        yaml:str - Name of yml file with configuration values
-        rows:int - Number of SPI busses / ASIC objects to create
-        chipsPerRow:int - Number of arrays per SPI bus, must all be equal (Adrien: possible ComPair problem?)
-        analog_col: list[int] - Define layer, chip, col (in that order) of pixel to enable analog output (only one per row) 
+        yaml:list of str - Name of yml file(s) with configuration values (one file per bus) 
+        chipsPerRow:list of int - Number of arrays per SPI bus (one int per bus) 
         """
 
         # Now that the asic has been initalized we can go and make this true
         self._asic_start = True
 
         # Define YAML path variables
-        pathdelim=os.path.sep #determine if Mac or Windows separators in path name
-        ymlpath=os.getcwd()+pathdelim+"scripts"+pathdelim+"config"+pathdelim+yaml+".yml"
+        pathdelim = os.path.sep #determine if Mac or Windows separators in path name
+        ymlpath = [os.getcwd()+pathdelim+"scripts"+pathdelim+"config"+pathdelim+ y +".yml" for y in yaml]
 
         #Get config values from YAML and set chip properties
         try:
-            ## Init asic
-            self.boardDriver.setupASICS(version = self.chipversion, rows = rows, chipsPerRow = chipsPerRow , configFile = ymlpath )
-            ## Get asic for each row aka each daisy chain
-            for r in range(rows):
-                self.asics.append(self.boardDriver.getAsic(row = r))
+            for layer, (nchips, yml) in enumerate(zip(chipsPerRow, ymlpath)):
+                ## Init asic
+                self.boardDriver.setupASIC(version = self.chipversion, row = layer, chipsPerRow = nchips , configFile = yml )
+                ## Get asic for each row aka each daisy chain
+                self.asics.append(self.boardDriver.getAsic(row = layer))
         except FileNotFoundError as e :
             logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
             raise e
@@ -188,7 +187,7 @@ class astepRun:
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
         #Flush data from sensor
         logger.info("Flush chip before data collection")
-        status = await self.boardDriver.rfg.read_layer_0_status() ## DAN - need to make the hardcoded 'layer_0' dynamic?
+        status = await self.boardDriver.getLayerStatus(layer)
         interruptn = status & 0x1
         #deassert hold
         await self.boardDriver.holdLayer(layer, hold=False)
@@ -199,7 +198,7 @@ class astepRun:
             nmbBytes = await self.boardDriver.readoutGetBufferSize()
             if nmbBytes > 0:
                     await self.boardDriver.readoutReadBytes(1024)
-            status = await self.boardDriver.rfg.read_layer_0_status()
+            status = await self.boardDriver.getLayerStatus(layer)
             interruptn = status & 0x1 
             interupt_counter+=1
         #reassert hold to be safe
@@ -218,13 +217,13 @@ class astepRun:
             try:
                 await self.boardDriver.getAsic(row = layer).writeConfigSR()
             except OverflowError:
-                logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer].num_chips} chips. Check chipsPerRow from asic_init")
+                logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer]._num_chips} chips. Check chipsPerRow from asic_init")
                 sys.exit(1)
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
                 await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False, hold=True,disableMISO=True, flush = True )
-                for chip in range(self.asics[layer].num_chips):
+                for chip in range(self.asics[layer]._num_chips):
                     await self.boardDriver.layersSelectSPI(flush=True)
                     await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
                     await self.boardDriver.layersDeselectSPI(flush=True)
@@ -265,7 +264,7 @@ class astepRun:
             self.asics[layer].enable_inj_col(chip, col, inplace=False)
             self.asics[layer].enable_inj_row(chip, row, inplace=False)
         except (IndexError, KeyError):
-            logger.error(f"Cannot enable injection in pixel layer {layer+1}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            logger.error(f"Cannot enable injection in pixel layer {layer}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed.")
             sys.exit(1)
         
     
@@ -273,10 +272,10 @@ class astepRun:
     async def enable_analog(self, layer:int, chip:int, col: int):
         try:
             #Enable analog pixel from given chip in the daisy chain
-            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer+1}")
+            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
             self.asics[layer].enable_ampout_col(chip, col, inplace=False)
         except (IndexError, KeyError):
-            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed. Layer counting begins at 1, not 0.")
+            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed.")
             sys.exit(1)
         
 
@@ -536,7 +535,7 @@ class astepRun:
 
 ############################ Data Collection / Processing ##############################
     #Properly set up layer config for data collection
-    async def setup_readout(self, layer:int, autoread:int = 1):
+    async def setup_readout(self, layer:int, autoread:bool = True):
         #Take take layer out of reset and hold
         await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = autoread, hold=False, flush = True )
    
