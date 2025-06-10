@@ -117,6 +117,53 @@ async def test_layer_0_single_frame_autoread(dut):
 
     await Timer(50, units="us")
 
+@cocotb.test(timeout_time = 2 , timeout_unit = "ms")
+async def test_layer_0_single_frame_autoread_stopduringread(dut):
+
+    ## Driver, asic, clock+reset
+    asic = vip.astropix3.Astropix3Model(dut = dut, prefix = "layer_0" , chipID = 1)
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(5, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    assert await driver.readoutGetBufferSize() == 0
+
+    ##########
+
+    ## Start the layer, with autoread enabled
+    await driver.setLayerConfig(layer = 0, reset = False, hold = False, autoread = True , flush = True )
+    await driver.setLayerConfig(layer = 1, reset = False, hold = False, autoread = True , flush = True )
+    await Timer(10, units="us")
+
+    ## Drive a frame from the ASIC
+    ## This method returns when the frame was outputed from the chip spi slave
+    await asic.generateTestFrame(length = 4)
+
+    ## Wait for interrupt to be 1 to generate new frames directly
+    await RisingEdge(dut.layer_0_interruptn)
+    await Timer(2, units="us")
+    await asic.generateTestFrame(length = 4)
+
+    ## Wait a bit and generate another frame
+    await Timer(20, units="us")
+    await asic.generateTestFrame(length = 4)
+    
+   
+    ## Generate a wrong length frame
+    await Timer(20, units="us")
+    await asic.generateTestFrame(length = 5)
+
+    await Timer(20, units="us")
+    await driver.setLayerConfig(layer = 0, reset = False, hold = True, autoread = True , flush = True )
+    await driver.setLayerConfig(layer = 0, reset = False, hold = True, autoread = False , flush = True )
+    #await Timer(50, units="us")
+    #readoutLength = await driver.readoutGetBufferSize()
+    
+    ## Length should be 6 Frame bytes (header + 5 payload), +2 Readout Frame Header + 4 Timestamp bytes = 12
+    #assert readoutLength == 12
+
+    await Timer(50, units="us")
+
 
 @cocotb.test(timeout_time = 2, timeout_unit = "ms")
 async def test_3_layers_single_frame(dut):

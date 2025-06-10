@@ -3,7 +3,7 @@
   "ip_inst": {
     "xci_name": "axis_switch_layer_frame",
     "component_reference": "xilinx.com:ip:axis_switch:1.1",
-    "ip_revision": "30",
+    "ip_revision": "33",
     "gen_directory": ".",
     "parameters": {
       "component_parameters": {
@@ -333,7 +333,7 @@
         "C_ARB_ALGORITHM": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_OUTPUT_REG": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
         "C_DECODER_REG": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
-        "C_M_AXIS_CONNECTIVITY_ARRAY": [ { "value": "0b111", "resolve_type": "dependent", "format": "bitString", "usage": "all" } ],
+        "C_M_AXIS_CONNECTIVITY_ARRAY": [ { "value": "0b111", "resolve_type": "generated", "format": "bitString", "usage": "all" } ],
         "C_M_AXIS_BASETDEST_ARRAY": [ { "value": "0b00000000", "resolve_type": "dependent", "format": "bitString", "usage": "all" } ],
         "C_M_AXIS_HIGHTDEST_ARRAY": [ { "value": "0b00000000", "resolve_type": "dependent", "format": "bitString", "usage": "all" } ],
         "C_ROUTING_MODE": [ { "value": "0", "resolve_type": "generated", "format": "long", "usage": "all" } ],
@@ -356,12 +356,12 @@
       },
       "runtime_parameters": {
         "IPCONTEXT": [ { "value": "IP_Flow" } ],
-        "IPREVISION": [ { "value": "30" } ],
+        "IPREVISION": [ { "value": "33" } ],
         "MANAGED": [ { "value": "TRUE" } ],
         "OUTPUTDIR": [ { "value": "." } ],
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "." } ],
-        "SWVERSION": [ { "value": "2023.2.1" } ],
+        "SWVERSION": [ { "value": "2024.2" } ],
         "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
@@ -508,13 +508,14 @@
           "abstraction_type": "xilinx.com:signal:clock_rtl:1.0",
           "mode": "slave",
           "parameters": {
+            "ASSOCIATED_BUSIF": [ { "value": "M00_AXIS:M01_AXIS:M02_AXIS:M03_AXIS:M04_AXIS:M05_AXIS:M06_AXIS:M07_AXIS:M08_AXIS:M09_AXIS:M10_AXIS:M11_AXIS:M12_AXIS:M13_AXIS:M14_AXIS:M15_AXIS:S00_AXIS:S01_AXIS:S02_AXIS:S03_AXIS:S04_AXIS:S05_AXIS:S06_AXIS:S07_AXIS:S08_AXIS:S09_AXIS:S10_AXIS:S11_AXIS:S12_AXIS:S13_AXIS:S14_AXIS:S15_AXIS", "value_src": "constant", "usage": "all" } ],
+            "ASSOCIATED_RESET": [ { "value": "aresetn", "value_src": "constant", "usage": "all" } ],
+            "ASSOCIATED_CLKEN": [ { "value": "aclken", "value_src": "constant", "usage": "all" } ],
             "FREQ_HZ": [ { "value": "10000000", "resolve_type": "user", "format": "long", "usage": "all" } ],
             "FREQ_TOLERANCE_HZ": [ { "value": "0", "resolve_type": "generated", "format": "long", "is_ips_inferred": true, "is_static_object": false } ],
             "PHASE": [ { "value": "0.0", "resolve_type": "generated", "format": "float", "is_ips_inferred": true, "is_static_object": false } ],
             "CLK_DOMAIN": [ { "value": "", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
-            "ASSOCIATED_BUSIF": [ { "value": "", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
             "ASSOCIATED_PORT": [ { "value": "", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
-            "ASSOCIATED_RESET": [ { "value": "", "resolve_type": "generated", "is_ips_inferred": true, "is_static_object": false } ],
             "INSERT_VIP": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "simulation.rtl", "is_ips_inferred": true, "is_static_object": false } ]
           },
           "port_maps": {

@@ -2,6 +2,8 @@
 SHELL=/bin/bash
 CCTB_ARGS=
 
+export IC_SIM_SIMULATOR=xcelium
+
 install: sudo npm -gi junit-cli-report-viewer
 
 ## Purge Clean

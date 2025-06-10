@@ -3,6 +3,7 @@ SHELL=/bin/bash
 SRCBASE?=.
 FILES=$(wildcard $(SRCBASE)/files/*)
 REQFILES=$(CCTBV1_HOME)/setup/requirements.txt $(wildcard $(SRCBASE)/requirements.txt)
+PYTHON ?= /usr/bin/python3
 
 setup: .venv/bin/activate .venv/bin/icf_updated probes.tcl $(FILES) node_modules/.bin/junit-cli-report-viewer package.json
 	@echo "Setting up CCTB"
@@ -10,7 +11,7 @@ setup: .venv/bin/activate .venv/bin/icf_updated probes.tcl $(FILES) node_modules
 	@if [[ -d $(SRCBASE)/files ]]; then cp -Rf $(SRCBASE)/files/* files/; fi
 
 .venv/bin/activate: 
-	@python3  -m venv .venv
+	@$(PYTHON)  -m venv .venv
 
 .venv/bin/icf_updated: $(REQFILES)
 	@.venv/bin/python3 -m pip install --upgrade pip
