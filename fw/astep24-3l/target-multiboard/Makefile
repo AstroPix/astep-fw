@@ -1,4 +1,5 @@
-ALL_BUILDS=gecco-astropix2.build gecco-astropix3.build cmod-astep.build
+# gecco-astropix2.build 
+ALL_BUILDS=gecco-astropix3.build cmodr2-astep.build
 CCTB_ARGS ?= 
 
 clean:
