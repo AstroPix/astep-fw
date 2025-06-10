@@ -1,5 +1,6 @@
 import asyncio
 from astep import astepRun
+import sys
 import pandas as pd
 import binascii
 import logging
@@ -49,7 +50,7 @@ async def main(args, saveName):
     await astro.enable_spi()
     logger.info(f"initializing asic,config={args.yaml},chips={args.chipsPerRow}")
     ## DAN - all config dictionaries in one file. May want to separate into individual files for each chip and/or only input vdacs/idacs/etc one time and apply to all chips
-    await astro.asic_init(yaml=args.yaml, rows = args.nLayers, chipsPerRow=args.chipsPerRow)
+    await astro.asic_init(yaml=args.yaml, chipsPerRow=args.chipsPerRow)
 #    logger.debug(f"Header: {astro.get_log_header(layer, chip)}")
 
     if args.gecco:
@@ -71,7 +72,7 @@ async def main(args, saveName):
         logger.debug("enable injection pixel")
         await astro.enable_injection(*args.inject)
         await astro.enable_pixel(*args.inject) #assume that you'd like to read out the pixel you're injecting into
-        await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
+        #await astro.enable_analog(args.inject[0], args.inject[1], args.inject[3]) #assume that you'd like to read out the column pixel you're injecting into  
         
         ##DAN - allow option to enable a pixel for a noise scan in command line 
 
@@ -89,20 +90,21 @@ async def main(args, saveName):
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj, is_mV=False)
             else:
                 await astro.init_injection(args.inject[0], args.inject[1], inj_voltage=args.vinj)
-    else: #no injection
+    if args.analog:
         logger.debug("enable analog")
         await astro.enable_analog(*args.analog)
-
+    else:
+        pass#Smtg needed here?
 
     # Send final config to chips
     logger.debug("final configs")
-    for layer in range(args.nLayers):
+    for layer in range(len(args.yaml)):
         #logger.debug(f"Header: {astro.get_log_header(l, chip)}")
         await astro.asic_configure(layer)
     
         logger.debug("setup readout")
         #pass layer number
-        await astro.setup_readout(layer, autoread=int(autoread_int)) 
+        await astro.setup_readout(layer, autoread=not(args.noAutoread)) 
 
     # Prepare for run
     if args.runTime is not None: 
@@ -275,7 +277,8 @@ if __name__ == "__main__":
     parser.add_argument('-d', '--dumpOutput', action='store_true', required=False, 
                         help='If passed, do not save raw data *.txt or decoded *.csv. If not passed, save the outputs. Log always saved. Default: save all')
     parser.add_argument('-p', '--printHits', action='store_true', required=False, 
-                        help='Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. If not passed, no printouts during data collection. Default: post-collection printout') 
+                        help = 'Can only be used in autoread mode. If passed, print readout streams in real time to terminal, accepting potential data slowdown penalty. \
+                                If not passed, no printouts during data collection. Default: post-collection printout') 
 
     # Options related to software run settings
     parser.add_argument('-L', '--loglevel', type=str, choices = ['D', 'I', 'E', 'W', 'C'], action="store", default='I',
@@ -286,12 +289,12 @@ if __name__ == "__main__":
     # Options related to Setup / Configuration of system
     parser.add_argument('-g', '--gecco', action='store_true', required=False, 
                         help='If passed, configure for GECCO HW. If not passed, configure for CMOD HW. Default: CMOD') 
-    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = 'quadChip_allOff',
-                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. Default: config/quadChip_allOff (All pixels off)')
-    parser.add_argument('-l', '--nLayers', action='store', required=False, type=int, default = 1,
-                        help = 'Number of layers to configure and initialize. Default: 1')
-    parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = 4,
-                        help = 'Number of chips per SPI bus to enable. Default: 4')
+    parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadChip_allOff'], nargs="+", 
+                        help = 'filepath (in scripts/config/ directory) .yml file containing chip configuration. \
+                                One file must be passed for each layer, from layer #0 to layer #2. \
+                                Default: config/quadChip_allOff (All pixels off, only fisrt layer is configured)')
+    parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = [4], nargs="+", 
+                        help = 'Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4')
     parser.add_argument('-sr', '--shiftRegister', action='store_true', required=False, 
                         help='If passed, configures chips via Shift Registers (SR). If not passed, configure chips via SPI. Default: SPI')
     
@@ -300,8 +303,11 @@ if __name__ == "__main__":
                         help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
-    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = [1, 0, 0], nargs=3,
-                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. Requires input in the form {layer, chip, col} (no wrapping brackets). Default: layer 1, chip 0, col 0')
+    parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = None, nargs=3,
+                        help = 'Turn on analog output in the given column. Can only enable one analog pixel per layer. \
+                        Requires input in the form {layer, chip, col} (no wrapping brackets). \
+                        Default: None')
+                        #Default: layer 1, chip 0, col 0')
     
     # Options related to chip injection
     ## DAN - this isn't working. Pixel response to "any" injected amplitude always the same 17 us ToT
@@ -314,9 +320,6 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-
-
-
 
 
     #Checks for outdir path
@@ -360,30 +363,26 @@ if __name__ == "__main__":
     logger.info("Setup logger")
 
 
-
-    #Define autoread bool
-    autoread_int = 0 if args.noAutoread else 1
-
     #Live readout printing option only possible in autoread mode
     if args.printHits and args.noAutoread:
         logger.warning("Live readout printing is only possible when chip read in autoread mode. Live readout printing is now disabled and code will run in non-autoread mode.")
 
-    #Layer counting begins at 1 ONLY  when config files are sent. In astep.py, most layer counting still begins at 0. Modify layer number to be consistent with astep.py processing 
-    try:
-        if args.analog: args.analog[0] = args.analog[0]-1
-    except IndexError:
-        logger.error(f"Passed bad analog argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
-        sys.exit(1)
-    try:
-        if args.inject: args.inject[0] = args.inject[0]-1
-    except IndexError:
-        logger.error(f"Passed bad injection argument. Make sure layer, chip, col are all passed. Layer counting begins at 1.")
-        sys.exit(1)
 
+    #print(args.yaml)
+    #print(args.chipsPerRow)
+    #Layer counting begins at 0.
+    #Make sure config arguments make sense
+    if len(args.yaml) > len(args.chipsPerRow):
+        args.chipsPerRow = [args.chipsPerRow[0]]*len(args.yaml)
+        if len(args.chipsPerRow) > 1:
+            logger.warning(f"Number of chips per row not provided for every layer - default to {args.chipsPerRow[0]} for all {len(args.yaml)} layers.")
+    elif len(args.yaml) < len(args.chipsPerRow):
+        raise ValueError("You need to provide one yaml configuration file for every chipsPerRow argument.")
 
-
-
-
-
+    #Make sure analog/inject arguments make sense
+    if args.analog is not None and (len(args.analog)!=3 or args.analog[0]<0 or args.analog[0]>2 or args.analog[1]<0 or args.analog[1]>3 or args.analog[2]<0):
+        raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},column={0[2]}".format(args.analog))
+    if args.inject is not None and (len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0):
+        raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
     asyncio.run(main(args, saveName))

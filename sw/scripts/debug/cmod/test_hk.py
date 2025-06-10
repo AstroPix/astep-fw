@@ -9,7 +9,7 @@ import drivers.astropix.asic
 import time
 import binascii
 
-async def callHK(flipped=True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
+async def callHK(lsbFirst=True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
     Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
     Input is two bytes:
@@ -27,8 +27,8 @@ async def callHK(flipped=True): # adding a setting that can change the byte orde
     ## Loop over ADC Settings
     for chan in range(0,8):
         bits = format(chan,'08b') #fix the formatting 
-        if flipped == True:
-            byte1 = int(bits,2) #this is a hex string is this ok?
+        if lsbFirst == True:
+            byte1 = int(bits[::-1],2) #this is a hex string is this ok?
         else:
             byte1 = int(bits,2) #this is a hex string is this ok?
 
@@ -45,7 +45,7 @@ async def callHK(flipped=True): # adding a setting that can change the byte orde
     await driver.close()
 
 
-async def setHV(flipped=True,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
+async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
     Sends set voltage to TI DAC121S101 for setting HV bias
     Input is two bytes
@@ -70,19 +70,19 @@ async def setHV(flipped=True,setVoltage=0): # adding a setting that can change t
     await driver.houseKeeping.selectDAC()
 
     #defaulting with Power-down with Hi-Z at the moment
-    if setVoltage == 0 and flipped == True:
+    if setVoltage == 0 and lsbFirst == True:
         await driver.houseKeeping.writeADCDACBytes([0x0c,0x00])
-    elif setVoltage == 0 and flipped == False:
+    elif setVoltage == 0 and lsbFirst == False:
         await driver.houseKeeping.writeADCDACBytes([0x30,0x00])
     else:
         # Turn voltage input into bits
         bytess = format(int((setVoltage/3.3)*2**12-1),'016b')
-        if flipped==True:
+        if lsbFirst==True:
             byte1 = int(bytess[0:8][::-1],2) #hex()
             byte2 = int(bytess[8:16][::-1],2)
         else:
-            byte1 = int(bytess[0:8][::-1],2)
-            byte2 = int(bytess[8:16][::-1],2)
+            byte1 = int(bytess[0:8],2)
+            byte2 = int(bytess[8:16],2)
     
         await driver.houseKeeping.selectDAC()
         await driver.houseKeeping.writeADCDACBytes([byte1,byte2])
@@ -100,12 +100,12 @@ async def main(ramp):
 
     if ramp == "up":
         for v in [.5, 1., 1.5, 1.9, 2.05]:
-            await setHV(setVoltage=v)
-            time.sleep(2)
+            await setHV(setVoltage=v)  
+            time.sleep(1)
     elif ramp == "down":
         for v in [1.9, 1.5, 1., .5, 0.]:
             await setHV(setVoltage=v)
-            time.sleep(2)
+            time.sleep(1)
     else:
         await setHV(setVoltage=0.   ) #1.825V = 150V pre-1Mohm Res, #2.05V = 150V post-1MOhm Res
 
@@ -113,3 +113,4 @@ async def main(ramp):
 
 if __name__ == "__main__":
     asyncio.run(main("down"))
+    #asyncio.run(callHK())

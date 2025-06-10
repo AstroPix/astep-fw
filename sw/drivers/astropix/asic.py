@@ -61,7 +61,7 @@ class Asic():
         ## Added 09/23 Richard
         self.rfg = rfg
         self.row = row  ## Row ID used to send the bytes to the right firmware interface
-        self.rfgSRRegisterName = "LAYERS_SR_OUT"
+        self.rfgSRRegisterName = srRegisterName
 
 
     @property
@@ -288,12 +288,12 @@ class Asic():
         
         # Get Chain settings
         try:
-            self.num_chips = dict_from_yml[self.chip].get('chain')['length']
-            logger.info("%s%d  Configuration file with %d chips found!", self.chipname, self.chipversion, self.num_chips)
+            self._num_chips = dict_from_yml[self.chip].get('chain')['length']
+            logger.info("%s%d  Configuration file with %d chips found!", self.chipname, self.chipversion, self._num_chips)
         except (KeyError, TypeError):
             logger.debug("%s%d DaisyChain Length config not found!", self.chipname, self.chipversion)
-            logger.debug("Use %s%d DaisyChain Length %i from chipsPerRow run parameter", self.chipname, self.chipversion, self.num_chips)
-        logger.info("%s%d Number of chips in chain: %d ", self.chipname, self.chipversion, self.num_chips)
+            logger.debug("Use %s%d DaisyChain Length %i from chipsPerRow run parameter", self.chipname, self.chipversion, self._num_chips)
+        logger.info("%s%d Number of chips in chain: %d ", self.chipname, self.chipversion, self._num_chips)
  
         # Get chip geometry
         try:
@@ -306,7 +306,7 @@ class Asic():
             #sys.exit(1)
 
         # Get chip configs
-        for chip_number in range(self.num_chips):
+        for chip_number in range(self._num_chips):
             try:
                 self.asic_config[f'config_{chip_number}'] = dict_from_yml.get(self.chip)[f'config_{chip_number}']
                 logger.info("Chain chip_%d config found!", chip_number)
@@ -324,7 +324,7 @@ class Asic():
         """
         bitvector = BitArray()
 
-        for chip in range(self.num_chips-1, -1, -1): #configure far end of daisy chain first
+        for chip in range(self._num_chips-1, -1, -1): #configure far end of daisy chain first
             chipBitvector = BitArray()
             for key in self.asic_config[f'config_{chip}']:
                 for values in self.asic_config[f'config_{chip}'][key].values():
@@ -355,8 +355,8 @@ class Asic():
         """
         bitvector = BitArray()
 
-        if targetChip==-1 and self.num_chips > 1:
-            for chip in range(self.num_chips-1, -1, -1):
+        if targetChip==-1 and self._num_chips > 1:
+            for chip in range(self._num_chips-1, -1, -1):
                 chipBitvector = BitArray()
                 for key in self.asic_config[f'config_{chip}']:
                     for values in self.asic_config[f'config_{chip}'][key].values():
@@ -377,7 +377,7 @@ class Asic():
         ## Create config for a single chip
         ## This can be if the config is single chip, or for multichip if we want the bits or a single chip, for example when writing SPI config to a certain chip
         else:
-            configSource = self.asic_config[f'config_{targetChip}'] #if (self.num_chips>1) else self.asic_config    
+            configSource = self.asic_config[f'config_{targetChip}'] #if (self._num_chips>1) else self.asic_config    
             for key in configSource:
                 for values in configSource[key].values():
                     #bitvector.append(self.__int2nbit(values[1], values[0]))
@@ -439,8 +439,10 @@ class Asic():
         await self.rfg.flush()
 
 
-    async def writeSPIRoutingFrame(self):
-        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING] + [0x00]*self._num_chips*4,True)
+    async def writeSPIRoutingFrame(self, firstChipID: int = 0x00):
+        #print(bin(SPI_HEADER_ROUTING | firstChipID))
+        # await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4,True)
+        await self.writeSPI([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4)
 
     def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0)  -> bytearray:
         """
@@ -480,13 +482,41 @@ class Asic():
         if load:
             data.extend([SPI_SR_LOAD] * n_load)
 
-        # Append 4 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
-        data.extend([SPI_EMPTY_BYTE] * ((self.num_chips-1) *4))
+        # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
+        data.extend([SPI_EMPTY_BYTE] * ((self._num_chips-1) *4))
 
 
         logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(value), value)
 
         return data
+    
+    async def writeSPI(self, payload, timeout=1.):
+        """Writes the payload over SPI
+        :param payload: bytearray to be written (by chunks of 256 bytes)
+        :param timeout: maximum duration allowed for a single chunk
+        :raises: RuntimeError if a chunks times out
+        """
+        step  = 256
+        steps = int(math.ceil(len(payload)/step))
+        for chunk in range(0, len(payload), step):
+            chunkBytes = payload[chunk:chunk+step]
+
+            #if len(chunkBytes) != 256:
+            #    task = asyncio.create_task(asyncio.sleep(20))
+            #    await task
+            
+            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
+            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
+
+            # Wait for the current chunk to be written before sending the next one
+            maxtime = time.time()+timeout
+            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0 and time.time() <= maxtime):
+                time.sleep(0.05)
+                #pass
+            #logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
+            if time.time() > maxtime:
+                raise RuntimeError("Chunck {}/{} len={} timed out".format(int(chunk/step+1),steps,len(chunkBytes)))
+
 
 
     async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):
@@ -494,18 +524,4 @@ class Asic():
 
         spiBytes = self.createSPIConfigFrame(targetChip = targetChip , broadcast = broadcast)
         logger.info("Writing SPI Config for chip %d,row=%d,len=%d",targetChip,self.row,len(spiBytes))
-
-        step  = 256
-        steps = int(math.ceil(len(spiBytes)/step))
-        for chunk in range(0, len(spiBytes), step):
-            chunkBytes = spiBytes[chunk:chunk+step]
-            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
-            await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
-
-            ## Sleep to give time for the FW to send the bytes, this will be better synchronised in the future
-            ## Must be improved
-            while (await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")() > 0):
-                pass
-            #await asyncio.sleep(0.1)         
-            logger.info("Current MISO Write count=%d",await self.rfg.read_layer_0_mosi_write_size())
-
+        await self.writeSPI(spiBytes)
