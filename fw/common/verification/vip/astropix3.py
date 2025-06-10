@@ -97,6 +97,47 @@ class Astropix3Model:
 
         #print("Done frame generator")
 
+    async def generateFFFrame(self,length:int,framesCount: int = 1): 
+        """Generate a Frame of a certain length with a counter as value"""
+
+        logger.info(f"[astropix] Starting FF frame generator, chip id={self.chipID}, queue length={self.spiSlave.misoQueue.qsize()}")
+
+        self.generatedBytes = []
+
+        ## Generate Bytes counter
+        for frameI in range(framesCount):
+            bytes = []
+
+            # Generate header then bytes
+            await self.spiSlave.misoQueue.put(0xFF)
+            for x in range(length):
+                await self.spiSlave.misoQueue.put(0xFF)
+
+        ## Trigger interrupt
+        self.interruptn.value = 0
+
+        ## Wait until sending done
+        try:
+            await self.spiSlave.misoDoneEvent.wait()
+            self.spiSlave.misoDoneEvent.clear()
+        except:
+            ## Clean queue
+            #self.spiSlave.misoQueue._init()
+            #print("Timedout finishing")
+            for x in range(self.spiSlave.misoQueue.qsize()):
+                await self.spiSlave.misoQueue.get()
+            #print("Cleared queue")
+            #await self.spiSlave.misoQueue.clear()
+            #pass
+            #print("Wait for done timed out")
+        finally:
+            ## Release interrupt
+            await Timer(random.randint(1,99),units="ns")
+            self.interruptn.value = 1
+        
+
+        #print("Done frame generator")
+
     ## SPI Frames Analyses
     ##############
     async def parseSPIBytesAsConfig(self,broadcast : bool = False): 
