@@ -419,15 +419,15 @@ class BoardDriver():
         #     await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
         # await self.holdLayers(hold=False, flush=flush)
 
-    async def disableLayersReadout(self, flush:bool = False):
+    async def disableLayersReadout(self, flush:bool = True):
         """
         Disable readout for all layers
          - Raise shared Hold
          - Disable autoread, chipselect and MISO
         """
-        await self.setLayerConfig(layer=0, hold=True, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
-        await self.setLayerConfig(layer=1, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
-        await self.setLayerConfig(layer=2, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=True)
+        await self.setLayerConfig(layer=0, hold=True, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=flush)
+        await self.setLayerConfig(layer=1, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=flush)
+        await self.setLayerConfig(layer=2, hold=False, reset=False, autoread=False, chipSelect=False, disableMISO=True, flush=flush)
         # await self.holdLayers(hold=True, flush=flush)
         # regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
         # for layer in range(3):

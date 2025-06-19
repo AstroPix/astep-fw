@@ -34,17 +34,20 @@ async def buffer_flush(boardDriver, layerlst = range(3)):
     interupt_counter=0
     while 0 in interruptn and interupt_counter<20:
         logger.info("interrupt low")
+        logger.info(interruptn)
         for layer, i in enumerate(interruptn):
             if i == 0:#if interrupt low
                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
         nmbBytes = await boardDriver.readoutGetBufferSize()
         if nmbBytes > 0:
-            await boardDriver.readoutReadBytes(1024)
+            await boardDriver.readoutReadBytes(4096)
         interruptn = [1 for i in layerlst]
         for layer in layerlst:
-            interruptn[layer] &= await boardDriver.getLayerStatus(layer)
+            interruptn[layer] = await boardDriver.getLayerStatus(layer)
+            #interruptn[layer] &= await boardDriver.getLayerStatus(layer)
         interupt_counter+=1
         logger.info(f"Buffer size = {nmbBytes} B")
+        #time.sleep(1)
     # Now all interrupts are high, empty FPGA buffer
     buff, readout = await get_readout(boardDriver)
     # Reassert hold to be safe
@@ -186,7 +189,7 @@ async def main(args):
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     # Flush old data
     await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(boardDriver)#Exit with hold active
+    await buffer_flush(boardDriver, layerlst)#Exit with hold active
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
 
     # Final setup
@@ -209,8 +212,7 @@ async def main(args):
     while run:
         try:
             # Read data
-            task = asyncio.create_task(get_readout(boardDriver))
-            #task = asyncio.create_task(getBuffer(boardDriver))
+            task = asyncio.create_task(getBuffer(boardDriver))
             await task
             buff, readout = task.result()
             if args.inject:
@@ -219,7 +221,8 @@ async def main(args):
                 bufferLength_lst.append(buff)
                 await printStatus(boardDriver, time.time()-end_time, buff=buff)
             else:
-                ofile.write(readout)
+                if buff > 0:
+                    ofile.write(readout)
                 #logger.info(binascii.hexlify(readout))
             print(f"  {buff:04d}  ", end="\r")
             # logger.info(binascii.hexlify(readout[:buff]))
