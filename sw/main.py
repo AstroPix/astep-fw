@@ -18,50 +18,70 @@ import drivers.astropix.decode
 # Logging stuff
 import logging
 
-
 async def buffer_flush(boardDriver, layerlst = range(3)):
-    """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
-    # Flush data from sensor
-    logger.info("Flush chip before data collection")
-    # Deassert hold
+    """This method flushes data from SPI lanes then from FPGA buffer, and resets counters"""
+    logger.info("Flush chips before data collection")
     await boardDriver.holdLayers(hold=False, flush=True)
-    # Flush chips and SPI lines
-    interruptn = [1 for i in layerlst]
     for layer in layerlst:
-        await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
-        interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-    # Keep flushing until interrupt is high
-    interupt_counter=0
-    while 0 in interruptn and interupt_counter<20:
-        logger.info("interrupt low")
-        logger.info(interruptn)
-        for layer, i in enumerate(interruptn):
-            if i == 0:#if interrupt low
-                await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-        nmbBytes = await boardDriver.readoutGetBufferSize()
-        if nmbBytes > 0:
-            await boardDriver.readoutReadBytes(4096)
-        interruptn = [1 for i in layerlst]
-        for layer in layerlst:
-            interruptn[layer] = await boardDriver.getLayerStatus(layer)
-            #interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-        interupt_counter+=1
-        logger.info(f"Buffer size = {nmbBytes} B")
-        #time.sleep(1)
+        interrupt_counter=0
+        interrupt = await boardDriver.getLayerStatus(layer)
+        while interrupt&1 == 0 and interrupt_counter<20:
+            logger.info("interrupt low")
+            await boardDriver.layersSelectSPI(flush=True)
+            await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+            await boardDriver.layersDeselectSPI(flush=True)
+            #time.sleep(.1)
+            # Let's not bother emptying the FPGA buffer, at this point it can overflow, and this data is trashed anyways since disableMISO in probably True
+            interrupt_counter+=1
+            interrupt = await boardDriver.getLayerStatus(layer)
+            #logger.info(f"layer {layer} int={interrupt} ({interrupt_counter}/20)")
     # Now all interrupts are high, empty FPGA buffer
-    buff, readout = await get_readout(boardDriver)
+    logger.info("Flush FPGA buffer before data collection")
+    await(boardDriver.readoutReadBytes(4098))
     # Reassert hold to be safe
     await boardDriver.holdLayers(hold=True, flush=True)
-    if buff > 0:
-        logger.info(binascii.hexlify(readout))
-        logger.info(f"Buffer size = {buff} B")
-    logger.info("interrupt recovered, ready to collect data, resetting stat counters")
     await boardDriver.resetLayerStatCounters(layer)
 
-async def get_readout(boardDriver, counts:int = 4096):
-    bufferSize = await(boardDriver.readoutGetBufferSize())
-    readout = await(boardDriver.readoutReadBytes(counts))
-    return bufferSize, readout
+# async def buffer_flush(boardDriver, layerlst = range(3)):
+#     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
+#     # Flush data from sensor
+#     logger.info("Flush chip before data collection")
+#     # Deassert hold
+#     await boardDriver.holdLayers(hold=False, flush=True)
+#     # Flush chips and SPI lines
+#     interruptn = [1 for i in layerlst]
+#     for layer in layerlst:
+#         await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
+#         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
+#     # Keep flushing until interrupt is high
+#     interupt_counter=0
+#     while 0 in interruptn and interupt_counter<20:
+#         logger.info("interrupt low")
+#         #logger.info(interruptn)
+#         for layer, i in enumerate(interruptn):
+#             if i == 0:#if interrupt low
+#                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+#         nmbBytes = await boardDriver.readoutGetBufferSize()
+#         if nmbBytes > 0:
+#             await boardDriver.readoutReadBytes(4096)
+#         interruptn = [1 for i in layerlst]
+#         for layer in layerlst:
+#             #interruptn[layer] = await boardDriver.getLayerStatus(layer)
+#             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
+#         interupt_counter+=1
+#         logger.info(f"Buffer size = {nmbBytes} B")
+#         #time.sleep(1)
+#     # Now all interrupts are high, empty FPGA buffer
+#     await(boardDriver.readoutReadBytes(4098))
+#     # Reassert hold to be safe
+#     await boardDriver.holdLayers(hold=True, flush=True)
+#     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
+#     await boardDriver.resetLayerStatCounters(layer)
+
+# async def get_readout(boardDriver, counts:int = 4096):
+#     bufferSize = await(boardDriver.readoutGetBufferSize())
+#     readout = await(boardDriver.readoutReadBytes(counts))
+#     return bufferSize, readout
 
 async def getBuffer(boardDriver):
   bufferSize = await boardDriver.readoutGetBufferSize()
@@ -178,8 +198,7 @@ async def main(args):
     for layer in layerlst:
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-        
-    #for layer in layerlst:
+    
     for i in range(args.chipsPerRow[layer]):
         await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
         for layer in layerlst:
@@ -188,9 +207,9 @@ async def main(args):
                 await boardDriver.asics[layer].writeSPI(payload)
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     # Flush old data
-    await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(boardDriver, layerlst)#Exit with hold active
-    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    #await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+    await buffer_flush(boardDriver, layerlst)#Exit with hold active and manages chipselect itself
+    #await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
 
     # Final setup
     if args.inject:
