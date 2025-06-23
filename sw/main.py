@@ -78,10 +78,10 @@ async def buffer_flush(boardDriver, layerlst = range(3)):
 #     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
 #     await boardDriver.resetLayerStatCounters(layer)
 
-# async def get_readout(boardDriver, counts:int = 4096):
-#     bufferSize = await(boardDriver.readoutGetBufferSize())
-#     readout = await(boardDriver.readoutReadBytes(counts))
-#     return bufferSize, readout
+async def get_readout(boardDriver, counts:int = 4096):
+    bufferSize = await(boardDriver.readoutGetBufferSize())
+    readout = await(boardDriver.readoutReadBytes(counts))
+    return bufferSize, readout
 
 async def getBuffer(boardDriver):
   bufferSize = await boardDriver.readoutGetBufferSize()
@@ -231,7 +231,8 @@ async def main(args):
     while run:
         try:
             # Read data
-            task = asyncio.create_task(getBuffer(boardDriver))
+            if args.readout is None: task = asyncio.create_task(getBuffer(boardDriver))
+            else: task = asyncio.create_task(get_readout(boardDriver, args.readout))
             await task
             buff, readout = task.result()
             if args.inject:
@@ -299,6 +300,8 @@ if __name__ == "__main__":
                         help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: I')
     parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
                         help = 'Maximum run time (in minutes). Default: NONE (run until user CTL+C)')
+    parser.add_argument('-r', '--readout', default=0, type=int,
+                        help = 'Number of bytes of FPGA buffer to read for each readout (1 to 4098, 0->As much as buffer contains, other->4096). Default: 0')
     
     # Options related to Setup / Configuration of system
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadchip_allOff'], nargs="+", 
@@ -365,6 +368,9 @@ if __name__ == "__main__":
     if args.inject is not None and (len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0):
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
-
+    #Sanitizing args.readout
+    if args.readout == 0: args.readout = None
+    elif args.readout < 0 or args.readout > 4098: args.readout = 4096
+    
     asyncio.run(main(args))
 
