@@ -35,11 +35,11 @@ async def buffer_flush(boardDriver, layerlst = range(3)):
             interrupt_counter+=1
             interrupt = await boardDriver.getLayerStatus(layer)
             #logger.info(f"layer {layer} int={interrupt} ({interrupt_counter}/20)")
+    # Reassert hold to be safe
+    await boardDriver.holdLayers(hold=True, flush=True)
     # Now all interrupts are high, empty FPGA buffer
     logger.info("Flush FPGA buffer before data collection")
     await(boardDriver.readoutReadBytes(4098))
-    # Reassert hold to be safe
-    await boardDriver.holdLayers(hold=True, flush=True)
     await boardDriver.resetLayerStatCounters(layer)
 
 # async def buffer_flush(boardDriver, layerlst = range(3)):
@@ -105,7 +105,7 @@ async def printStatus(boardDriver, time=0., buff=0):
     status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
     ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
     wrongl = [await boardDriver.getLayerWrongLength(layer) for layer in range(3)]
-    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[1]:04d}"\
+    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[2]:04d}"\
                 .format(buff, status, ctrl, wrongl, time=time))
 
 # Needed to decode data
@@ -121,10 +121,13 @@ def bin2csv(fprefix):
             datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
             # logger.info(binascii.hexlify(data))
             i += 1
-    csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
-    df = pd.concat(datalst)
-    df.columns = csvframe
-    df.to_csv(fprefix+".csv")
+    if len(datalst) > 0:
+        csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+        df = pd.concat(datalst)
+        df.columns = csvframe
+        df.to_csv(fprefix+".csv")
+    else:
+        logger.warning("csv file not created because no data is present in binary file.")
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -244,6 +247,7 @@ async def main(args):
                 if buff > 0:
                     ofile.write(readout)
                 #logger.info(binascii.hexlify(readout))
+                #await printStatus(boardDriver, time.time()-end_time, buff=buff)
             print(f"  {buff:04d}  ", end="\r")
             # logger.info(binascii.hexlify(readout[:buff]))
             # Check time
