@@ -18,42 +18,65 @@ import drivers.astropix.decode
 # Logging stuff
 import logging
 
-
 async def buffer_flush(boardDriver, layerlst = range(3)):
-    """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
-    # Flush data from sensor
-    logger.info("Flush chip before data collection")
-    # Deassert hold
+    """This method flushes data from SPI lanes then from FPGA buffer, and resets counters"""
+    logger.info("Flush chips before data collection")
     await boardDriver.holdLayers(hold=False, flush=True)
-    # Flush chips and SPI lines
-    interruptn = [1 for i in layerlst]
     for layer in layerlst:
-        await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
-        interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-    # Keep flushing until interrupt is high
-    interupt_counter=0
-    while 0 in interruptn and interupt_counter<20:
-        logger.info("interrupt low")
-        for layer, i in enumerate(interruptn):
-            if i == 0:#if interrupt low
-                await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-        nmbBytes = await boardDriver.readoutGetBufferSize()
-        if nmbBytes > 0:
-            await boardDriver.readoutReadBytes(1024)
-        interruptn = [1 for i in layerlst]
-        for layer in layerlst:
-            interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-        interupt_counter+=1
-        logger.info(f"Buffer size = {nmbBytes} B")
-    # Now all interrupts are high, empty FPGA buffer
-    buff, readout = await get_readout(boardDriver)
+        interrupt_counter=0
+        interrupt = await boardDriver.getLayerStatus(layer)
+        while interrupt&1 == 0 and interrupt_counter<20:
+            logger.info("interrupt low")
+            await boardDriver.layersSelectSPI(flush=True)
+            await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+            await boardDriver.layersDeselectSPI(flush=True)
+            #time.sleep(.1)
+            # Let's not bother emptying the FPGA buffer, at this point it can overflow, and this data is trashed anyways since disableMISO in probably True
+            interrupt_counter+=1
+            interrupt = await boardDriver.getLayerStatus(layer)
+            #logger.info(f"layer {layer} int={interrupt} ({interrupt_counter}/20)")
     # Reassert hold to be safe
     await boardDriver.holdLayers(hold=True, flush=True)
-    if buff > 0:
-        logger.info(binascii.hexlify(readout))
-        logger.info(f"Buffer size = {buff} B")
-    logger.info("interrupt recovered, ready to collect data, resetting stat counters")
+    # Now all interrupts are high, empty FPGA buffer
+    logger.info("Flush FPGA buffer before data collection")
+    await(boardDriver.readoutReadBytes(4098))
     await boardDriver.resetLayerStatCounters(layer)
+
+# async def buffer_flush(boardDriver, layerlst = range(3)):
+#     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
+#     # Flush data from sensor
+#     logger.info("Flush chip before data collection")
+#     # Deassert hold
+#     await boardDriver.holdLayers(hold=False, flush=True)
+#     # Flush chips and SPI lines
+#     interruptn = [1 for i in layerlst]
+#     for layer in layerlst:
+#         await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
+#         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
+#     # Keep flushing until interrupt is high
+#     interupt_counter=0
+#     while 0 in interruptn and interupt_counter<20:
+#         logger.info("interrupt low")
+#         #logger.info(interruptn)
+#         for layer, i in enumerate(interruptn):
+#             if i == 0:#if interrupt low
+#                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
+#         nmbBytes = await boardDriver.readoutGetBufferSize()
+#         if nmbBytes > 0:
+#             await boardDriver.readoutReadBytes(4096)
+#         interruptn = [1 for i in layerlst]
+#         for layer in layerlst:
+#             #interruptn[layer] = await boardDriver.getLayerStatus(layer)
+#             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
+#         interupt_counter+=1
+#         logger.info(f"Buffer size = {nmbBytes} B")
+#         #time.sleep(1)
+#     # Now all interrupts are high, empty FPGA buffer
+#     await(boardDriver.readoutReadBytes(4098))
+#     # Reassert hold to be safe
+#     await boardDriver.holdLayers(hold=True, flush=True)
+#     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
+#     await boardDriver.resetLayerStatCounters(layer)
 
 async def get_readout(boardDriver, counts:int = 4096):
     bufferSize = await(boardDriver.readoutGetBufferSize())
@@ -82,7 +105,7 @@ async def printStatus(boardDriver, time=0., buff=0):
     status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
     ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
     wrongl = [await boardDriver.getLayerWrongLength(layer) for layer in range(3)]
-    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[1]:04d}"\
+    logger.info("[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[2]:04d}"\
                 .format(buff, status, ctrl, wrongl, time=time))
 
 # Needed to decode data
@@ -98,10 +121,13 @@ def bin2csv(fprefix):
             datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
             # logger.info(binascii.hexlify(data))
             i += 1
-    csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
-    df = pd.concat(datalst)
-    df.columns = csvframe
-    df.to_csv(fprefix+".csv")
+    if len(datalst) > 0:
+        csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
+        df = pd.concat(datalst)
+        df.columns = csvframe
+        df.to_csv(fprefix+".csv")
+    else:
+        logger.warning("csv file not created because no data is present in binary file.")
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -175,8 +201,7 @@ async def main(args):
     for layer in layerlst:
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-        
-    #for layer in layerlst:
+    
     for i in range(args.chipsPerRow[layer]):
         await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
         for layer in layerlst:
@@ -185,9 +210,9 @@ async def main(args):
                 await boardDriver.asics[layer].writeSPI(payload)
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     # Flush old data
-    await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(boardDriver)#Exit with hold active
-    await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+    #await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
+    await buffer_flush(boardDriver, layerlst)#Exit with hold active and manages chipselect itself
+    #await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
 
     # Final setup
     if args.inject:
@@ -209,8 +234,8 @@ async def main(args):
     while run:
         try:
             # Read data
-            task = asyncio.create_task(get_readout(boardDriver))
-            #task = asyncio.create_task(getBuffer(boardDriver))
+            if args.readout is None: task = asyncio.create_task(getBuffer(boardDriver))
+            else: task = asyncio.create_task(get_readout(boardDriver, args.readout))
             await task
             buff, readout = task.result()
             if args.inject:
@@ -219,8 +244,10 @@ async def main(args):
                 bufferLength_lst.append(buff)
                 await printStatus(boardDriver, time.time()-end_time, buff=buff)
             else:
-                ofile.write(readout)
+                if buff > 0:
+                    ofile.write(readout)
                 #logger.info(binascii.hexlify(readout))
+                #await printStatus(boardDriver, time.time()-end_time, buff=buff)
             print(f"  {buff:04d}  ", end="\r")
             # logger.info(binascii.hexlify(readout[:buff]))
             # Check time
@@ -277,6 +304,8 @@ if __name__ == "__main__":
                         help='Set loglevel used. Options: D - debug, I - info, E - error, W - warning, C - critical. DEFAULT: I')
     parser.add_argument('-T', '--runTime', type=float, action='store',  default=None,
                         help = 'Maximum run time (in minutes). Default: NONE (run until user CTL+C)')
+    parser.add_argument('-r', '--readout', default=0, type=int,
+                        help = 'Number of bytes of FPGA buffer to read for each readout (1 to 4098, 0->As much as buffer contains, other->4096). Default: 0')
     
     # Options related to Setup / Configuration of system
     parser.add_argument('-y', '--yaml', action='store', required=False, type=str, default = ['quadchip_allOff'], nargs="+", 
@@ -343,6 +372,9 @@ if __name__ == "__main__":
     if args.inject is not None and (len(args.inject)!=4 or args.inject[0]<0 or args.inject[0]>2 or args.inject[1]<0 or args.inject[1]>3 or args.inject[2]<0 or args.inject[3]<0):
         raise ValueError("Incorrect analog argument layer={0[0]},chip={0[1]},row={0[2]},column={0[3]}".format(args.inject))
 
-
+    #Sanitizing args.readout
+    if args.readout == 0: args.readout = None
+    elif args.readout < 0 or args.readout > 4098: args.readout = 4096
+    
     asyncio.run(main(args))
 
