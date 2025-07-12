@@ -112,7 +112,7 @@ class BoardDriver():
         if TS: v|=0x2
         else: v &= ~(0x2)
         await self.rfg.write_io_ctrl(v,flush) 
-    
+
     async def ioSetSampleClockSingleEnded(self,enable:bool,flush:bool = False):
         v = await self.rfg.read_io_ctrl()
         if enable: v|=0x4 
@@ -139,6 +139,7 @@ class BoardDriver():
         if enable: v|=0x20 
         else: v &= ~(0x20)
         await self.rfg.write_io_ctrl(v,flush) 
+
 
     ## Layers
     ##################
