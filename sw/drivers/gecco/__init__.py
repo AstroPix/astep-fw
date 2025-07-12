@@ -35,10 +35,14 @@ class GeccoCarrierBoard(BoardDriver):
             self.cards[slot] = vb
             return vb
 
-    
-
     def selectFTDIFifoIO(self):
         import rfg.io.ftdi
         self.rfg.withFTDIIO("Device A",rfg.io.ftdi.FLAG_LIST_DESCRIPTOR)
         return self
+
+    def geccoGetVoltageBoard(self):
+        return self.getVoltageBoard(slot = 4 )
+
+    def geccoGetInjectionBoard(self):
+        return self.getInjectionBoard(slot = 3 )
 
