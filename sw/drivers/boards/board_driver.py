@@ -81,13 +81,6 @@ class BoardDriver():
         """Returns the Core Clock frequency to help clock divider configuration - this method is overriden by implementation class (Gecco or Cmod)"""
         pass
 
-    ## Gecco
-    ##################
-    def geccoGetVoltageBoard(self):
-        return self.getVoltageBoard(slot = 4 )
-    def geccoGetInjectionBoard(self):
-        return self.getInjectionBoard(slot = 3 )
-
     ## Loopback Model
     ##################
     def getLoopbackModelForLayer(self,layer):
