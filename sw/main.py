@@ -120,12 +120,15 @@ async def main(args):
         end_time = float('inf')
     
     # Enable readout
-    await boardDriver.enableLayersReadout(layerlst, autoread=True, flush=True)
+    await boardDriver.enableLayersReadout(layerlst, autoread=not(args.noAutoread), flush=True)
     
     # Main loop
     run = time.time() < end_time
     while run:
         try:
+            if args.noAutoread:
+                for layer in layerlst:
+                    await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 255, flush=True)
             # Read data
             task = asyncio.create_task(getBuffer(boardDriver))
             await task
@@ -188,6 +191,8 @@ if __name__ == "__main__":
                         help = 'Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4')
     
     # Options related to Setup / Configuration of the chip in data collection run
+    parser.add_argument('-na', '--noAutoread', action='store_true', required=False, 
+                        help='If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread')
     parser.add_argument('-t', '--threshold', type = int, action='store', default=100,
                         help = 'Threshold voltage for digital ToT (in mV). DEFAULT: 100')
     parser.add_argument('-a', '--analog', action='store', required=False, type=int, default = None, nargs=3,
