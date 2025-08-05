@@ -14,7 +14,7 @@ class CMODBoard(BoardDriver):
         self.cards = {}
 
     def getFPGACoreFrequency(self):
-        return 20000000
+        return 60000000
 
     def getInjectionBoard(self,slot : int ) -> InjectionBoard:
         """Create or return Voltage board for a certain slot"""
