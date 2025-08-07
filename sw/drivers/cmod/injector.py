@@ -49,10 +49,10 @@ class Injector:
         self._pulsesperset = 0
 
         ## RFG Registers
-        self._rfg = rfg 
-        self._rfgCtrlRegister = self._rfg.Registers[f"{registerNamePrefix}_CTRL"]
-        self._rfgWaddrRegister = self._rfg.Registers[f"{registerNamePrefix}_WADDR"]
-        self._rfgWdataRegister = self._rfg.Registers[f"{registerNamePrefix}_WDATA"]
+        self.rfg = rfg 
+        self._rfgCtrlRegister = self.rfg.Registers[f"{registerNamePrefix}_CTRL"]
+        self._rfgWaddrRegister = self.rfg.Registers[f"{registerNamePrefix}_WADDR"]
+        self._rfgWdataRegister = self.rfg.Registers[f"{registerNamePrefix}_WDATA"]
 
 
     @property
