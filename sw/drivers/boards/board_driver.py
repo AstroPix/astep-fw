@@ -112,6 +112,33 @@ class BoardDriver():
         if TS: v|=0x2
         else: v &= ~(0x2)
         await self.rfg.write_io_ctrl(v,flush) 
+    
+    async def ioSetSampleClockSingleEnded(self,enable:bool,flush:bool = False):
+        v = await self.rfg.read_io_ctrl()
+        if enable: v|=0x4 
+        else: v &= ~(0x4)
+        await self.rfg.write_io_ctrl(v,flush) 
+
+    async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = False):
+        v = await self.rfg.read_io_ctrl()
+        if enable: v &= ~(0x8)
+        else: v |= 0x8
+        await self.rfg.write_io_ctrl(v,flush) 
+
+
+    async def ioSetFPGAExternalTSClockDifferential(self,enable:bool,flush:bool = False):
+        """If an external clock input is used for the FPGA TS counter, it is differential or not"""
+        v = await self.rfg.read_io_ctrl()
+        if enable: v|=0x10 
+        else: v &= ~(0x10)
+        await self.rfg.write_io_ctrl(v,flush)
+
+    async def ioSetAstropixTSToFPGATS(self,enable:bool,flush:bool = False):
+        """The Astropix TS clock can be sourced from the external FPGA TS clock (it true) or from the internal TS clock (if false)"""
+        v = await self.rfg.read_io_ctrl()
+        if enable: v|=0x20 
+        else: v &= ~(0x20)
+        await self.rfg.write_io_ctrl(v,flush) 
 
     ## Layers
     ##################
