@@ -163,10 +163,10 @@ class BoardDriver():
         else: v &= ~(0x4)
         await self.rfg.write_io_ctrl(v,flush) 
 
-    async def ioSetInjectionToGeccoInjBoard(self,enable:bool,flush:bool = False):
+    async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = False):
         v = await self.rfg.read_io_ctrl()
-        if enable: v|=0x8 
-        else: v &= ~(0x8)
+        if enable: v &= ~(0x8)
+        else: v |= 0x8
         await self.rfg.write_io_ctrl(v,flush) 
 
 
