@@ -1,5 +1,7 @@
 from drivers.boards.board_driver import BoardDriver
-from drivers.gecco.injectionboard import InjectionBoard
+#from drivers.gecco.injectionboard import InjectionBoard
+
+from .injector import Injector
 
 import rfg.io
 import rfg.core
@@ -11,16 +13,12 @@ class CMODBoard(BoardDriver):
 
     def __init__(self,rfg):
         BoardDriver.__init__(self,rfg)
-        self.cards = {}
+        self.injector = None
 
     def getFPGACoreFrequency(self):
         return 60000000
 
-    def getInjectionBoard(self,slot : int ) -> InjectionBoard:
-        """Create or return Voltage board for a certain slot"""
-        if slot in self.cards:
-            return self.cards[slot]
-        else:
-            vb = InjectionBoard(rfg = self.rfg, slot = slot)
-            self.cards[slot] = vb
-            return vb
+    def getInjector(self) -> Injector:
+        if self.injector is None:
+            self.injector = Injector(self.rfg)
+        return self.injector

@@ -4,10 +4,11 @@
 Created on Sun Jun 27 21:03:43 2021
 
 @author: Nicolas Striebig
+
+Modified for CMOD board on A-STEP
+Adrien Laviron Thu Aug 7 2025
 """
 
-from .card import GeccoCard
-from .voltageboard import VoltageBoard
 import logging
 
 
@@ -32,17 +33,15 @@ logger.setLevel(logging.INFO)
 def debug():
     logger.setLevel(logging.DEBUG)
 
-class InjectionBoard(GeccoCard):
+class Injector:
     """
     Sets injection setting for GECCO Injectionboard
     This class takes care of configuring the injection pattern generator in firmware
     The Injection Board DACs are configured through the associated VoltageBoard instance accessible via self.voltageBoard property
     """
 
-    def __init__(self,rfg,slot:int,registerNamePrefix = "LAYERS_INJ") -> None:
+    def __init__(self,rfg,registerNamePrefix = "LAYERS_INJ") -> None:
         
-        GeccoCard.__init__(self, rfg, slot)
-
         self._period = 0
         self._cycle = 0
         self._clkdiv = 0
@@ -55,10 +54,6 @@ class InjectionBoard(GeccoCard):
         self._rfgWaddrRegister = self._rfg.Registers[f"{registerNamePrefix}_WADDR"]
         self._rfgWdataRegister = self._rfg.Registers[f"{registerNamePrefix}_WDATA"]
 
-        ## Injection Board is physically a VoltageBoard with 3 Dacs on the Gecco
-        self.vBoard = VoltageBoard(rfg = self._rfg, slot = slot)
-
-   
 
     @property
     def period(self) -> int:
@@ -209,7 +204,7 @@ class InjectionBoard(GeccoCard):
 
         #return bytes(data)
 
-    def __start(self) -> bytes:
+    def __start(self):
         """
         Start injection
 

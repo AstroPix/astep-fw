@@ -398,7 +398,7 @@ class astepRun:
         #self._geccoBoard = False
         #print("INJ_WDATA BEFORE CONF")
         #print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
-        self.injector = self.boardDriver.getInjectionBoard(slot = 3)
+        self.injector = self.boardDriver.getInjector()
         self.injector.period = inj_period
         self.injector.clkdiv = clkdiv
         self.injector.initdelay = initdelay
@@ -417,7 +417,7 @@ class astepRun:
         else:
             #Injection provided through integrated features on chip
             #print("SET INJ WITH REGISTERS")
-            await self.boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)
+            await self.boardDriver.ioSetInjectionToChip(enable = True, flush = True)
 
 
     #update injection settings via injectionboard after object is already created
