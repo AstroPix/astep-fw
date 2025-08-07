@@ -444,7 +444,7 @@ class Asic():
         # await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4,True)
         await self.writeSPI([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4)
 
-    def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0)  -> bytearray:
+    def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0, value=None)  -> bytearray:
         """
         "Converts the ASIC Config bits to the corresponding bytes to send via SPI
 
@@ -458,8 +458,9 @@ class Asic():
         :returns: SPI ASIC config pattern
         """
 
-        ## Generate Bit vector for config 
-        value = self.gen_config_vector_SPI(msbfirst = False,targetChip = targetChip)
+        ## Generate Bit vector for config
+        if value is None:
+            value = self.gen_config_vector_SPI(msbfirst = False,targetChip = targetChip)
 
         # Number of Bytes to write
         #length = len(value) * 5 + 4

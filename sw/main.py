@@ -70,6 +70,11 @@ async def main(args):
     except FileNotFoundError as e :
         logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
         raise e
+
+    # Set multi-pix injection chip
+    if args.confOverride:
+        boardDriver.asics[1].asic_config["config_3"] = boardDriver.asics[1].asic_config["config_4"]
+
     logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
     # Setup / configure injection
     if args.inject:
@@ -189,6 +194,8 @@ if __name__ == "__main__":
                                 Default: config/quadChip_allOff (All pixels off, only fisrt layer is configured)')
     parser.add_argument('-c', '--chipsPerRow', action='store', required=False, type=int, default = [4], nargs="+", 
                         help = 'Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4')
+    parser.add_argument('--config-override', dest='confOverride', action='store_true',
+                        help = "Execute a special line of code that applies hard-coded configuration changes - do not use unless you have read the code and know what you are doing!")
     
     # Options related to Setup / Configuration of the chip in data collection run
     parser.add_argument('-na', '--noAutoread', action='store_true', required=False, 
@@ -252,6 +259,7 @@ if __name__ == "__main__":
     #Sanitizing args.readout
     if args.readout == 0: args.readout = None
     elif args.readout < 0 or args.readout > 4098: args.readout = 4096
-    
+
+
     asyncio.run(main(args))
 
