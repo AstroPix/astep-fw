@@ -130,8 +130,8 @@ class Injector:
         self.__patgenwrite(10, self._cycle >> 8)
         self.__patgenwrite(11, self._cycle % 256)
         # Set initial delay
-        self.__patgenwrite(12, self._delay >> 8)
-        self.__patgenwrite(13, self._delay % 256)
+        self.__patgenwrite(12, self._initdelay >> 8)
+        self.__patgenwrite(13, self._initdelay % 256)
         # Set clkdiv
         self.__patgenwrite(14, self._clkdiv >> 8)
         self.__patgenwrite(15, self._clkdiv % 256)
