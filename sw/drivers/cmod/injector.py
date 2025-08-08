@@ -27,17 +27,16 @@ def debug():
 
 class Injector:
     """
-    Sets injection setting for GECCO Injectionboard
-    This class takes care of configuring the injection pattern generator in firmware
-    The Injection Board DACs are configured through the associated VoltageBoard instance accessible via self.voltageBoard property
+    Sets injection setting for CMOD board using on-chip injector
+    This class takes care of configuring the injection pattern generator in firmware using its parameter members
     """
 
-    def __init__(self,rfg,registerNamePrefix = "LAYERS_INJ") -> None:
-        self._period = 100
-        self._clkdiv = 300
-        self._initdelay = 100
-        self._cycle = 0
-        self._pulsesperset = 1
+    def __init__(self, rfg, period=100, clkdiv=300, initdelay=100, cycle=0, ppset=1, registerNamePrefix = "LAYERS_INJ") -> None:
+        self._period = period
+        self._clkdiv = clkdiv
+        self._initdelay = initdelay
+        self._cycle = cycle
+        self._pulsesperset = ppset
         ## RFG Registers
         self.rfg = rfg
         self.controlStickBits = PG_CTRL_NONE
@@ -95,6 +94,12 @@ class Injector:
     def pulsesperset(self, pulsesperset: int) -> None:
         if 0 <= pulsesperset <= 255:
             self._pulsesperset = pulsesperset
+
+    def setPattern(self, period=100, clkdiv=300, initdelay=100, cycle=0, ppset=1):
+      """
+      Set one or many or all pattern parameters
+      """
+      self.period, self.clkdiv, self.initdelay, self.cycle, self.pulsesperset = period, clkdiv, initdelay, cycle, ppset
 
     def __patgenwrite(self, address: int, value: int) -> bytearray:
         """Subfunction of patgen()

@@ -18,7 +18,7 @@ class CMODBoard(BoardDriver):
     def getFPGACoreFrequency(self):
         return 60000000
 
-    def getInjector(self) -> Injector:
+    def getInjector(self, period=100, clkdiv=300, initdelay=100, cycle=0, ppset=1) -> Injector:
         if self.injector is None:
-            self.injector = Injector(self.rfg)
+            self.injector = Injector(self.rfg, period, clkdiv, initdelay, cycle, ppset)
         return self.injector
