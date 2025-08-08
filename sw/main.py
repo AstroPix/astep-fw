@@ -179,7 +179,7 @@ async def main(args):
             if args.vinj is not None:
                 boardDriver.asics[args.inject[0]].asic_config[f"config_{args.inject[1]}"]["vdacs"]["vinj"][1] = int(args.vinj/1000*1024/1.8)#1.8 V coded on 10 bits
             injector = boardDriver.getInjector()
-            injector.period, injector.clkdiv, injector.initdelay, injector.cycle, injector.pulsesperset = 100, 300, 100, 0, 1#Default set of parameters
+            injector.setPattern(100, 300, 100, 0, 1)#Default set of parameters
             await boardDriver.ioSetInjectionToChip(enable = True, flush = True) # Routes injection pattern to on-chip injector
         except (KeyError, IndexError):
             logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
