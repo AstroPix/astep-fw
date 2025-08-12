@@ -1,5 +1,4 @@
 from drivers.boards.board_driver import BoardDriver
-#from drivers.gecco.injectionboard import InjectionBoard
 
 from .injector import Injector
 
