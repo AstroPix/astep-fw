@@ -83,9 +83,6 @@ async def main(args):
         boardDriver.asics[args.inject[0]].enable_pixel(chip=args.inject[1], col=args.inject[3], row=args.inject[2], inplace=False)
         # Priority to command line, defaults to yaml - already in vdac units
         try:
-            boardDriver.asics[args.inject[0]].enable_inj_col(args.inject[1], args.inject[3], inplace=False)
-            boardDriver.asics[args.inject[0]].enable_inj_row(args.inject[1], args.inject[2], inplace=False)
-            boardDriver.asics[args.inject[0]].enable_pixel(chip=args.inject[1], col=args.inject[3], row=args.inject[2], inplace=False)
             logger.debug("Set injection voltage")
             # Priority to command line, defaults to yaml - already in vdac units
             if args.vinj is not None:
