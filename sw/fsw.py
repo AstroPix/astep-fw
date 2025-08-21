@@ -17,6 +17,18 @@ import logging
 from astropixrun import AstropixRun
 import bookkeeping
 
+#async def interpretCommands(boardDriver, cmds):
+#    CI = ComsInterpreter()#To access the dictionaries
+#    if not CI.checkCodes():
+#        logger.error("Interpreter dictionaries invalid.")
+#        return
+#    CI.setBytes(cmds)
+#    #while (cmd:=CI.getCmd()):
+#    #    if cmd[0] == "DRO":
+#    #        pass
+#    #    elif cmd[0] == "HKD":
+#    #        pass
+#    #    #elif cmd[0]
 
 def parseFSW(fname):
     """
