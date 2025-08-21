@@ -11,7 +11,8 @@ import argparse
 
 import drivers.boards
 import drivers.astep.serial
-import drivers.astropix.decode
+
+from scripts.commands import ComsInterpreter
 
 # Logging stuff
 import logging
@@ -65,6 +66,7 @@ def getCmdsFile():
 def getCmds():
   pass # Implement here
 
+
 #######################################################
 #################### HOUSEKEEPING #####################
 
@@ -90,8 +92,20 @@ def setInjector(boardDriver):
         logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
         args.inject = None
 
-async def interpretCommands(cmds):
-    pass
+async def interpretCommands(boardDriver, cmds):
+    CI = ComsInterpreter()#To access the dictionaries
+    if not CI.checkCodes():
+        logger.error("Interpreter dictionaries invalid.")
+        return
+    CI.setBytes(cmds)
+    #while (cmd:=CI.getCmd()):
+    #    if cmd[0] == "DRO":
+    #        pass
+    #    elif cmd[0] == "HKD":
+    #        pass
+    #    #elif cmd[0]
+            
+
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -155,6 +169,8 @@ def main(boardDriver, qcsn):
     await boardDriver.enableLayersReadout(range(len(qcsn)), autoread=True, flush=True)
     ofile = "{}.bin".format(time.strftime("%Y%m%d-%H%M%S"))
     # Main loop
+    ROdelay = 0.1
+    HKdelay = 1
     run = True
     while run:
         try:
@@ -162,19 +178,21 @@ def main(boardDriver, qcsn):
             hkdata = await getHousekeeping()
             downlinkDataFile(hkdata, ofile)
             #downlinkData(hkdata)
+
             # Check commands
             cmds = getCmdsFile()
             #cmds = getCmds()
-            await interpretCmds(cmds)
+            await interpretCmds(boardDriver, cmds)
+
             # Scientific data
-            for i in range(10):#10 should be changed depending on downlink rates
+            for i in range(int(HKdelay/ROdelay)+1):
                 task = asyncio.create_task(getBuffer(boardDriver))
                 await task
                 buff, readout = task.result()
                 if buff > 0:
                     downlinkDataFile(readout, ofile)
                 #downlinkData(readout)
-                time.sleep(0.1)# Same comment on downlink rates
+                time.sleep(ROdelay)
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while in main loop - exiting.")
             run=False
