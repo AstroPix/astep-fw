@@ -255,14 +255,11 @@ class Asic():
 
     @staticmethod
     def __int2nbit(value: int, nbits: int) -> BitArray:
-        """Convert int to 6bit bitarray
-
+        """Convert int to bitarray
         :param value: Integer value
         :param nbits: Number of bits
-
         :returns: Bitarray of specified length
         """
-
         try:
             return BitArray(uint=value, length=nbits)
         except ValueError:
