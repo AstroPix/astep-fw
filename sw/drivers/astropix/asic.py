@@ -211,47 +211,47 @@ class Asic():
         if inplace: self.asic_update()
 
 
-    #AS: update below this
+    ##AS: update below this
 
-    def disable_inj_row(self, row: int):
-        """Disable row injection switch
-        :param row: Row number
-        """
-        if row < self.num_rows:
-            self.asic_config['recconfig'][f'col{row}'][1] = self.asic_config['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b111_11111_11111_11111_11111_11111_11111_11110
+    #def disable_inj_row(self, row: int):
+    #    """Disable row injection switch
+    #    :param row: Row number
+    #    """
+    #    if row < self.num_rows:
+    #        self.asic_config['recconfig'][f'col{row}'][1] = self.asic_config['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b111_11111_11111_11111_11111_11111_11111_11110
 
 
-    def disable_inj_col(self, col: int):
-        """Disable col injection switch
-        :param col: Col number
-        """
-        if col < self.num_cols:
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b101_11111_11111_11111_11111_11111_11111_11111
+    #def disable_inj_col(self, col: int):
+    #    """Disable col injection switch
+    #    :param col: Col number
+    #    """
+    #    if col < self.num_cols:
+    #        self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b101_11111_11111_11111_11111_11111_11111_11111
 
-    def get_pixel(self, col: int, row: int):
-        return self.is_pixel_enabled(col,row)
+    #def get_pixel(self, col: int, row: int):
+    #    return self.is_pixel_enabled(col,row)
 
-    def is_pixel_enabled(self, col: int, row: int):
-        """
-        Checks if a given pixel is enabled
+    #def is_pixel_enabled(self, col: int, row: int):
+    #    """
+    #    Checks if a given pixel is enabled
 
-        Takes:
-        col: int - column of pixel
-        row: int - row of pixel
-        """
-        if row < self.num_rows:
-            if self.asic_config['recconfig'].get(f'col{col}')[1] & (1<<(row+1)):
-                return False
-            return True
+    #    Takes:
+    #    col: int - column of pixel
+    #    row: int - row of pixel
+    #    """
+    #    if row < self.num_rows:
+    #        if self.asic_config['recconfig'].get(f'col{col}')[1] & (1<<(row+1)):
+    #            return False
+    #        return True
 
-        logger.error("Invalid row %d larger than %d", row, self.num_rows)
-        return None
+    #    logger.error("Invalid row %d larger than %d", row, self.num_rows)
+    #    return None
 
-    def reset_recconfig(self):
-        """Reset recconfig by disabling all pixels and disabling all injection switches and mux ouputs
-        """
-        for key in self.asic_config['recconfig']:
-            self.asic_config['recconfig'][key][1] = 0b001_11111_11111_11111_11111_11111_11111_11110
+    #def reset_recconfig(self):
+    #    """Reset recconfig by disabling all pixels and disabling all injection switches and mux ouputs
+    #    """
+    #    for key in self.asic_config['recconfig']:
+    #        self.asic_config['recconfig'][key][1] = 0b001_11111_11111_11111_11111_11111_11111_11110
 
     @staticmethod
     def __int2nbit(value: int, nbits: int) -> BitArray:
