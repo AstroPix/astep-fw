@@ -211,7 +211,8 @@ async def main(args):
         await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
         for layer in layerlst:
             if i < args.chipsPerRow[layer]:
-                payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
+                value = boardDriver.asics[0].gen_config_vector_SPI(targetChip=i)
+                payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i, value=value)
                 await boardDriver.asics[layer].writeSPI(payload)
         await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
     # Flush old data
