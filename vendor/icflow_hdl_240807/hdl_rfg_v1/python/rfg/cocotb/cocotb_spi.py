@@ -1,7 +1,7 @@
 
 import logging
 
-from queue          import Queue 
+from queue          import Queue
 
 import vip.spi
 from   vip.spi      import VSPIMaster
@@ -13,6 +13,10 @@ from   rfg.io.spi   import SPIBytesDecoder
 import cocotb
 from cocotb.triggers import Join
 from cocotb.triggers import Timer,RisingEdge
+
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +35,10 @@ class SPIIO(rfg.core.RFGIO):
 
     readout_timeout = 2
 
-    def __init__(self,dut,msbFirst=True):
-        
+    def __init__(self,dut,msbFirst=True,clockPeriod = 5):
+
         ## Init VSPI
-        self.spi = VSPIMaster(dut,dut.spi_clk,dut.spi_csn,dut.spi_mosi,dut.spi_miso,msbFirst)
+        self.spi = VSPIMaster(dut,dut.spi_clk,dut.spi_csn,dut.spi_mosi,dut.spi_miso,msbFirst,clockPeriod = clockPeriod)
 
         ## Init Bytes decoder on receiving queue
         self.spiDecoder = SPIBytesDecoder(self.spi.miso_queue)
@@ -48,12 +52,12 @@ class SPIIO(rfg.core.RFGIO):
         self.spi.assert_chip_select()
         await Timer(1, units="us")
         await self.spi.send_frame([0x00]*10,use_chip_select = False,no_readout=True)
-      
+
         #cocotb.start_soon(self.spiDecoder.start_protocol_decoding())
 
     async def close(self):
         self.spi.reset()
-    
+
     async def writeBytes(self,b : bytearray):
         b.append(0x00)
         b.append(0x00)
@@ -66,7 +70,7 @@ class SPIIO(rfg.core.RFGIO):
         ## Wait on the decoding queue
         self.spiDecoder.currentExpectedLength = count
         decodeTask = cocotb.start_soon(self.spiDecoder.run_frame_decoding())
-        
+
         await self.spi.send_frame(map(lambda x: 0x00, range(count+10)),use_chip_select = False)
         readBytes = []
         for x in range(count):
@@ -74,5 +78,5 @@ class SPIIO(rfg.core.RFGIO):
             readBytes.append(b)
 
         await Join(decodeTask)
-        
-        return readBytes 
+
+        return readBytes
