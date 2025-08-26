@@ -3,6 +3,7 @@ Central module of astropix for use with A-STEP FW. Built from astropix.py wrappe
 The class methods of all the other modules/cores are inherited here. 
 
 Author:  Amanda Steinhebel, amanda.l.steinhebel@nasa.gov
+Updates: Adrien Laviron, adrien.laviron@nasa.gov
 """
 # Needed modules. They all import their own suppourt libraries, 
 # and eventually there will be a list of which ones are needed to run
@@ -20,40 +21,30 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-class astepRun:
+class AstepRun:
 
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these 
     # allows for simpler specifying of values. 
-    def __init__(self, chipversion=3, clock_period_ns = 5, SR:bool=True): 
+    def __init__(self, chipversion=3, clock_period_ns=5, SR:bool=False): 
         """
         Initalizes astropix object. 
         No required arguments
         Optional:
         clock_period_ns:int - period of main clock in ns
-        inject:bool - if set to True will enable injection for the whole array.
         SR:bool - if True, configure with shift registers. If False, configure with SPI
         """
-
-        # _asic_start tracks if the inital configuration has been run on the ASIC yet.
-        # By not handeling this in the init it simplifies the function, making it simpler
-        # to put in custom configurations and allows for less writing to the chip,
-        # only doing it once at init or when settings need to be changed as opposed to 
-        # each time a parameter is changed.
-        self._asic_start = False
-        self.asics = []
-
-        self._geccoBoard = None
-
         self.sampleclock_period_ns = clock_period_ns
         self.chipversion = chipversion
         self.SR = SR #define how to configure. If True, shift registers. If False, SPI
 
 
+
+##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod:bool, uart:bool): 
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
         if cmod and uart:
-            #self.boardDriver = drivers.boards.getCMODUartDriver(drivers.astep.serial.getFirstCOMPort())
+            #self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC 
             self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
         elif cmod and not uart:
             self.boardDriver = drivers.boards.getCMODDriver()
@@ -62,89 +53,61 @@ class astepRun:
         elif not cmod and not uart:
             self.boardDriver = drivers.boards.getGeccoFTDIDriver()
 
-        self._geccoBoard = True if not cmod else False
-
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
         await self._test_io()
         logger.info("FPGA test successful.")
-        
-        # This method asserts the reset signal for .5s by default then deasserts it
-        for layer in range(3):
-            await self.boardDriver.resetLayer(layer = layer) #Make them concurrent?
+
+    async def fpga_configure_clocks(self, FPGATSfreq:int=1000000, externalTS:bool=False, SPIfreq=1000000, flush:bool=True):
+        """
+        Configure FPGA TS clock (frequency and source), SPI clock frequency
+        """
+        await self.boardDriver.ioSetSampleClock(enable=True, flush=flush)
+        await self.boardDriver.ioSetTimestampClock(enable=True, flush=flush)
+        # Setup FPGA timestamps
+        await self.boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz=FPGATSfreq, flush=flush)
+        await self.boardDriver.layersConfigFPGATimestamp(enable=True, force=False, source_match_counter=True, source_external=externalTS, flush=flush)
+        # Configure SPI readout
+        await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
+    
+    async def fpga_configure_autoread_keepalive(self, nchips = None):
+        """
+        Compute number of bytes needed between interrupt high and end of data stream in autoread mode
+        :param nchips: number of chips in the daisy chain
+        """
+        if nchips is None:
+            if len(self.boardDriver.asics) == 0:
+                logger.warning("configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!")
+                nchips = 1
+            else:
+                nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())) # dict
+                #nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
+        nbytes = 5 + nchips-1
+        await self.boardDriver.rfg.write_layers_cfg_nodata_continue(value=nbytes, flush=flush)
+
+    #close connection with FPGA
+    async def fpga_close_connection(self) -> None :
+        """
+        Closes the FPGA board driver connection
+        This is optional, connections are closed automatically upon script ending
+        """
+        await self.boardDriver.close()
+
+
 
 ##################### YAML INTERACTIONS #########################
-#reading done in core/asic.py
-#writing done here
-    """
-    def write_conf_to_yaml(self, filename:str = None):
-        #Write ASIC config to yaml
-        #:param chipversion: chip version
-        #:param filename: Name of yml file in config folder
-
-        dicttofile ={self.asic.chip:
-            {
-                "telescope": {"nchips": self.asic.num_chips},
-                "geometry": {"cols": self.asic.num_cols, "rows": self.asic.num_rows}
-            }
-        }
-
-        if self.asic.num_chips > 1:
-            for chip in range(self.asic.num_chips):
-                dicttofile[self.asic.chip][f'config_{chip}'] = self.asic.asic_config[f'config_{chip}']
-        else:
-            dicttofile[self.asic.chip]['config'] = self.asic.asic_config
-
-        with open(f"{filename}", "w", encoding="utf-8") as stream:
-            try:
-                yaml.dump(dicttofile, stream, default_flow_style=False, sort_keys=False)
-
-            except yaml.YAMLError as exc:
-                logger.error(exc)
-        
-    """
-##################### FW INTERFACING #########################
-    # Method to enable timestamp and sample clocks, and configure SPI clock for the layers (if necessary)
-    async def setup_clocks(self) -> None:
-        # Enable TS and Sample clock
-        await self.boardDriver.enableSensorClocks(flush = True)
-        logger.info("Timestamp and SPI clocks enabled")
-
-    async def enable_spi(self, spiFreq:int = 1000000) -> None :
-        """
-        Sets the Clocks divider for the SPI clock.
-        Sets the clock to 1Mhz by default
-        """
-        # Set the SPI Clock to 1Mhz (the value must be passed in Hz)
-        await self.boardDriver.configureLayerSPIFrequency(targetFrequencyHz = spiFreq , flush = True)
-        logger.info(f"SPI clock set to {spiFreq}Hz ({spiFreq/1000000:.2f})MHz")
-
-    async def setup_fpgatag(self, FPGATSFreqHz:int = 1000000):
-        # Sets counting frequency of FPGA-based Timestamp. Tags and is added to data frames. Pass values in Hz
-        await self.boardDriver.layersConfigFPGATimestampFrequency(targetFrequencyHz = FPGATSFreqHz ,flush = True)
-
-    async def enable_fpgatag(self,enable:bool = True):
-        # Enables FPGA-based Timestamp. Setting source_external = True and source_match_counter = False will allow for external (off-FPGA) clock
-        await self.boardDriver.layersConfigFPGATimestamp(enable = enable,force = False ,source_match_counter = True, source_external = False ,flush = True)
-
-    async def asic_configure(self, layer:int):
-        await self.asic_update(layer)
-
-##################### ASIC METHODS FOR USERS #########################
+# Will be handled by the new configuration class in the future
+# For now we just stick to Asic
 
     # Method to initalize the asic. This is taking the place of asic.py. 
-    async def asic_init(self, yaml:str = None, chipsPerRow:int = 1):
+    def load_yaml(self, yaml:str = None, chipsPerRow:int = 1):
         """
-        self.asic_init() - initalize the asic configuration. Must be called first
+        Initalize the asic configuration. Must be called first
         Positional arguments: None
         Optional:
         yaml:list of str - Name of yml file(s) with configuration values (one file per bus) 
         chipsPerRow:list of int - Number of arrays per SPI bus (one int per bus) 
         """
-
-        # Now that the asic has been initalized we can go and make this true
-        self._asic_start = True
-
         # Define YAML path variables
         pathdelim = os.path.sep #determine if Mac or Windows separators in path name
         ymlpath = [os.getcwd()+pathdelim+"scripts"+pathdelim+"config"+pathdelim+ y +".yml" for y in yaml]
@@ -153,37 +116,65 @@ class astepRun:
         try:
             for layer, (nchips, yml) in enumerate(zip(chipsPerRow, ymlpath)):
                 ## Init asic
-                self.boardDriver.setupASIC(version = self.chipversion, row = layer, chipsPerRow = nchips , configFile = yml )
-                ## Get asic for each row aka each daisy chain
-                self.asics.append(self.boardDriver.getAsic(row = layer))
-        except FileNotFoundError as e :
+                self.boardDriver.setupASIC(version = self.chipversion, lane = layer, chipsPerLane = nchips , configFile = yml )
+        except FileNotFoundError as e:
             logger.error(f'Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder')
             raise e
         except Exception as e:
             logger.error('An error occured while setting up the asics')
             raise e
 
-        # Test to see whether the yml file can be read
-        try:
-            self.asics[0].enable_pixel(0,0,0)
-            self.asics[0].disable_pixel(0,0,0)
-        except KeyError: #could not find expected dictionary in yml file
-            logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
-            sys.exit(1)
+        ## Test to see whether the yml file can be read
+        #try:
+        #    self.asics[0].enable_pixel(0,0,0)
+        #    self.asics[0].disable_pixel(0,0,0)
+        #except KeyError: #could not find expected dictionary in yml file
+        #    logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
+        #    sys.exit(1)
 
     #Interface with asic.py 
-    async def enable_pixel(self, layer:int, chip:int, row: int, col: int):
+    async def cfg_enable_pixel(self, layer:int, chip:int, row: int, col: int):
        self.asics[layer].enable_pixel(chip, col, row)
 
-    # Set chip routing
-    async def set_routing(self, layer : int) -> None :
-            logger.info(f"Writting SPI Routing frame for Layer {layer}")
-            await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
-            await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame()
-            await self.boardDriver.layersDeselectSPI(flush=True)
-            self._wait_progress(1)
+    #enable pixels for injection. Must be called once per pixel
+    async def cfg_enable_injection(self, layer:int, chip:int, row: int, col: int):
+        try:
+            self.asics[layer].enable_inj_col(chip, col, inplace=False)
+            self.asics[layer].enable_inj_row(chip, row, inplace=False)
+        except (IndexError, KeyError):
+            logger.error(f"Cannot enable injection in pixel layer {layer}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed.")
+            sys.exit(1)
+ 
+    #enable pixels for analog readout. Must be called once per pixel
+    async def cfg_enable_analog(self, layer:int, chip:int, col: int):
+        try:
+            #Enable analog pixel from given chip in the daisy chain
+            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
+            self.asics[layer].enable_ampout_col(chip, col, inplace=False)
+        except (IndexError, KeyError):
+            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed.")
+            sys.exit(1)
+        
 
-    async def buffer_flush(self, layer):
+
+##################### CHIP INTERACTIONS #########################
+    async def reset_chips(self):
+        """
+        This method asserts the reset signal for .5s by default then deasserts it
+        """
+        await self.boardDriver.resetLayers(.5)
+
+
+##################### CHIP COMMUNICATIONS #########################
+    # Set chip routing
+    async def set_chipID(self, layer:int=0, firstChip:int=0) -> None :
+        logger.info(f"Writting SPI Routing frame for Layer {layer}")
+        await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
+        await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame(firstChip)
+        await self.boardDriver.layersDeselectSPI(flush=True)
+        self._wait_progress(1)
+
+    async def flush_chips(self, layer:int=0):
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
         #Flush data from sensor
         logger.info("Flush chip before data collection")
@@ -209,7 +200,7 @@ class astepRun:
 
 
     # The method to write data to the asic. 
-    async def asic_update(self, layer):
+    async def set_chipcfg(self, layer):
         """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
         await self.boardDriver.resetLayer(layer = layer )
         await self.set_routing(layer)
@@ -233,59 +224,36 @@ class astepRun:
                 sys.exit(1)    
         await self.buffer_flush(layer)
 
+    async def set_allchipcfg(self):
+        await reset_chips()
+        for layer in self.boardDriver.asics.keys():
+            await self.set_chipID(layer)
+            await self.set_chipcfg(layer)#To be refactored
 
-    # Methods to update the internal variables. Please don't do it manually
-    # This updates the dac config
-    async def update_asic_config(self, layer:int, chip:int, bias_cfg:dict = None, idac_cfg:dict = None, vdac_cfg:dict = None):
-        #Updates and writes confgbits to asic
-        #layer, chip indicate which layer and chip in the daisy chain to update
-        #bias_cfg:dict - Updates the bias settings. Only needs key/value pairs which need updated
-        #idac_cfg:dict - Updates iDAC settings. Only needs key/value pairs which need updated
-        #vdac_cfg:dict - Updates vDAC settings. Only needs key/value pairs which need updated
-        
-        if self._asic_start:
-            if bias_cfg is not None:
-                for key in bias_cfg:
-                    self.asics[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
-            if idac_cfg is not None:
-                for key in idac_cfg:
-                    self.asics[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
-            if vdac_cfg is not None:
-                for key in vdac_cfg:
-                    self.asics[layer].asic_config[f'config_{chip}']['vdacs'][key][1]=vdac_cfg[key]
-            else: 
-                logger.info("update_asic_config() got no arguments, nothing to do.")
-                return None
-        else: raise RuntimeError("Asic has not been initalized")
+    ## Methods to update the internal variables. Please don't do it manually
+    ## This updates the dac config
+    #async def update_asic_config(self, layer:int, chip:int, bias_cfg:dict = None, idac_cfg:dict = None, vdac_cfg:dict = None):
+    #    #Updates and writes confgbits to asic
+    #    #layer, chip indicate which layer and chip in the daisy chain to update
+    #    #bias_cfg:dict - Updates the bias settings. Only needs key/value pairs which need updated
+    #    #idac_cfg:dict - Updates iDAC settings. Only needs key/value pairs which need updated
+    #    #vdac_cfg:dict - Updates vDAC settings. Only needs key/value pairs which need updated
+    #    
+    #    if self._asic_start:
+    #        if bias_cfg is not None:
+    #            for key in bias_cfg:
+    #                self.asics[layer].asic_config[f'config_{chip}']['biasconfig'][key][1]=bias_cfg[key]
+    #        if idac_cfg is not None:
+    #            for key in idac_cfg:
+    #                self.asics[layer].asic_config[f'config_{chip}']['idacs'][key][1]=idac_cfg[key]
+    #        if vdac_cfg is not None:
+    #            for key in vdac_cfg:
+    #                self.asics[layer].asic_config[f'config_{chip}']['vdacs'][key][1]=vdac_cfg[key]
+    #        else: 
+    #            logger.info("update_asic_config() got no arguments, nothing to do.")
+    #            return None
+    #    else: raise RuntimeError("Asic has not been initalized")
 
-    #enable pixels for injection. Must be called once per pixel
-    async def enable_injection(self, layer:int, chip:int, row: int, col: int):
-        try:
-            self.asics[layer].enable_inj_col(chip, col, inplace=False)
-            self.asics[layer].enable_inj_row(chip, row, inplace=False)
-        except (IndexError, KeyError):
-            logger.error(f"Cannot enable injection in pixel layer {layer}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed.")
-            sys.exit(1)
-        
-    
-    #enable pixels for analog readout. Must be called once per pixel
-    async def enable_analog(self, layer:int, chip:int, col: int):
-        try:
-            #Enable analog pixel from given chip in the daisy chain
-            logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
-            self.asics[layer].enable_ampout_col(chip, col, inplace=False)
-        except (IndexError, KeyError):
-            logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed.")
-            sys.exit(1)
-        
-
-    #close connection with FPGA
-    async def close_connection(self) -> None :
-        """
-        Closes the FPGA board driver connection
-        This is optional, connections are closed automatically upon script ending
-        """
-        await self.boardDriver.close()
 
 
 ################## Voltageboard Methods ############################
@@ -568,24 +536,6 @@ class astepRun:
         return allData
 
 
-    ########## Sanity Helpers ###############
-    async def sanity_check_idle(self,layer:int):
-        """This method sends some SPI bytes to layer while on Hold, the IDLE byte counter should increase"""
-        # Set layer on Hold
-        await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False , hold=True, disableMISO = False, flush = True )
-
-        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
-        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
-        logger.info(f"[Sanity-IDLE {layer}] Before SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
-
-        # Write Some SPI Bytes
-        await self.boardDriver.layersSelectSPI(flush=True)
-        await self.boardDriver.writeBytesToLayer(layer = layer, bytes = [0x00]*8,waitBytesSend=True,flush=True)
-        await self.boardDriver.layersDeselectSPI(flush=True)
-        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
-        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
-        logger.info(f"[Sanity-IDLE {layer}] After SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
-        assert idleBytes == 16
 
 ############################ Decoder ##############################
     #Send data for decoding from raw
@@ -612,7 +562,7 @@ class astepRun:
 
         Shift register input style requires bytes to be read in left to right. May be fixed in future versions
         """
-
+        assert isinstance(self.boardDriver, CMODBoard), "No housekeeping exists on the Gecco board"
         await driver.houseKeeping.selectADC()
         
         ## Loop over ADC Settings
@@ -676,3 +626,22 @@ class astepRun:
 
         layers_inj_val = await self.boardDriver.rfg.read_layers_inj_ctrl()
         print(f"layers_inj value = {layers_inj_val} = {bin(layers_inj_val)}")
+
+    ########## Sanity Helpers ###############
+    async def sanity_check_idle(self,layer:int):
+        """This method sends some SPI bytes to layer while on Hold, the IDLE byte counter should increase"""
+        # Set layer on Hold
+        await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False , hold=True, disableMISO = False, flush = True )
+
+        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
+        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
+        logger.info(f"[Sanity-IDLE {layer}] Before SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
+
+        # Write Some SPI Bytes
+        await self.boardDriver.layersSelectSPI(flush=True)
+        await self.boardDriver.writeBytesToLayer(layer = layer, bytes = [0x00]*8,waitBytesSend=True,flush=True)
+        await self.boardDriver.layersDeselectSPI(flush=True)
+        idleBytes = await self.boardDriver.getLayerStatIDLECounter(layer)
+        frameBytes = await self.boardDriver.getLayerStatFRAMECounter(layer)
+        logger.info(f"[Sanity-IDLE {layer}] After SPI activity, IDLE Bytes counter={idleBytes},Frame Bytes Counter={frameBytes}")
+        assert idleBytes == 16

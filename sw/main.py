@@ -132,6 +132,22 @@ def bin2csv(fprefix):
 #######################################################
 #################### MAIN FUNCTION ####################
 
+async def newmain(args):
+    from astep import AstepRun as Run#Name TBC
+    arun = Run(chipversion = 3)
+    arun.open_fpga(cmod=True, uart=True)
+    arun.fpga_configure_clocks()
+    arun.fpga_configure_autoread_keepalive(4)
+    arun.load_yaml(args.yaml, args.chipsPerRow)
+    if args.inject:
+        arun.cfg_enable_pixel(*args.inject)
+        arun.cfg_enable_injection(*args.inject)
+    if args.analog:
+        arun.cfg_enable_analog(*args.analog)
+    arun.set_allchipcfg()
+
+    arun.fpga_close_connection()
+
 async def main(args):
     # Welcome to the main (and only) function of this script!
     print(args) # Soon to be removed

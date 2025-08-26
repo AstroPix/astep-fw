@@ -1,7 +1,6 @@
 
 from deprecated import deprecated
 
-import drivers.astep.housekeeping
 import rfg.io
 import rfg.core
 import asyncio
@@ -14,8 +13,7 @@ class BoardDriver():
 
     def __init__(self,rfg):
         self.rfg = rfg
-        self.houseKeeping = drivers.astep.housekeeping.Housekeeping(self,rfg)
-        self.asics = []
+        self.asics = {}
         
         # Synchronisation Utils
         ########
@@ -23,21 +21,6 @@ class BoardDriver():
         ## Opened Event -> Set/unset by close/open
         ## Useful to start or stop tasks dependent on open/close state of the driver
         self.openedEvent = asyncio.Event()
-
-    def selectUARTIO(self,portPath : str | None = None ):
-        """This method is common to all targets now, because all targets have a USB-UART Converter available"""
-        if (portPath == None):
-            import drivers.astep.serial
-            port = drivers.astep.serial.selectFirstLinuxFTDIPort()
-            if port:
-                self.rfg.withUARTIO(port.device)
-                return self
-            else:
-                raise RuntimeError("No Serial Port could be listed")
-        else:
-            self.rfg.withUARTIO(portPath)
-            return self
-        
 
     async def open(self):
         """Open the Register File I/O Connection to the underlying driver"""
@@ -90,34 +73,7 @@ class BoardDriver():
 
     ## Chips
     ################
-    async def setupASICSAuto(self, configFile : str ):
-
-        #assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
-        self.asics.clear()
-        asic = Asic(rfg = self.rfg, row = 0)
-        asic.chipversion = (await self.readFirmwareID()) & 0x0F
-        print(configFile)
-        self.asics.append(asic)
-
-        return asic
-
-    def setupASICS(self, version: int , rows: int = 1 , chipsPerRow:int = 1 , configFile : str | None = None):
-        """Configure one or multiple rows with a single config file
-
-        Args:
-            version: int, AstroPix chip version
-            rows: int, number of rows, default=1
-            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
-            configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
-        """
-        assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
-        if version == 2: 
-            self.geccoGetVoltageBoard().dacvalues =  (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
-
-        for i in range(rows):
-            self.setupASIC(version, row=i, chipsPerRow=chipsPerRow, configFile=configFile)
-
-    def setupASIC(self, version: int, row: int = 0, chipsPerRow: int=1, configFile: str|None = None):
+    def setupASIC(self, version: int, lane: int = 0, chipsPerLane: int=1, configFile: str|None = None):
         """Configures one row (aka daisy chain) with a single config file
 
         Args:
@@ -130,8 +86,8 @@ class BoardDriver():
         asic.chipversion = version
         if configFile is not None: 
             asic.load_conf_from_yaml(configFile)
-        asic._num_chips = chipsPerRow
-        self.asics.append(asic)
+        asic._num_chips = chipsPerLane
+        self.asics.update({lane:asic})
 
     def getAsic(self,row = 0 ): 
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
