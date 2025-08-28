@@ -7,14 +7,12 @@ import rfg.discovery
 
 
 
-class CMODBoard(BoardDriver): 
+class CMODBoard(BoardDriver):
 
     def __init__(self,rfg):
         BoardDriver.__init__(self,rfg)
         self.cards = {}
 
-    def getFPGACoreFrequency(self):
-        return 20000000
 
     def getInjectionBoard(self,slot : int ) -> InjectionBoard:
         """Create or return Voltage board for a certain slot"""

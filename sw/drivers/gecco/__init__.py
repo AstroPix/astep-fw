@@ -8,14 +8,11 @@ import rfg.discovery
 
 
 
-class GeccoCarrierBoard(BoardDriver): 
+class GeccoCarrierBoard(BoardDriver):
 
     def __init__(self,rfg):
         BoardDriver.__init__(self,rfg)
         self.cards = {}
-
-    def getFPGACoreFrequency(self):
-        return 60000000
 
     def getVoltageBoard(self,slot : int ) -> VoltageBoard:
         """Create or return Voltage board for a certain slot"""
@@ -35,10 +32,9 @@ class GeccoCarrierBoard(BoardDriver):
             self.cards[slot] = vb
             return vb
 
-    
+
 
     def selectFTDIFifoIO(self):
         import rfg.io.ftdi
         self.rfg.withFTDIIO("Device A",rfg.io.ftdi.FLAG_LIST_DESCRIPTOR)
         return self
-

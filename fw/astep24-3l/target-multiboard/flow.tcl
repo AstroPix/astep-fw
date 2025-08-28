@@ -127,11 +127,7 @@ proc read_syn_ip {} {
     # Layers SPI Fifo -> 1kB
     set_property -dict [list CONFIG.FIFO_DEPTH 1024] [get_ips fifo_axis_2clk_spi_layer]
 
-    ## On CMOD, update core clock to 20.00000
-    ########
-    if {$target_board=="astropix-cmod"} {
-       # set_property -dict [list CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {20.000} ] [get_ips top_clocking_core_io_uart]
-    }
+
 
 }
 
