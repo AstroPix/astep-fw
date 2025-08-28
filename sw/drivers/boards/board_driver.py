@@ -83,13 +83,6 @@ class BoardDriver():
         """Returns the Core Clock frequency to help clock divider configuration - this method is overriden by implementation class (Gecco or Cmod)"""
         return 80000000
 
-    ## Gecco
-    ###############
-    def geccoGetVoltageBoard(self):
-        return self.getVoltageBoard(slot = 4 )
-    def geccoGetInjectionBoard(self):
-        return self.getInjectionBoard(slot = 3 )
-
     ## Loopback Model
     ################
     def getLoopbackModelForLayer(self,layer):
@@ -170,11 +163,17 @@ class BoardDriver():
         else: v &= ~(0x4)
         await self.rfg.write_io_ctrl(v,flush)
 
-    async def ioSetInjectionToGeccoInjBoard(self,enable:bool,flush:bool = False):
+    async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = False):
         v = await self.rfg.read_io_ctrl()
+<<<<<<< HEAD
         if enable: v|=0x8
         else: v &= ~(0x8)
         await self.rfg.write_io_ctrl(v,flush)
+=======
+        if enable: v &= ~(0x8)
+        else: v |= 0x8
+        await self.rfg.write_io_ctrl(v,flush) 
+>>>>>>> origin/main
 
 
     async def ioSetFPGAExternalTSClockDifferential(self,enable:bool,flush:bool = False):

@@ -30,10 +30,10 @@ class Housekeeping():
         return Decimal(rawVccit  / 4096 * 3 ).quantize(Decimal('.01'), rounding=ROUND_HALF_EVEN)
 
 
-    async def setXADCSampleFrequence(self,targetClock,refClock  : int = 20000000):
+    async def setXADCSampleFrequence(self,targetClock,refClock  : int = 60000000):
         await self.rfg.write_hk_conversion_trigger_match(int(refClock/targetClock),flush = True)
 
-    async def getXADCSampleFrequence(self,refClock : int = 20000000):
+    async def getXADCSampleFrequence(self,refClock : int = 60000000):
         matchRegister = await self.rfg.read_hk_conversion_trigger_match()
         dividedClock = float(refClock) / float(matchRegister)
         return Decimal(dividedClock).quantize(Decimal('.01'), rounding=ROUND_HALF_EVEN)

@@ -66,3 +66,4 @@ def getCMODUartDriver(portPath : str | None = None):
 
 def getCMODSPIDriver():
     raise NotImplementedError
+
