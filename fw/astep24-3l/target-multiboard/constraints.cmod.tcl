@@ -17,7 +17,7 @@ set_property -dict { PACKAGE_PIN B16   IOSTANDARD LVCMOS33 } [get_ports { led0_g
 set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS33 } [get_ports { led0_r }]; #IO_L14P_T2_SRCC_16 Sch=led0_r
 
 ## Buttons
-set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports { cpu_resetn }]; #IO_L19N_T3_VREF_16 Sch=btn[0]
+set_property -dict { PACKAGE_PIN A18   IOSTANDARD LVCMOS33 } [get_ports { resn }]; #IO_L19N_T3_VREF_16 Sch=btn[0]
 #set_property -dict { PACKAGE_PIN B18   IOSTANDARD LVCMOS33 } [get_ports { btn[1] }]; #IO_L19P_T3_16 Sch=btn[1]
 
 ## Pmod Header JA
@@ -51,7 +51,7 @@ set_property -dict { PACKAGE_PIN A15   IOSTANDARD LVCMOS33 } [get_ports { ext_sp
 set_property -dict { PACKAGE_PIN B15   IOSTANDARD LVCMOS33 } [get_ports { ext_spi_adc_miso   }]; #IO_L11N_T1_SRCC_16 Sch=pio[08]
 set_property -dict { PACKAGE_PIN A14   IOSTANDARD LVCMOS33 } [get_ports { ext_spi_clk   }]; #IO_L6P_T0_16 Sch=pio[09]
 set_property -dict { PACKAGE_PIN J3    IOSTANDARD LVCMOS33 } [get_ports { ext_spi_adc_csn  }]; #IO_L7P_T1_AD6P_35 Sch=pio[10]
-set_property -dict { PACKAGE_PIN J1    IOSTANDARD LVCMOS33 } [get_ports { ext_spi_dac_csn }]; #IO_L3N_T0_DQS_AD5N_35 Sch=pio[11] 
+set_property -dict { PACKAGE_PIN J1    IOSTANDARD LVCMOS33 } [get_ports { ext_spi_dac_csn }]; #IO_L3N_T0_DQS_AD5N_35 Sch=pio[11]
 #set_property -dict { PACKAGE_PIN K2    IOSTANDARD LVCMOS33 } [get_ports { NC pio11 }]; #IO_L5P_T0_AD13P_35 Sch=pio[12] NC
 
 set_property -dict { PACKAGE_PIN L1    IOSTANDARD LVCMOS33 } [get_ports { cold_resn  }]; #IO_L6N_T0_VREF_35 Sch=pio[13]

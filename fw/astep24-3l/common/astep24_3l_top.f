@@ -19,12 +19,15 @@ ${BASE}/fw/common/rtl/rfg/ftdi/ftdi_interface_control_fsm.sv
 ${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_egress.sv
 ${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_igress.sv
 
-${BASE}/fw/common/rtl/rfg/uart/uart_lite_driver.sv
+#${BASE}/fw/common/rtl/rfg/uart/uart_lite_driver.sv
+
+${BASE}/fw/common/rtl/rfg/uart/neorv32_uart_axis.vhd
+
 
 ${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_protocol.sv
 ${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_readout_framing.sv
 
-## Layer 
+## Layer
 -f ${BASE}/fw/common/rtl/layers/layers_readout_switched.f
 
 ## Layer Loopback
@@ -39,7 +42,7 @@ ${BASE}/fw/common/rtl/asic_model/loopback_spi_if.sv
 +incdir+${BASE}/fw/common/includes
 ${BASE}/fw/common/rtl/utilities/reset_sync.sv
 ${BASE}/fw/common/rtl/utilities/async_input_sync.sv
-${BASE}/fw/common/rtl/utilities/async_signal_sync.sv
+#${BASE}/fw/common/rtl/utilities/async_signal_sync.sv
 ${BASE}/fw/common/rtl/utilities/resets_synchronizer.sv
 ${BASE}/fw/common/rtl/utilities/edge_detect.sv
 

@@ -5,7 +5,7 @@
 ## This method used to generate a Date version for RFG, so that SW can read a build version to easily check which firmware is flashed
 proc getDateVersion args {
     set date [clock seconds]
-    return   [clock format $date -format "%y%m%d"]01   
+    return   [clock format $date -format "%y%m%d"]01
 }
 
 # Get project file dir
@@ -31,7 +31,7 @@ set include_dirs [list $firmware_dir/src $commonSrcDir/includes]
 file mkdir reports
 file mkdir bitstreams
 
-## Config from Env 
+## Config from Env
 set ciMode [expr [catch {set ::env(CI)}] == 1 ? 0 : 1]
 
 proc add_files_no_simulation path {
@@ -42,10 +42,11 @@ proc add_files_no_simulation path {
         set addedFiles  [list $path]
     }
     if {[llength [get_files $addedFiles]]>0} {
-        set_property -dict {used_in_synthesis true used_in_simulation true used_in_implementation true} [get_files $addedFiles]
+        #puts "Setting usage property on files: $addedFiles"
+        #set_property -dict {used_in_synthesis true used_in_simulation true used_in_implementation true} [get_files $addedFiles]
     }
-    
-    
+
+
 }
 proc read_design_files {} {
 
@@ -53,8 +54,8 @@ proc read_design_files {} {
     global commonSrcDir
     global astep3lSrcDir
 
-    add_files_no_simulation $firmware_dir/astep24_3l_multitarget_top.v
-    
+    add_files_no_simulation $firmware_dir/astep24_3l_multitarget_top.sv
+
     add_files_no_simulation $astep3lSrcDir/common
 
     add_files_no_simulation $commonSrcDir/rtl/host/sw_ftdi245_spi_uart
@@ -101,9 +102,9 @@ proc read_syn_ip {} {
                 }
                 catch {file delete -force vivado-project/[get_projects].srcs/sources_1/ip/[file tail $ipDir]}
                 catch {import_ip $sourceIPFile}
-            } 
-            
-            
+            }
+
+
         }
     }
 
@@ -125,13 +126,13 @@ proc read_syn_ip {} {
 
     # Layers SPI Fifo -> 1kB
     set_property -dict [list CONFIG.FIFO_DEPTH 1024] [get_ips fifo_axis_2clk_spi_layer]
-    
+
     ## On CMOD, update core clock to 20.00000
     ########
     if {$target_board=="astropix-cmod"} {
-        set_property -dict [list CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {20.000} ] [get_ips top_clocking_core_io_uart]
+       # set_property -dict [list CONFIG.CLKOUT3_REQUESTED_OUT_FREQ {20.000} ] [get_ips top_clocking_core_io_uart]
     }
-    
+
 }
 
 
@@ -143,10 +144,10 @@ proc run_bit {board version defines constraints_file} {
     global firmware_dir
     global commonSrcDir
     global astep3lSrcDir
-    global target_board 
+    global target_board
 
-    
-    
+
+
 
     ## Test if in open mode, if env(OPEN) is NOT set, catch returns 1
     set openMode [expr [catch {set ::env(OPEN)}] == 1 ? 0 : 1]
@@ -162,7 +163,7 @@ proc run_bit {board version defines constraints_file} {
         return -level 1 -code error
     }
 
-    
+
     set target_board $board
     array set supported_boards [list \
         astropix-nexys  [list xc7a200tsbg484-1 digilentinc.com:nexys_video:part0:1.2 [list RFG_FW_ID=32'h0000AB0${chipversion} TARGET_NEXYS] ] \
@@ -176,13 +177,14 @@ proc run_bit {board version defines constraints_file} {
         set board_name     [lindex $supported_boards($board)  1]
         ## Board defines are added to project after main project defines
         set board_defines  [lindex $supported_boards($board)  2]
-        
+
     } else {
         puts "ERROR: Unsupported board $board specified!"
         return -level 1 -code error
     }
 
-    
+    set ::IC_BOARD $board
+
 
     foreach item $defines {
         if {$item ni $supported_defines} {
@@ -230,7 +232,7 @@ proc run_bit {board version defines constraints_file} {
         create_project -force -part $part $design_name .
         set_property board_part $board_name [current_project]
     }
-    
+
 
     read_design_files
     read_syn_ip
@@ -251,14 +253,14 @@ proc run_bit {board version defines constraints_file} {
         puts  $out "global defines_list"
         puts  $out [subst {set chipversion $chipversion}]
         puts  $out [subst -nocommand {set defines_list [list $defines_list]}]
-        close $out 
-      
+        close $out
+
         read_xdc -unmanaged [file normalize $openConstraintsFile]
         reorder_files -fileset constrs_1 -before [lindex $constraints_file 0] [file normalize $openConstraintsFile]
 
     }
 
-    
+
     # If a TCL file ends with "_impl.tcl", it is used only in implementation
     foreach constraintFile $constraints_file {
         if {[string match "*_impl.tcl" $constraintFile]} {
@@ -266,7 +268,7 @@ proc run_bit {board version defines constraints_file} {
         }
     }
 
-    # Set Defines and inc dirs: Config defines + Board specific static defines + Dynamically created build version    
+    # Set Defines and inc dirs: Config defines + Board specific static defines + Dynamically created build version
     #########
     set buildVersion  [getDateVersion]
     set final_defines [lsort [concat $board_defines $defines_list RFG_FW_BUILD=32'd$buildVersion SYNTHESIS=1 ASTROPIX${chipversion}]]
@@ -276,7 +278,7 @@ proc run_bit {board version defines constraints_file} {
         set_property verilog_define $final_defines $fileSet
         set_property include_dirs   $include_dirs  $fileSet
     }
-    
+
 
     ## Only Run Implementatino if no project opening is requested
     if {!$openMode} {
@@ -290,9 +292,9 @@ proc run_bit {board version defines constraints_file} {
         report_utilization -file "reports/report_utilization.$design_name.log"
         report_timing      -file "reports/report_timing.$design_name.log"
         report_timing_summary -file "reports/report_timing_summary.$design_name.log"
-        
-        set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design] 
-        write_bitstream -force -bin_file bitstreams/${design_name}_${buildVersion} 
+
+        set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
+        write_bitstream -force -bin_file bitstreams/${design_name}_${buildVersion}
         if {[string match *cmod* $board]} {
              write_cfgmem  -force -format mcs -size 32 -interface SPIx1 -loadbit [list up 0x00000000 bitstreams/${design_name}_${buildVersion}.bit  ] -file bitstreams/${design_name}_${buildVersion}.mcs
         } else {
@@ -301,5 +303,5 @@ proc run_bit {board version defines constraints_file} {
        close_project
     }
 
-    
+
 }

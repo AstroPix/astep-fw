@@ -32,16 +32,16 @@ def load_fsp():
 
 #import importlib
 #boardModule = importlib.find_loader('astep24_3l_gecco_astropix3_top')
-#if boardModule is not None: 
+#if boardModule is not None:
 #    from astep_hktest_top   import main_rfg
 #boardModule = importlib.find_loader('astep_ml1_top')
-#if boardModule is not None: 
+#if boardModule is not None:
 #    from astep_ml1_top      import main_rfg
 
 async def common_system_clock(dut):
     cocotb.start_soon(Clock(dut.sysclk, 10, units='ns').start())
     await RisingEdge(dut.sysclk)
-    
+
 async def common_clock_reset_nexys(dut):
     cocotb.start_soon(Clock(dut.sysclk, 10, units='ns').start())
     dut.btnc.value = 0 # Btn pressed is 1
@@ -61,12 +61,15 @@ async def common_clock_reset_cmod(dut):
 
 async def common_clock_reset(dut):
     cocotb.start_soon(Clock(dut.sysclk, 10, units='ns').start())
-    dut.warm_resn.value = 0
-    dut.cold_resn.value = 0
+    dut.clk_ext.value = 0
+    dut.resn.value = 0
     await Timer(1, units="us")
-    dut.warm_resn.value = 1
-    dut.cold_resn.value = 1
+    dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
+
+async def start_external_clock(dut):
+    return cocotb.start_soon(Clock(dut.clk_ext, 25, units='ns').start())
+
 
 async def warm_reset(dut):
     dut.warm_resn.value = 0
@@ -92,7 +95,7 @@ def sw_uart_init(dut):
         rfg_io = UARTIO(dut.uart_rx,dut.uart_tx) ## INtervert Rx/Tx to send to rx and receive from tx!
     else:
         rfg_io = UARTIO(dut.tx_in,dut.rx_out)
-   
+
     #print("UART Init: ",len(rfg.commands))
     loadedRFG.withIODriver(rfg_io)
     housekeepingDriver = Housekeeping(loadedRFG)
