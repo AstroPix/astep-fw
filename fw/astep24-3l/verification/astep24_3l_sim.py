@@ -1,6 +1,6 @@
 
-import sys 
-import os 
+import sys
+import os
 
 
 import  rfg.discovery
@@ -15,7 +15,7 @@ from   drivers.gecco.injectionboard import InjectionBoard
 
 from cocotb.triggers import Timer,RisingEdge
 
-class SimBoard(BoardDriver): 
+class SimBoard(BoardDriver):
 
     def __init__(self,rfg):
         BoardDriver.__init__(self,rfg)
@@ -32,8 +32,6 @@ class SimBoard(BoardDriver):
         ib.voltageBoard = None
         return ib
 
-    def getFPGACoreFrequency(self):
-        return 60000000
 
 async def getDriver(dut):
 
@@ -62,7 +60,7 @@ async def getUARTDriver(dut):
 
     return boardDriver
 
-    
+
 async def getSPIDriver(dut):
 
     ## Load RF and Setup UARTIO
@@ -70,7 +68,7 @@ async def getSPIDriver(dut):
 
     ## SPI
     #########
-    rfg_io = SPIIO(dut,msbFirst=False)
+    rfg_io = SPIIO(dut,msbFirst=False,clockPeriod=100)
     await Timer(10, units="us")
 
     #rfg.cocotb.cocotb_spi.debug()
