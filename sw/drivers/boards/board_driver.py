@@ -359,7 +359,7 @@ class BoardDriver():
 
     async def disableLayersReadout(self, flush:bool = True):
         """
-        Disable readout for all layers
+        Disable readout for all layers - Implemented in daughter classes
         """
         pass
 
@@ -438,14 +438,14 @@ class BoardDriver():
         steps = int(math.ceil(len(payload)/step))
         for chunk in range(0, len(payload), step):
             chunkBytes = payload[chunk:chunk+step]
-            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
+            if steps>1: logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
             if self.getLayerControl(layer) & 0x2 == 0x2:
                 logger.warning("Reset is asserted! Data will be written after reset is de-asserted.")
             await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(chunkBytes,True)
             # Wait for the current chunk to be written before sending the next one
             maxtime = time.time()+timeout
             while (await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0 and time.time() <= maxtime):
-                time.sleep(0.05)
+                time.sleep(0.01)
             if time.time() > maxtime:
                 raise RuntimeError("Chunck {}/{} len={} timed out".format(int(chunk/step+1),steps,len(chunkBytes)))
 

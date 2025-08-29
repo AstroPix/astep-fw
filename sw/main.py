@@ -135,17 +135,20 @@ def bin2csv(fprefix):
 async def newmain(args):
     from astep import AstepRun as Run#Name TBC
     arun = Run(chipversion = 3)
-    arun.open_fpga(cmod=True, uart=True)
-    arun.fpga_configure_clocks()
-    arun.fpga_configure_autoread_keepalive(4)
+    await arun.open_fpga(cmod=True, uart=True)
+    await arun.fpga_configure_clocks()
+    await arun.fpga_configure_autoread_keepalive(4)
     arun.load_yaml(args.yaml, args.chipsPerRow)
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
     if args.analog:
-        arun.cfg_enable_analog(*args.analog)
-    arun.set_allchipcfg()
-
+        arun.cfg_enable_analog(*args.analog)#Also turn that pixel on (just in case)
+    await arun.chips_reset_configure()
+    await arun.buffer_flush()
+    await arun.chips_enable_readout()
+    #Main loop here
+    await arun.chips_disable_readout()
     arun.fpga_close_connection()
 
 async def main(args):

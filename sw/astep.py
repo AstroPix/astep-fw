@@ -80,8 +80,7 @@ class AstepRun:
                 logger.warning("configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!")
                 nchips = 1
             else:
-                nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())) # dict
-                #nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
+                nchips = self.get_nchips()
         nbytes = 5 + nchips-1
         await self.boardDriver.rfg.write_layers_cfg_nodata_continue(value=nbytes, flush=flush)
 
@@ -132,6 +131,14 @@ class AstepRun:
         #    logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
         #    sys.exit(1)
 
+    def cfg_nchips(self):
+        """
+        Returns the maximum number of chips of all daisy chains
+        """
+        return nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())) # dict
+        #return nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
+
+
     #Interface with asic.py 
     def cfg_enable_pixel(self, layer:int, chip:int, row:int, col:int):
        self.asics[layer].enable_pixel(chip, col, row)
@@ -151,6 +158,7 @@ class AstepRun:
             #Enable analog pixel from given chip in the daisy chain
             logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
             self.asics[layer].enable_ampout_col(chip, col, inplace=False)
+            self.cfg_enable_pixel(layer, chip, 0, col)
         except (IndexError, KeyError):
             logger.error(f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed.")
             sys.exit(1)
@@ -158,77 +166,90 @@ class AstepRun:
 
 
 ##################### CHIP INTERACTIONS #########################
-    async def reset_chips(self):
+    async def chips_reset(self):
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
         await self.boardDriver.resetLayers(.5)
 
+    async def chips_hold(self, hold:bool):
+        """
+        """
+        await self.boardDriver.holdLayers(hold)
+
+    async def chips_select(self, cs:bool):
+        """
+        """
+        await self.boardDriver.layersSetSPICSN(cs)
+
+    async def chips_disable_readout(self):
+        """
+        """
+        await self.boardDriver.disableLayersReadout(True)
+
+    async def chips_enable_readout(self, autoread:bool, layerlst:list=[0]):
+        """
+        Enables data readout from the chips
+        :param autoread: bool
+        :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=[0]
+        """
+        if isinstance(self.boardDriver, GeccoCarrierBoard): await self.boardDriver.enableLayersReadout(autoread, True)
+        elif isinstance(self.boardDriver, CMODBoard): await self.boardDriver.enableLayersReadout(layerlst, autoread, True)
+        else: await self.boardDriver.enableLayersReadout()
 
 ##################### CHIP COMMUNICATIONS #########################
     # Set chip routing
-    async def set_chipID(self, layer:int=0, firstChip:int=0) -> None :
+    async def chips_setID(self, layer:int=0, firstChip:int=0) -> None :
         logger.info(f"Writting SPI Routing frame for Layer {layer}")
-        await self.boardDriver.setLayerConfig(layer = layer, reset = False , autoread = False, hold = True, disableMISO=True, chipSelect=True, flush = True)
-        await self.boardDriver.getAsic(row = layer).writeSPIRoutingFrame(firstChip)
-        await self.boardDriver.layersDeselectSPI(flush=True)
-        self._wait_progress(1)
+        await self.boardDriver.writeSPIRoutingFrame(layer, firstChip)
 
-    async def flush_chips(self, layer:int=0):
+    # The method to write data to the asic. 
+    async def chips_setcfg(self):
+        """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
+        if self.SR:
+            for layer in self.boardDriver.asics.keys():
+                config = self.boardDriver.asics[layer].gen_config_vector_SR()
+                await self.boardDriver.writeSRConfig(config, layer)
+        else:
+            # Set Chip ID
+            await self.boardDriver.layersSelectSPI(flush=True)# Set CS
+            for layer in self.boardDriver.asics.keys():
+                await self.chips_setID(layer)
+            await self.boardDriver.layersDeselectSPI(flush=True)# Unset CS
+            # Configure chips in parallel
+            for chip in range(self.cfg_nchips()):
+                await self.boardDriver.layersSelectSPI(flush=True)# Set CS
+                for layer in self.boardDriver.asics.keys():
+                    if chip < self.boardDriver.asics[layer].num_chips: await self.boardDriver.writeSPIConfig(layer, chip)
+                await self.boardDriver.layersDeselectSPI(flush=True)# Unset CS
+
+    async def chips_reset_configure(self):
+        # Reset
+        await self.chips_reset()
+        # Set FPGA to neutral
+        await self.chips_disable_readout()
+        # Set chip config
+        await self.chips_setcfg()
+
+    async def chips_flush(self):
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
         #Flush data from sensor
         logger.info("Flush chip before data collection")
-        status = await self.boardDriver.getLayerStatus(layer)
-        interruptn = status & 0x1
-        #deassert hold
-        await self.boardDriver.holdLayer(layer, hold=False)
-        interupt_counter=0
-        while interruptn == 0 and interupt_counter<20:
-            logger.info("interrupt low")
-            await self.boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-            nmbBytes = await self.boardDriver.readoutGetBufferSize()
-            if nmbBytes > 0:
-                    await self.boardDriver.readoutReadBytes(1024)
-            status = await self.boardDriver.getLayerStatus(layer)
-            interruptn = status & 0x1 
-            interupt_counter+=1
-        #reassert hold to be safe
-        await self.boardDriver.holdLayer(layer, hold=True) 
-        logger.info("interrupt recovered, ready to collect data, resetting stat counters")
-
-        await self.boardDriver.resetLayerStatCounters(layer)
-
-
-    # The method to write data to the asic. 
-    async def set_chipcfg(self, layer):
-        """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
-        await self.boardDriver.resetLayer(layer = layer )
-        await self.set_routing(layer)
-        if self.SR:
-            try:
-                await self.boardDriver.getAsic(row = layer).writeConfigSR()
-            except OverflowError:
-                logger.error(f"Tried to configure an array that is not connected! Code thinks there should be {self.asics[layer]._num_chips} chips. Check chipsPerRow from asic_init")
-                sys.exit(1)
-        else:     
-            try:
-                #disable MISO line to ensure all config is written, enable chip select
-                await self.boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=True, disableMISO=True, flush=True )
-                for chip in range(self.asics[layer]._num_chips):
-                    await self.boardDriver.layersSelectSPI(flush=True)
-                    await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
-                    await self.boardDriver.layersDeselectSPI(flush=True)
-                await self.boardDriver.layersDeselectSPI(flush=True)
-            except OverflowError:
-                logger.error("Tried to configure an array that is not connected! Check chipsPerRow from asic_init")
-                sys.exit(1)    
-        await self.buffer_flush(layer)
-
-    async def set_allchipcfg(self):
-        await reset_chips()
         for layer in self.boardDriver.asics.keys():
-            await self.set_chipID(layer)
-            await self.set_chipcfg(layer)#To be refactored
+            await self.boardDriver.setLayerConfig(layer, reset=False, hold=False, chipSelect=True, autoread=False, disableMISO=True, flush=True)
+            await self.boardDriver.writeSPI([0x00]*128, layer)
+            counter = 1
+            while (await self.boardDriver.getLayerStatus(layer) & 0x1) == 0 && counter < 20:
+                await self.boardDriver.writeSPI([0x00]*128, layer)
+                counter += 1
+            await self.boardDriver.setLayerConfig(layer, reset=False, hold=True, chipSelect=False, autoread=False, disableMISO=True, flush=True)
+
+    async def buffer_flush(self)
+        await self.chips_flush()
+        buff = await self.boardDriver.readoutGetBufferSize():
+        await self.boardDriver.readoutReadBytes(buff)
+
+
 
     ## Methods to update the internal variables. Please don't do it manually
     ## This updates the dac config
