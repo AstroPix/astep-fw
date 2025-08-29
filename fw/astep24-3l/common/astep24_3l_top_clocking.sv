@@ -20,7 +20,9 @@ module astep24_3l_top_clocking (
     output wire clk_80,
     output wire clk_80_resn,
     output wire clk_10,
-    output wire clk_10_resn
+    output wire clk_10_resn,
+
+    output wire sysclk_40M
 );
 
 
@@ -45,10 +47,10 @@ module astep24_3l_top_clocking (
 
     // System Clock to 40 Mhz
     wire sys_mmmc_locked;
-    wire sysclk_40M;
+    //wire sysclk_40M;
     clk_sys_to_40 sys_to_40 (
         .clk_in1(sysclk_in),
-        .resetn(!mmmc_reset ),
+        .resetn( !mmmc_reset ), // !mmmc_reset
         .clk_out1(sysclk_40M),
         .locked(sys_mmmc_locked)
 
