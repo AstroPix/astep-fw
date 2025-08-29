@@ -9,6 +9,24 @@ from drivers.astropix.asic import Asic
 
 from drivers.astropix.loopback_model import Astropix3LBModel
 
+## Constants
+##############
+
+# SR
+SPI_SR_BROADCAST    = 0x7E
+SPI_SR_BIT0         = 0x00
+SPI_SR_BIT1         = 0x01
+SPI_SR_LOAD         = 0x03
+SPI_EMPTY_BYTE      = 0x00
+
+srRegisterName="LAYERS_SR_OUT"
+
+# Daisychain 3bit Header + 5bit ID
+SPI_HEADER_EMPTY    = 0b001 << 5
+SPI_HEADER_ROUTING  = 0b010 << 5
+SPI_HEADER_SR       = 0b011 << 5
+
+
 class BoardDriver():
 
     def __init__(self, rfg):
@@ -79,19 +97,51 @@ class BoardDriver():
         Args:
             version: int, AstroPix chip version
             row: int, number of the current row, default=0
-            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
+            chipsPerLane: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
-        asic = Asic(rfg = self.rfg, row = row)
-        asic.chipversion = version
+        asic = Asic(chipversion=version)
         if configFile is not None: 
             asic.load_conf_from_yaml(configFile)
-        asic._num_chips = chipsPerLane
         self.asics.update({lane:asic})
 
-    def getAsic(self, row=0): 
+    def getAsic(self, layer:int=0):
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
-        return self.asics[row]
+        return self.asics[layer]
+
+    def getRoutingFrame(self, layer:int=0, firstChipID:int=0):
+        return [SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self.asics[layer].num_chips-1)*2#+1?
+
+    def getConfigFrame(self, load:bool=True, n_load:int=10, broadcast:bool=False, layer:int=0, targetChip:int=0, config:BitArray|None=None)  -> bytearray:
+        """
+        Converts the ASIC Config bits to the corresponding bytes to send via SPI
+        :param load: bool, includes load signal, default=True
+        :param n_load: int, length of load signal, default=10
+        :param broadcast: bool, Enable Broadcast - in that case the config of targetChip will be broadcasted, default=False
+        :param layer: int, daisy chain to target, default=0
+        :param targetChip: int, ChipID of source config, set in header if !broadcast, default=0
+        :param config: BitArray, vector of config bits, default=None (generated from targetchip and layer)
+        :returns: SPI ASIC config pattern
+        """
+        ## Generate Bit vector for config
+        if value is None:
+            value = self.gen_config_vector_SPI(msbfirst = False,targetChip = targetChip)
+        # Write SPI SR Command to set MUX
+        if broadcast:
+            data = bytearray([SPI_SR_BROADCAST])
+        else:
+            data = bytearray([SPI_HEADER_SR | targetChip])
+        # data
+        for bit in value:
+            sin = SPI_SR_BIT1 if bit else SPI_SR_BIT0
+            data.append(sin)
+        # Append Load signal and empty bytes
+        if load:
+            data.extend([SPI_SR_LOAD] * n_load)
+        # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
+        data.extend([SPI_EMPTY_BYTE] * ((self._num_chips-1) *2))
+        logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(value), value)
+        return data
 
     ## IO control and clocks
     ########################
@@ -159,7 +209,7 @@ class BoardDriver():
         assert divider >=1 and divider < pow(2,32) , (f"Target Freq is too slow, Divider {divider} is too high, min. clock frequency: {int(coreFrequency/pow(2,32))}")
         await self.rfg.write_layers_cfg_frame_tag_counter_trigger_match(divider,flush)
 
-    # SPI config
+    # SPI configuration
     async def configureLayerSPIFrequency(self, targetFrequencyHz:int, flush:bool=False):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         coreFrequency = self.getFPGACoreFrequency()
@@ -313,33 +363,33 @@ class BoardDriver():
         """
         pass
 
-    async def getLayerMOSIBytesCount(self,layer:int):
+    async def getLayerMOSIBytesCount(self, layer:int=0):
         return await getattr(self.rfg,f"read_layer_{layer}_mosi_write_size")()
 
-    async def getLayerStatIDLECounter(self,layer:int):
+    async def getLayerStatIDLECounter(self, layer:int=0):
         return await getattr(self.rfg, f"read_layer_{layer}_stat_idle_counter")()
 
-    async def getLayerStatFRAMECounter(self,layer:int):
+    async def getLayerStatFRAMECounter(self, layer:int=0):
         return await getattr(self.rfg, f"read_layer_{layer}_stat_frame_counter")()
 
-    async def getLayerStatus(self,layer:int):
+    async def getLayerStatus(self, layer:int=0):
         return await getattr(self.rfg, f"read_layer_{layer}_status")()
 
-    async def getLayerControl(self,layer:int):
+    async def getLayerControl(self, layer:int=0):
         return await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
     
-    async def getLayerWrongLength(self, layer:int):
+    async def getLayerWrongLength(self, layer:int=0):
         return await getattr(self.rfg, f"read_layer_{layer}_stat_wronglength_counter")()
 
-    async def zeroLayerWrongLength(self, layer:int, flush:bool =True):
+    async def zeroLayerWrongLength(self, layer:int=0, flush:bool=True):
         await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(0, flush=flush)
 
-    async def assertLayerNotInReset(self,layer:int):
+    async def assertLayerNotInReset(self, layer:int=0):
         ctrlReg = await self.getLayerControl(layer)
         if ((ctrlReg >> 1) & 0x1) == 1:
             raise Exception(f"Layer {layer} is in reset, user requests it is not")
 
-    async def resetLayerStatCounters(self,layer:int,flush:bool = True):
+    async def resetLayerStatCounters(self, layer:int=0, flush:bool=True):
         await getattr(self.rfg, f"write_layer_{layer}_stat_frame_counter")(0,False)
         await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(0,flush)
 
@@ -348,19 +398,72 @@ class BoardDriver():
     ##################
 
     # Writing
-    async def writeLayerBytes(self,layer : int , bytes: bytearray,flush:bool = False):
-        await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
+    async def writeSRConfig(self, config:BitArray, layer:int=0, ckdiv:int=8, limit:int|None=None):
+        """This method writes the Config bits through the register file bits (SIN,CK1,CK2, LOAD)
+        Args:
+            config(BitArray): configuration bit vector to be written
+            layer(int) : Layer to write config to, default=0
+            ckdiv(int) : Repeats the write for ck1/ck2/load ckdiv times to strech the signal. Set this value higher for faster software interface, default=8
+            limit(int) : Only write limit bits to SR - Mostly useful in simulation to limit runtime which checking the I/O are correctly driven, default=None
+        """
+        if limit is not None: 
+            config = config[:limit]
+        logger.info("Writing SR Config for row=%d,len=%d",layer,len(config))
+        ## Find target register to write to for IO
+        targetRegister = self.rfg.Registers[self.rfgSRRegisterName]
+        ## Write to SR using register
+        for bit in config:
+            # SIN (bit 3 in register)
+            sinValue = 0x4 if bit else 0
+            self.rfg.addWrite(register = targetRegister, value = sinValue, repeat = ckdiv) #ensure SIN has higher delay than CLK1 to avoid setup violation / incorrect sampling
+            # CK1
+            self.rfg.addWrite(register = targetRegister, value = sinValue | 0x1 , repeat = ckdiv)
+            self.rfg.addWrite(register = targetRegister, value = sinValue , repeat = ckdiv)
+            # CK2
+            self.rfg.addWrite(register = targetRegister, value = sinValue | 0x2 , repeat = ckdiv)
+            self.rfg.addWrite(register = targetRegister, value = sinValue , repeat = ckdiv)
+        ## Set Load (loads start bit 4)
+        self.rfg.addWrite(register = targetRegister, value = sinValue | (0x1 << (layer +3)) , repeat = ckdiv)
+        self.rfg.addWrite(register = targetRegister, value = 0 , repeat = ckdiv)
+        await self.rfg.flush()
 
-    async def writeBytesToLayer(self,layer : int , bytes: bytearray,waitBytesSend : bool = False, flush:bool = False):
-        await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
-        if waitBytesSend is True:
-            await self.assertLayerNotInReset(layer)
-            while (await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0):
-                pass
+    async def writeSPI(self, payload:bytearray, layer:int=0, timeout:float=1.):
+        """Writes the payload over SPI
+        :param payload: bytearray to be written (by chunks of 256 bytes)
+        :param layer: int, layer number (default 0, only 0 is connected on the Gecco board)
+        :param timeout: maximum duration allowed for a single chunk
+        :raises: RuntimeError if a chunks times out
+        """
+        step  = 256
+        steps = int(math.ceil(len(payload)/step))
+        for chunk in range(0, len(payload), step):
+            chunkBytes = payload[chunk:chunk+step]
+            logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
+            if self.getLayerControl(layer) & 0x2 == 0x2:
+                logger.warning("Reset is asserted! Data will be written after reset is de-asserted.")
+            await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(chunkBytes,True)
+            # Wait for the current chunk to be written before sending the next one
+            maxtime = time.time()+timeout
+            while (await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0 and time.time() <= maxtime):
+                time.sleep(0.05)
+            if time.time() > maxtime:
+                raise RuntimeError("Chunck {}/{} len={} timed out".format(int(chunk/step+1),steps,len(chunkBytes)))
 
-    async def getLayerMISOBytesCount(self,layer:int):
-        """Returns the number of bytes in the Slave Out Bytes Buffer"""
-        return await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")()
+    async def writeSPIRoutingFrame(self, layer:int=0, firstChipID:int=0):
+        await self.writeSPI(self.getRoutingFrame(layer, firstChipID), layer)
+
+    async def writeSPIConfig(self, layer:int=0, targetChip:int=0, broadcast:bool=False):
+        await self.writeSPI(self.getConfigFrame(layer=layer, targetChip=targetChip, broadcast=broadcast, config=None), layer)
+
+    #async def writeLayerBytes(self, payload:bytearray, layer:int=0, flush:bool=False):
+    #    await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
+
+    #async def writeBytesToLayer(self, payload:bytearray, layer:int=0, waitBytesSend:bool=True, flush:bool=False):
+    #    await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes,flush)
+    #    if waitBytesSend is True:
+    #        await self.assertLayerNotInReset(layer)
+    #        while (await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0):
+    #            pass
 
     # Readout
     async def readoutGetBufferSize(self):
