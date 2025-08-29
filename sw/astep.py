@@ -58,7 +58,7 @@ class AstepRun:
         await self._test_io()
         logger.info("FPGA test successful.")
 
-    async def fpga_configure_clocks(self, FPGATSfreq:int=1000000, externalTS:bool=False, SPIfreq=1000000, flush:bool=True):
+    async def fpga_configure_clocks(self, FPGATSfreq:int=1000000, externalTS:bool=False, SPIfreq:int=1000000, flush:bool=True):
         """
         Configure FPGA TS clock (frequency and source), SPI clock frequency
         """
@@ -70,10 +70,10 @@ class AstepRun:
         # Configure SPI readout
         await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
     
-    async def fpga_configure_autoread_keepalive(self, nchips = None):
+    async def fpga_configure_autoread_keepalive(self, nchips:int|None=None):
         """
         Compute number of bytes needed between interrupt high and end of data stream in autoread mode
-        :param nchips: number of chips in the daisy chain
+        :param nchips: number of chips in the daisy chain, default=None to compute from the configurations files if alerady loaded.
         """
         if nchips is None:
             if len(self.boardDriver.asics) == 0:
@@ -100,7 +100,7 @@ class AstepRun:
 # For now we just stick to Asic
 
     # Method to initalize the asic. This is taking the place of asic.py. 
-    def load_yaml(self, yaml:str = None, chipsPerRow:int = 1):
+    def load_yaml(self, yaml:str=None, chipsPerRow:int=1):
         """
         Initalize the asic configuration. Must be called first
         Positional arguments: None
@@ -133,11 +133,11 @@ class AstepRun:
         #    sys.exit(1)
 
     #Interface with asic.py 
-    async def cfg_enable_pixel(self, layer:int, chip:int, row: int, col: int):
+    def cfg_enable_pixel(self, layer:int, chip:int, row:int, col:int):
        self.asics[layer].enable_pixel(chip, col, row)
 
     #enable pixels for injection. Must be called once per pixel
-    async def cfg_enable_injection(self, layer:int, chip:int, row: int, col: int):
+    def cfg_enable_injection(self, layer:int, chip:int, row:int, col:int):
         try:
             self.asics[layer].enable_inj_col(chip, col, inplace=False)
             self.asics[layer].enable_inj_row(chip, row, inplace=False)
@@ -146,7 +146,7 @@ class AstepRun:
             sys.exit(1)
  
     #enable pixels for analog readout. Must be called once per pixel
-    async def cfg_enable_analog(self, layer:int, chip:int, col: int):
+    def cfg_enable_analog(self, layer:int, chip:int, col:int):
         try:
             #Enable analog pixel from given chip in the daisy chain
             logger.info(f"enabling analog output in column {col} of chip {chip} in layer {layer}")
@@ -213,7 +213,7 @@ class AstepRun:
         else:     
             try:
                 #disable MISO line to ensure all config is written, enable chip select
-                await self.boardDriver.setLayerConfig(layer = layer , reset = False , autoread  = False, hold=True,disableMISO=True, flush = True )
+                await self.boardDriver.setLayerConfig(layer=layer, reset=False, autoread=False, hold=True, disableMISO=True, flush=True )
                 for chip in range(self.asics[layer]._num_chips):
                     await self.boardDriver.layersSelectSPI(flush=True)
                     await self.boardDriver.getAsic(row = layer).writeConfigSPI(targetChip=chip)
