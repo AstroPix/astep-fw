@@ -370,6 +370,7 @@ module sw_ftdi245_spi_uart(
         .almost_empty()
     );
 
+
     fifo_axis_2clk_sw_io_16e ftdi_egress_fifo (
 
         .s_axis_aresetn(clk_core_resn),
@@ -398,8 +399,8 @@ module sw_ftdi245_spi_uart(
     // RFG
     //------------------------------
     rfg_axis_protocol  rfg_protocol(
-        .aclk(clk_core),
-        .aresetn(clk_core_resn),
+        .clk(clk_core),
+        .resn(clk_core_resn),
 
         .m_axis_tdata(switch_s_tdata[7:0]),
         .m_axis_tdest(switch_s_tdest[7:0]),
@@ -409,7 +410,7 @@ module sw_ftdi245_spi_uart(
         .m_axis_tvalid(switch_s_tvalid[0]),
 
         .s_axis_tdata(switch_m_tdata[7:0]),
-        .s_axis_tdest(switch_m_tdest[7:0]),
+        //.s_axis_tdest(switch_m_tdest[7:0]),
         .s_axis_tid(switch_m_tid[7:0]),
         .s_axis_tready(switch_m_tready[0]),
         .s_axis_tvalid(switch_m_tvalid[0]),
