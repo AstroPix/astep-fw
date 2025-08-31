@@ -6,8 +6,8 @@ Created on 30/09/23
 
 """
 
-import logging 
-import rfg.core 
+import logging
+import rfg.core
 import re
 import atexit
 import asyncio
@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 def debug():
     logger.setLevel(logging.DEBUG)
 
-FLAG_LIST_SERIAL = 0 
+FLAG_LIST_SERIAL = 0
 FLAG_LIST_DESCRIPTOR = 2
 
 try:
@@ -36,33 +36,33 @@ def isFTDIConnected():
     try:
         device_serial = ftd.listDevices(0)
         if device_serial is None:
-            return False 
+            return False
         return True
     except ftd.DeviceError as e:
         return False
 
 def listFTDIDevices(flag = FLAG_LIST_SERIAL):
     """Returns a list with info as requested, or an empty list if no device is connected"""
-    try: 
+    try:
         res =  ftd.listDevices(flag)
-        return [] if res is None else list(enumerate(res)) 
+        return [] if res is None else list(enumerate(res))
     except ftd.DeviceError as e:
-        return []    
+        return []
 
 def listFTDIDevicesMatching(searchPattern : str , flag = FLAG_LIST_SERIAL):
     devices = listFTDIDevices(flag)
     return  [indexAndDesc for indexAndDesc in devices if searchPattern in str(indexAndDesc[1])]
-    
+
 
 
 class FTDIIO(rfg.core.RFGIO):
 
-    _deviceHandle : ftd.FTD2XX | None = None 
+    _deviceHandle : ftd.FTD2XX | None = None
 
     def __init__(self,searchPattern : str , searchFlag:int = FLAG_LIST_SERIAL):
         self.searchPattern = searchPattern
         self.searchFlag = searchFlag
-        self._deviceHandle = None 
+        self._deviceHandle = None
 
     async def open(self):
         matchingDevices = listFTDIDevicesMatching(self.searchPattern,self.searchFlag)
@@ -88,21 +88,21 @@ class FTDIIO(rfg.core.RFGIO):
 
     async def close(self):
         if self._deviceHandle is not None:
-            try: 
+            try:
                 self._deviceHandle.close()
                 logger.info(f"Closed FTDI Device {self.matchedDevice[1]}")
             finally:
-                self.matchedDevice = None 
+                self.matchedDevice = None
                 self._deviceHandle = None
 
 
     def readBytesIO(self,count:int) -> bytes:
-        remaining = count 
+        remaining = count
         bytes = bytearray()
         while remaining > 0:
             logger.debug("Reading %d bytes from FTDI",remaining)
             rbytes = self._deviceHandle.read(remaining)
-            #logger.info("Read %d bytes from FTDI",len(rbytes))
+            logger.debug("Read %d bytes from FTDI ",len(rbytes))
             if len(rbytes)>0:
                 bytes.extend(rbytes)
                 remaining = remaining - len(rbytes)
@@ -117,16 +117,16 @@ class FTDIIO(rfg.core.RFGIO):
         remaining = len(bytesToWrite)
         total = len(bytesToWrite)
         while remaining > 0:
-            #logger.debug("Writing %d bytes to FTDI",len(bytes)) 
+            logger.debug("Writing %d bytes to FTDI",remaining)
             outBytes = bytes(bytesToWrite[total-remaining:total:1])
             written = self._deviceHandle.write(outBytes)
-            #logger.debug("Written %d bytes to FTDI",written)
+            logger.debug("Written %d bytes to FTDI",written)
             if written>0:
                 remaining = remaining - written
             else:
                 if rfg.io.isIOCancelled():
                     break
-        
+
 
     async def writeBytes(self,bytes : bytearray):
         try:
@@ -135,11 +135,11 @@ class FTDIIO(rfg.core.RFGIO):
             return result
         except Exception as e:
             print("Error writebytes: "+str(e))
-            
-    
+
+
 
     async def readBytes(self,count : int ) -> bytes:
-        
+
         #print("Reading")
         try:
             result = await asyncio.get_running_loop().run_in_executor(None, partial(self.readBytesIO,count=count))
@@ -153,5 +153,3 @@ class FTDIIO(rfg.core.RFGIO):
 def exit_close(io : FTDIIO):
     """This function is called through atexit to ensure Device is properly closed upon program exit"""
     asyncio.run(io.close())
-    
-        

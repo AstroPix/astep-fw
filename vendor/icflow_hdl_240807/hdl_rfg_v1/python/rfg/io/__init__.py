@@ -2,7 +2,10 @@
 import rfg.core
 import importlib
 import importlib.util
-from threading import Event 
+from threading import Event
+
+
+
 
 ## IO Flag to ensure any blocking lowlevel IO is stopped when main application requests it
 stopIO = Event()
@@ -17,13 +20,13 @@ def isIOCancelled():
 
 ## If Python Serial is installed, offer to use UART IO
 serialLoader = importlib.util.find_spec('serial')
-if serialLoader is not None: 
+if serialLoader is not None:
     import rfg.io.uart
 
 
     def withUARTIO(self,port, baud:int | None = None) -> rfg.core.AbstractRFG :
         uartIO = rfg.io.uart.UARTIO()
-        uartIO.port = port 
+        uartIO.port = port
         if not baud is None:
             uartIO.baud = baud
         self.withIODriver(uartIO)
@@ -34,8 +37,8 @@ if serialLoader is not None:
 
 ## If FTDI D2XX is installed, offer to use FTDI
 ftdiLoader = importlib.util.find_spec('ftd2xx')
-if ftdiLoader is not None: 
-    
+if ftdiLoader is not None:
+
     import rfg.io.ftdi as ftd
 
     def withFTDIIO(self,searchPattern : str, searchFlag = ftd.FLAG_LIST_SERIAL ) -> rfg.core.AbstractRFG :

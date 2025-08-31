@@ -161,9 +161,9 @@ class VSPIMaster():
     async def clock_one_byte(self):
         for cycle in range(8):
             self.clk.value = 1
-            await Timer(self.clockPeriod, units="ns")
+            await Timer(self.clockPeriod/2, units="ns")
             self.clk.value = 0
-            await Timer(self.clockPeriod, units="ns")
+            await Timer(self.clockPeriod/2, units="ns")
 
     def assert_chip_select(self):
         self.csn.value = 0
