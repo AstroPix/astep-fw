@@ -94,13 +94,14 @@ module spi_axis_if_v2 #(
 
 
 
-    wire        stall_module = (miso_byte_valid && !m_axis_tready) || m_axis_byte_waiting;
+    //wire        stall_module = (miso_byte_valid && !m_axis_tready) || m_axis_byte_waiting;
+     wire        stall_module =   m_axis_byte_waiting;
 
     // MOSI
     // //-----------
     byte_t      mosi_byte;
     assign      spi_mosi = msb_first ?  mosi_byte[7] :mosi_byte[0] ;
-    reg [3:0]   mosi_bit;
+    reg [2:0]   mosi_bit;
 
 
     // This is a bit confusing, to output on posedge the logic runs during the negedge state
@@ -110,7 +111,7 @@ module spi_axis_if_v2 #(
                                (cpha == 1 && cpol ==1  && spi_clock_state == A) );
     wire        miso_sample = !stall_module && spi_clock_state != IDLE && !mosi_output;
 
-    wire        mosi_can_take_next = (mosi_bit == 'd0 && spi_clock_state == B) ||spi_clock_state == IDLE ;
+    wire        mosi_can_take_next = (mosi_bit == 'd7 && spi_clock_state == B) ||spi_clock_state == IDLE ;
     wire        mosi_next_is_ready = (mosi_can_take_next && spi_clock_state == B) ||spi_clock_state == IDLE ;
     wire        mosi_has_data = (s_axis_tvalid || enable_synced) && m_axis_tready;
 
@@ -173,13 +174,13 @@ module spi_axis_if_v2 #(
             // Byte to send: Either take from AXIS or force from enable
             // ---------
             //s_axis_tready <= mosi_next_is_ready && !s_axis_byte_valid && m_axis_tready; // always ready, only not if the read stage is stalling
-            if (mosi_can_take_next && s_axis_byte_valid) begin
+            if (mosi_can_take_next && s_axis_byte_valid  ) begin
                 mosi_byte           <= s_axis_tdata;
-                mosi_bit            <= 4'h7;
+                mosi_bit            <= 4'h0;
             end
             else if (mosi_can_take_next && enable_synced) begin
                 mosi_byte           <= 'd0;
-                mosi_bit            <= 4'h7;
+                mosi_bit            <= 4'h0;
             end
 
             // MOSI Change data on clock state
@@ -191,7 +192,8 @@ module spi_axis_if_v2 #(
                 else begin
                     mosi_byte           <= {1'b0,mosi_byte[7:1]};
                 end
-                mosi_bit  <= mosi_bit - 'b1;
+                if (!stall_module)
+                    mosi_bit  <= mosi_bit + 'b1;
             end
         end
     end
