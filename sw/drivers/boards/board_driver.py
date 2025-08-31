@@ -137,6 +137,9 @@ class BoardDriver():
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
         return self.asics[row]
 
+
+    ## Clock and IO enablement
+    # #################
     async def enableSensorClocks(self,flush:bool = False):
         """Writes the I/O Control register to enable both Timestamp and Sample clock outputs"""
         await self.ioSetSampleClock(enable=True, flush=flush)
@@ -165,15 +168,9 @@ class BoardDriver():
 
     async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = False):
         v = await self.rfg.read_io_ctrl()
-<<<<<<< HEAD
         if enable: v|=0x8
         else: v &= ~(0x8)
         await self.rfg.write_io_ctrl(v,flush)
-=======
-        if enable: v &= ~(0x8)
-        else: v |= 0x8
-        await self.rfg.write_io_ctrl(v,flush) 
->>>>>>> origin/main
 
 
     async def ioSetFPGAExternalTSClockDifferential(self,enable:bool,flush:bool = False):
@@ -189,6 +186,29 @@ class BoardDriver():
         if enable: v|=0x20
         else: v &= ~(0x20)
         await self.rfg.write_io_ctrl(v,flush)
+
+    ## Clock Dividers
+    ####################
+    def calculateSPIDivider(self,targetFrequencyHz:int) -> int :
+        """Calculates the SPI Divider for a target frequency, valid for both Astropix Lane and Housekeeping dividers"""
+        coreFrequency = self.getFPGACoreFrequency()
+        divider = int( (coreFrequency/2) / (2 * targetFrequencyHz)) -1
+        assert divider >=1 and divider <=255 , (f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency/2/255)}")
+        return divider
+
+    async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = False):
+        """Calculated required divider to reach the provided target SPI clock frequency"""
+        await self.configureLayerSPIDivider(self.calculateSPIDivider(targetFrequencyHz),flush)
+
+    async def configureLayerSPIDivider(self, divider:int , flush = False):
+        await self.rfg.write_spi_layers_ckdivider(divider,flush)
+
+    async def configureHKSPIFrequency(self, targetFrequencyHz : int , flush = False):
+        """Calculated required divider to reach the provided target SPI clock frequency"""
+        await self.configureHKSPIDivider(self.calculateSPIDivider(targetFrequencyHz),flush)
+
+    async def configureHKSPIDivider(self, divider:int , flush = False):
+        await self.rfg.spi_hk_ckdivider(divider,flush)
 
     ## Layers
     ##################
@@ -206,15 +226,7 @@ class BoardDriver():
         await self.rfg.write_layers_cfg_frame_tag_counter_trigger_match(divider,False)
         await self.rfg.write_layers_cfg_frame_tag_counter_trigger(0,flush)
 
-    async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = False):
-        """Calculated required divider to reach the provided target SPI clock frequency"""
-        coreFrequency = self.getFPGACoreFrequency()
-        divider = int( coreFrequency / (2 * targetFrequencyHz))
-        assert divider >=1 and divider <=255 , (f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency/2/255)}")
-        await self.configureLayerSPIDivider(divider,flush)
 
-    async def configureLayerSPIDivider(self, divider:int , flush = False):
-        await self.rfg.write_spi_layers_ckdivider(divider,flush)
 
 
     # async def layerSelectSPI(self, layer , cs : bool, flush = False):
@@ -343,6 +355,7 @@ class BoardDriver():
         """
         regval =  await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
 
+
         if reset is True:
             regval |= (1<<1)
         else:
@@ -368,6 +381,7 @@ class BoardDriver():
             regval |= (1<<4)
         else:
             regval &= ~(1<<4)
+
 
         await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval,flush)
 
@@ -474,7 +488,8 @@ class BoardDriver():
 
     async def resetLayerStatCounters(self,layer:int,flush:bool = True):
         await getattr(self.rfg, f"write_layer_{layer}_stat_frame_counter")(0,False)
-        await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(0,flush)
+        await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(0,False)
+        await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(0, flush=flush)
 
     async def getLayerMISOBytesCount(self,layer:int):
         """Returns the number of bytes in the Slave Out Bytes Buffer"""
