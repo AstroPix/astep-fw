@@ -1,9 +1,9 @@
 
--sv 
+-sv
 -64bit
 -access +rw
 -define SIMULATION
-
+-fast_recompilation
 
 +define+RFG_FW_ID=32'h0000ff00
 +define+RFG_FW_BUILD=32'h0000ffAB

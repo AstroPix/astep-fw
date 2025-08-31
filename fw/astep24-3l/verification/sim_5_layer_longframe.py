@@ -140,7 +140,7 @@ async def run_gen_read_test(dut,driver,asic,autoRead:bool,framesCount:int,frameL
 
 
 
-async def run_gen_read_test_multi(dut,driver,asics,autoRead:bool,framesCount:int,frameLength:int,pause:bool=False):
+async def run_gen_read_test_multi(dut,driver,asics,autoRead:bool,framesCount:int,frameLength:int,pause:bool=False,minBuffSize=0):
 
     ## Config Layer
     for i in range(len(asics)):
@@ -205,13 +205,29 @@ async def run_gen_read_test_multi(dut,driver,asics,autoRead:bool,framesCount:int
                     readBytes.extend(await driver.readoutReadBytes(bufferSize))
 
             else:
-                # read a random number of bytes
+                # Read only if number of bytes reached
+                # If not reached, wait and request size again, if nothing moves, it's probably end of test so read everything
+                # If minBuffSize is 0 just read a random number of bytes from the actual buffer size
                 randReadCount = random.randint(int(bufferSize/2),bufferSize)
+                if minBuffSize>0:
+
+                    if (bufferSize) < minBuffSize:
+                        await Timer(5,units="us")
+                        if (await driver.readoutGetBufferSize()) == bufferSize:
+                            dut._log.info(f"Buffer size not changing, probably the end of test")
+                            randReadCount=bufferSize
+                            #readBytes.extend(await driver.readoutReadBytes(bufferSize))
+                    else:
+                        # Enough data in buffer, can read
+                        randReadCount = minBuffSize
+
+                # read a random number of bytes
+                #randReadCount = random.randint(int(bufferSize/2),bufferSize)
                 dut._log.info(f"Reading {randReadCount} bytes from buffer ({bufferSize} bytes available)")
                 readBytes.extend(await driver.readoutReadBytes(randReadCount))
 
                 # if nothing else to read, finish
-                await Timer(random.randint(5,50),units="us")
+                await Timer(2,units="us")
                 if await driver.readoutGetBufferSize() == 0:
                     dut._log.info(f"No bytes left to read")
                     finished = True
@@ -259,7 +275,7 @@ async def test_layer_0_longframe_with_pause_no_autoread(dut):
     logging.getLogger("cocotb.astep24_3l_top.uart_rx").setLevel(logging.WARN)
     logging.getLogger("vip.spi").setLevel(logging.WARN)
 
-    await run_gen_read_test(dut,driver,asic,autoRead=False,framesCount=5,frameLength=4,pause=True)
+    await run_gen_read_test(dut,driver,asic,autoRead=False,framesCount=5,frameLength=5,pause=True)
     await Timer(250,units="us")
 
 @cocotb.test(timeout_time = 500 , timeout_unit = "ms")
@@ -276,20 +292,20 @@ async def test_layer_0_longframe_with_pause_autoread(dut):
     logging.getLogger("vip.spi").setLevel(logging.WARN)
 
     await Timer(250,units="us")
-    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=2,frameLength=4,pause=True)
+    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=2,frameLength=5,pause=True)
     await Timer(250,units="us")
 
     for x in range(5):
         await Timer(250,units="us")
-        await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=10,frameLength=4,pause=True)
+        await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=10,frameLength=5,pause=True)
         await Timer(250,units="us")
 
     await Timer(250,units="us")
-    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=25,frameLength=4,pause=True)
+    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=25,frameLength=5,pause=True)
     await Timer(250,units="us")
 
     await Timer(250,units="us")
-    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=750,frameLength=4,pause=True)
+    await run_gen_read_test(dut,driver,asic,autoRead=True,framesCount=750,frameLength=5,pause=True)
     await Timer(250,units="us")
 
 @cocotb.test(timeout_time = 500 , timeout_unit = "ms")
@@ -365,6 +381,7 @@ async def test_layers_parallel_autoread(dut):
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
+    await driver.configureLayerSPIFrequency(10000000)
 
     await run_gen_read_test_multi(dut,driver,asics,autoRead=True,framesCount=20,frameLength=5,pause=True)
     await Timer(250,units="us")
@@ -372,7 +389,8 @@ async def test_layers_parallel_autoread(dut):
     await run_gen_read_test_multi(dut,driver,asics,autoRead=True,framesCount=250,frameLength=5,pause=True)
     await Timer(250,units="us")
 
-    await run_gen_read_test_multi(dut,driver,asics,autoRead=True,framesCount=450,frameLength=5,pause=True)
+    #,minBuffSize=2048
+    await run_gen_read_test_multi(dut,driver,asics,autoRead=True,framesCount=800,frameLength=5,pause=True)
     await Timer(250,units="us")
 
     return

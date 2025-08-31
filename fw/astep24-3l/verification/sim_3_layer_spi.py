@@ -102,7 +102,7 @@ async def test_layer_0_spi_mosi(dut):
     assert (await slave.getByte()) == 0xAB
 
     ## Check IDLE byte counter, we are getting 2 bytes on MISO for one send byte on MOSI
-    await Timer(1, units="us")
+    await Timer(20, units="us")
     assert (await driver.getLayerStatIDLECounter(0)) == 2
 
     ## Write 2 MOSI Bytes to Layer
@@ -111,7 +111,7 @@ async def test_layer_0_spi_mosi(dut):
     assert (await slave.getByte()) == 0xCD
     assert (await slave.getByte()) == 0xEF
 
-    await Timer(1, units="us")
+    await Timer(20, units="us")
     assert (await driver.getLayerStatIDLECounter(0)) == 6
 
     await Timer(50, units="us")
@@ -138,7 +138,7 @@ async def test_layers_spi_mosi(dut):
     slave.start_monitor()
     spiSlaves.append(slave)
 
-        
+
 
     ## Send Bytes to all layers
     for i in range(3):
@@ -151,7 +151,7 @@ async def test_layers_spi_mosi(dut):
         if i < 3:
             assert (await spiSlaves[i].getByte()) == 0x01
             assert (await spiSlaves[i].getByte()) == 0x02
-        
+
         ## Check IDLE byte counter, we are getting 2 bytes on MISO for one send byte on MOSI
         assert (await driver.getLayerStatIDLECounter(i)) == 4
         dut._log.info(f"Checked Bytes and Counter for layer={i}")
