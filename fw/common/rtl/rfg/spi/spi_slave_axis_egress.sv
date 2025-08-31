@@ -23,7 +23,7 @@
 
         input  wire [7:0]               s_axis_tdata,
         input  wire                     s_axis_tvalid,
-        output reg                      s_axis_tready,
+        output logic                    s_axis_tready,
         // TUser Byte is used as placeholder if no data is available to be send
         input  wire [7:0]               s_axis_tuser
      );
@@ -36,12 +36,23 @@
     reg  [7:0] egress_byte_in;
     reg  first_bit;
     reg  [7:0] egress_byte;
+    reg  [7:0] egress_byte_next;
     reg  [2:0] egress_bit_counter;
     reg egress_bit_counter_last;
     //wire       egress_bit_counter_last = MISO_SIZE == 1  ?  (egress_bit_counter) == 7 : (egress_bit_counter) == 5;
+
+    //wire       egress_bit_counter_last_next = MISO_SIZE == 1  ?  (egress_bit_counter) == 6 : (egress_bit_counter) == 4;
     wire       egress_bit_counter_last_next = MISO_SIZE == 1  ?  (egress_bit_counter) == 6 : (egress_bit_counter) == 4;
 
+    wire       egress_bit_counter_sample_axis = MISO_SIZE == 1  ?  (egress_bit_counter) == 5 : (egress_bit_counter) == 2;
+    wire       egress_bit_counter_sample_axis_next = MISO_SIZE == 1  ?  (egress_bit_counter) == 4 : (egress_bit_counter) == 0;
+
+
     wire input_byte_valid = s_axis_tvalid & s_axis_tready;
+
+    always_comb begin
+        s_axis_tready = egress_bit_counter_sample_axis;
+    end
 
     generate
 
@@ -82,16 +93,17 @@
         state                   <= WAIT;
 
         egress_byte             <= s_axis_tuser;
+        egress_byte_next        <= s_axis_tuser;
         egress_bit_counter      <= 3'b000;
 
-        s_axis_tready           <= 1'b0;
+        //s_axis_tready           <= 1'b0;
         egress_bit_counter_last <= 1'b0;
 
     endtask
     task send();
 
         egress_bit_counter_last <= egress_bit_counter_last_next;
-        s_axis_tready           <= egress_bit_counter_last_next;
+        //s_axis_tready           <= egress_bit_counter_sample_axis_next;
 
 
 
@@ -109,11 +121,23 @@
                 egress_bit_counter <= egress_bit_counter + 2'd2;
             end
 
-            if (egress_bit_counter_last & input_byte_valid) begin
+            // Sample axis
+            if (egress_bit_counter_sample_axis & input_byte_valid) begin
+                egress_byte_next <=  s_axis_tdata;
+            end
+            else if (egress_bit_counter_sample_axis) begin
+                egress_byte_next <= s_axis_tuser;
+            end
+
+            /*if (egress_bit_counter_last & input_byte_valid) begin
                 egress_byte <= s_axis_tdata;
             end
             else if (egress_bit_counter_last) begin
                 egress_byte <= s_axis_tuser;
+            end*/
+
+            if (egress_bit_counter_last) begin
+                egress_byte <= egress_byte_next;
             end
             else begin
                 if (MISO_SIZE == 1) begin

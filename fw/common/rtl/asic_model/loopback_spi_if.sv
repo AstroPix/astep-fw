@@ -4,9 +4,9 @@ module loopback_spi_if(
     input wire clk_core_resn,
 
     input wire spi_clk,
-    input wire spi_clk_resn,
 
-    input  wire          spi_io_clk,
+
+
     input  wire          spi_mosi,
     output wire [1:0]    spi_miso,
     input  wire          spi_csn,
@@ -22,8 +22,12 @@ module loopback_spi_if(
     output  wire [7:0]      mosi_m_axis_tdata,
     input   wire            mosi_m_axis_tready,
     output  wire            mosi_m_axis_tvalid,
-    output  wire [31:0]     mosi_m_read_size
+    output  wire [31:0]     mosi_m_read_size,
+
+    output  logic interruptn
 );
+
+
 
 
 
@@ -35,7 +39,7 @@ module loopback_spi_if(
 
     //-- SPI
     spi_slave_axis_igress #(.MSB_FIRST(0)) spi_igress(
-            .spi_clk(spi_io_clk),
+            .spi_clk(spi_clk),
             .spi_csn(spi_csn),
             .spi_mosi(spi_mosi),
 
@@ -46,13 +50,13 @@ module loopback_spi_if(
             .m_axis_tvalid(igress_m_tvalid),
 
             .err_overrun(/* WAIVED: Overrun not relevant when CS not used */)
-        );    
+        );
 
-    //-- FIFO 
+    //-- FIFO
     fifo_axis_2clk_spi_loopback  spi_igress_fifo(
-        
+
         .s_axis_aclk(spi_clk),
-        .s_axis_aresetn(spi_clk_resn),
+        .s_axis_aresetn(!spi_csn),
 
         .s_axis_tdata(igress_m_tdata),
         .s_axis_tready(igress_m_tready),
@@ -62,7 +66,7 @@ module loopback_spi_if(
         .m_axis_tready (mosi_m_axis_tready),
         .m_axis_tvalid (mosi_m_axis_tvalid),
         .m_axis_tdata (mosi_m_axis_tdata),
-  
+
         .axis_wr_data_count(),
         .axis_rd_data_count(mosi_m_read_size)
     );
@@ -72,6 +76,8 @@ module loopback_spi_if(
     wire [7:0] egress_m_data;
     wire egress_m_tready;
     wire egress_m_tvalid;
+
+
 
     //-- FIFO
     fifo_axis_2clk_spi_loopback  miso_fifo (
@@ -92,13 +98,13 @@ module loopback_spi_if(
 
         .axis_wr_data_count(miso_s_write_size),
         .axis_rd_data_count(/* unused */)
-        
+
     );
 
     //-- SPI
     spi_slave_axis_egress #(.ASYNC_RES(1),.MSB_FIRST(0),.MISO_SIZE(2)) spi_egress(
-       
-        .spi_clk(spi_io_clk),
+
+        .spi_clk(spi_clk),
         .spi_csn(spi_csn),
         .spi_miso(spi_miso),
 
@@ -109,6 +115,11 @@ module loopback_spi_if(
 
     );
 
+    // Interrupt n -> when egress fifo has data, interrupt is low
+    // ------------
+    assign interruptn = miso_s_write_size ==0;
 
 
-endmodule 
+
+
+endmodule

@@ -103,6 +103,9 @@ module astep24_3l_top(
     input wire ext_timestamp_clk
 );
 
+    // Wires needed in multiple places below
+    // ------------
+    wire layer_2_cfg_ctrl_loopback,layer_1_cfg_ctrl_loopback,layer_0_cfg_ctrl_loopback;
 
 
     // Clocking
@@ -137,14 +140,21 @@ module astep24_3l_top(
         .clk_10(clk_timestamp),
         .clk_10_resn(),
 
-        .clk_ext_selected(clk_ext_selected)
+        .clk_ext_selected(clk_ext_selected),
+
+        .sysclk_40M(sysclk_40M)
 
     );
 
     // Interrupt Input Sychronisation
+    // Sync the external interrut signal, or the loopback interrupt signal only if loopback is enabled
     //-----------
-    wire [2:0] layers_interruptn = {layer_2_interruptn,layer_1_interruptn,layer_0_interruptn};
+    //
+
+    wire [2:0] layers_loopback_interruptn;
+    wire [2:0] layers_interruptn = {layer_2_interruptn, layer_1_interruptn, layer_0_interruptn };
     wire [2:0] layers_interruptn_synced;
+
     genvar li;
     generate
         for (li = 0 ; li < 3 ; li++) begin
@@ -156,6 +166,14 @@ module astep24_3l_top(
             );
         end
     endgenerate
+
+
+    wire [2:0] layers_interruptn_ext_or_loopback = {
+        layers_interruptn_synced[2]  & (layers_loopback_interruptn[2] || !(layer_2_cfg_ctrl_loopback)),
+        layers_interruptn_synced[1]  & (layers_loopback_interruptn[1] || !(layer_1_cfg_ctrl_loopback)),
+        layers_interruptn_synced[0]  & (layers_loopback_interruptn[0] || !(layer_0_cfg_ctrl_loopback))
+    };
+
 
 
 
@@ -269,7 +287,6 @@ module astep24_3l_top(
     wire [7:0]  layer_2_loopback_mosi_s_axis_tdata;
     wire [31:0] layer_2_loopback_mosi_read_size;
 
-    wire layer_0_cfg_ctrl_loopback,layer_1_cfg_ctrl_loopback,layer_2_cfg_ctrl_loopback;
 
     wire layer_0_stat_wronglength_counter_enable,layer_1_stat_wronglength_counter_enable,layer_2_stat_wronglength_counter_enable;
 
@@ -519,9 +536,9 @@ module astep24_3l_top(
 
         // Layers
         .layers_interruptn({
-            layers_interruptn_synced[2],
-            layers_interruptn_synced[1],
-            layers_interruptn_synced[0]}),
+            layers_interruptn_ext_or_loopback[2],
+            layers_interruptn_ext_or_loopback[1],
+            layers_interruptn_ext_or_loopback[0]}),
         .layers_spi_clk({
             layer_2_spi_clk,
             layer_1_spi_clk,
@@ -673,21 +690,34 @@ module astep24_3l_top(
     wire layer_1_loopback_csn = layer_1_spi_csn || !(layer_1_cfg_ctrl_loopback);
     wire layer_2_loopback_csn = layer_2_spi_csn || !(layer_2_cfg_ctrl_loopback);
 
+
+
     wire [1:0] layer_0_spi_miso_loopback;
     wire [1:0] layer_1_spi_miso_loopback;
     wire [1:0] layer_2_spi_miso_loopback;
+
+    // Divide SPI ref clock by 2 because SPI master runs twice as slow as ref clock
+    /*logic spi_clk_loopback;
+    always_ff @(posedge spi_layers_ckdivider_divided_clk) begin
+        if (!spi_layers_ckdivider_divided_resn) begin
+            spi_clk_loopback <= 'b1;
+        end
+        else begin
+            spi_clk_loopback <= !spi_clk_loopback;
+        end
+        end*/
 
     loopback_spi_if  loopback_spi_layer_0 (
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
 
-        .spi_clk(spi_layers_ckdivider_divided_clk),
-        .spi_clk_resn(spi_layers_ckdivider_divided_resn),
+        .spi_clk(layer_0_spi_clk),
 
-        .spi_io_clk(layer_0_spi_clk),
         .spi_mosi(layer_0_spi_mosi),
         .spi_miso(layer_0_spi_miso_loopback),
         .spi_csn(layer_0_loopback_csn),
+
+        .interruptn(layers_loopback_interruptn[0]),
 
         .miso_s_axis_tdata(layer_0_loopback_miso_m_axis_tdata),
         .miso_s_axis_tready(layer_0_loopback_miso_m_axis_tready),
@@ -704,13 +734,13 @@ module astep24_3l_top(
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
 
-        .spi_clk(spi_layers_ckdivider_divided_clk),
-        .spi_clk_resn(spi_layers_ckdivider_divided_resn),
+        .spi_clk(layer_1_spi_clk),
 
-        .spi_io_clk(layer_1_spi_clk),
         .spi_mosi(layer_1_spi_mosi),
         .spi_miso(layer_1_spi_miso_loopback),
         .spi_csn(layer_1_loopback_csn),
+
+        .interruptn(layers_loopback_interruptn[1]),
 
         .miso_s_axis_tdata(layer_1_loopback_miso_m_axis_tdata),
         .miso_s_axis_tready(layer_1_loopback_miso_m_axis_tready),
@@ -727,13 +757,14 @@ module astep24_3l_top(
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
 
-        .spi_clk(spi_layers_ckdivider_divided_clk),
-        .spi_clk_resn(spi_layers_ckdivider_divided_resn),
+        .spi_clk(layer_2_spi_clk),
 
-        .spi_io_clk(layer_2_spi_clk),
         .spi_mosi(layer_2_spi_mosi),
         .spi_miso(layer_2_spi_miso_loopback),
         .spi_csn(layer_2_loopback_csn),
+
+        .interruptn(layers_loopback_interruptn[2]),
+
 
         .miso_s_axis_tdata(layer_2_loopback_miso_m_axis_tdata),
         .miso_s_axis_tready(layer_2_loopback_miso_m_axis_tready),
