@@ -61,6 +61,13 @@ async def common_clock_reset_cmod(dut):
 
 async def common_clock_reset(dut):
     cocotb.start_soon(Clock(dut.sysclk, 10, units='ns').start())
+
+    # Init UART TX to FPGA to make sure uart receiver doesn't produce bad data if the uart driver is created later in the test
+    if dut._name == "astep24_3l_top":
+        dut.uart_rx.value = 1
+    else:
+        dut.uart_tx_in = 1
+
     dut.clk_ext.value = 0
     dut.resn.value = 0
     await Timer(1, units="us")
@@ -72,9 +79,9 @@ async def start_external_clock(dut):
 
 
 async def warm_reset(dut):
-    dut.warm_resn.value = 0
+    dut.resn.value = 0
     await Timer(1, units="us")
-    dut.warm_resn.value = 1
+    dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
 
 def sw_uart_init(dut):
