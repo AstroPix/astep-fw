@@ -24,10 +24,9 @@ set_clock_groups -physically_exclusive -group clk_out1_clk_sys_to_40 -group [get
 
 ## Exclude Secondary and Primary clock paths from each other to avoid multiple clocked analyses and common timing of independent clock sources
 ##########
+
+# SPI divided clocks are not async to primary clock_core
 set_clock_groups -asynchronous -group {
-    clk_100_clk_core_extorint_40
-    clk_80_clk_core_extorint_40
-    clk_10_clk_core_extorint_40
     hk_spi_divided
     layers_spi_divided
     spi_layer0_clock_internal
@@ -35,10 +34,12 @@ set_clock_groups -asynchronous -group {
     spi_layer2_clock_internal
 } -group {
         ext_clk_se
+        ext_clk_diff
+
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
-        ext_clk_diff
+
         clk_100_clk_core_extorint_40_2
         clk_80_clk_core_extorint_40_2
         clk_10_clk_core_extorint_40_2
@@ -46,17 +47,46 @@ set_clock_groups -asynchronous -group {
 
 set_clock_groups -physically_exclusive -group {
     ext_clk_se
+    ext_clk_diff
+} -group {
+    clk_100_clk_core_extorint_40
+    clk_80_clk_core_extorint_40
+    clk_10_clk_core_extorint_40
+
     clk_100_clk_core_extorint_40_1
     clk_80_clk_core_extorint_40_1
     clk_10_clk_core_extorint_40_1
-} -group {
-    ext_clk_diff
+
     clk_100_clk_core_extorint_40_2
     clk_80_clk_core_extorint_40_2
     clk_10_clk_core_extorint_40_2
 }
 
+set_clock_groups -physically_exclusive -group {
+    clk_100_clk_core_extorint_40
+    clk_80_clk_core_extorint_40
+    clk_10_clk_core_extorint_40
+} -group {
 
+
+    clk_100_clk_core_extorint_40_1
+    clk_80_clk_core_extorint_40_1
+    clk_10_clk_core_extorint_40_1
+
+    clk_100_clk_core_extorint_40_2
+    clk_80_clk_core_extorint_40_2
+    clk_10_clk_core_extorint_40_2
+}
+
+set_clock_groups -physically_exclusive -group {
+    clk_100_clk_core_extorint_40_1
+    clk_80_clk_core_extorint_40_1
+    clk_10_clk_core_extorint_40_1
+} -group {
+    clk_100_clk_core_extorint_40_2
+    clk_80_clk_core_extorint_40_2
+    clk_10_clk_core_extorint_40_2
+}
 
 ## IO False paths
 ###################

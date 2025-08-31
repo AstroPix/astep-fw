@@ -39,13 +39,17 @@ if {[llength [get_ports -quiet spi_clk]]>0} {
     set_output_delay  -min -clock sw_spi_clk 1              [get_ports spi_miso]
 }
 
+##################################
+## Clocking
+#################################
 
 ## External FPGA Timestamp clock that can be used to count in FPGA, and also timestamp Astropix
 #####
 
 ## Generated Clock for SPI divided clock output
 #create_generated_clock -name ext_timestamp_clock -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *ext_timestamp_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*/Q]
-# Max 40 Mhz
+
+# Max 40 Mhz for external clocks diff or not
 create_clock -name ext_clk_diff -period 25 [get_ports clk_ext_p]
 create_clock -name ext_clk_se   -period 25 [get_ports clk_ext]
 
@@ -62,10 +66,8 @@ set_clock_groups -physically_exclusive -group {ext_clk_diff} -group {ext_clk_se}
 set layersCount 3
 
 ## Generated Clock for SPI divided clock output
-#create_generated_clock -name layers_spi_divided -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*/Q]
-#create_generated_clock -name layers_spi_divided -source [get_pins -hierarchical *spi_layers_ckdivider_divided_clk_reg/Q] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*/Q]
-#create_generated_clock -name layers_spi_divided -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk_reg/Q]
 create_generated_clock -name layers_spi_divided -source [get_pins -hierarchical *spi_layers_ckdivider_divided_clk_reg/C] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk_reg/Q]
+
 
 set hkDividedPin [get_pins -quiet -hierarchical *spi_hk_ckdivider_divided_clk*]
 if {[llength $hkDividedPin]>0} {
@@ -77,6 +79,7 @@ if {[llength $hkDividedPin]>0} {
 #create_generated_clock -name spi_layer1_clock -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_1_spi_clk]
 #create_generated_clock -name spi_layer2_clock -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_2_spi_clk]
 
+## Generated SPI Clock output which is produced by spi master, twice as slow as reference spi clock
 set numberOfLayerClocks [llength [get_ports -quiet layer_*_spi_clk]]
 for {set i 0} {$i < $layersCount} {incr i} {
     #create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
@@ -91,13 +94,10 @@ for {set i 0} {$i < $layersCount} {incr i} {
 
 
 
-
-
-
 #### Layer SPI delays, assume maximum 20 Mhz (50ns) - reserve 75% of period
 set layer_spi_min_period 50
 set layer_spi_io_delay [expr $layer_spi_min_period * 0.5 + 10]
-#set layer_spi_io_delay 10
+set layer_spi_io_delay 5
 
 ## Common csn - remove timing, signal is sw driven
 set_false_path -to [get_ports layers_spi_csn ]
@@ -112,11 +112,14 @@ for {set i 0} {$i < $numberOfLayerClocks} {incr i} {
 
         #set_false_path -through [get_ports [list layer_${i}_inj layer_${i}_resn] ]
 
-        set_output_delay -max -clock layers_spi_divided $layer_spi_io_delay    [get_ports layer_${i}_spi_mosi ]
-        set_output_delay -min -clock layers_spi_divided 2                      [get_ports layer_${i}_spi_mosi ]
+        set refclk layers_spi_divided
+        #set refclk spi_layer${i}_clock_internal
 
-        set_input_delay  -max -clock layers_spi_divided  2                      [get_ports layer_${i}_spi_miso* ] -clock_fall
-        set_input_delay  -min -clock layers_spi_divided  -1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
+        set_output_delay -max -clock $refclk $layer_spi_io_delay    [get_ports layer_${i}_spi_mosi ]
+        set_output_delay -min -clock $refclk -2                      [get_ports layer_${i}_spi_mosi ]
+
+        set_input_delay  -max -clock $refclk  2                      [get_ports layer_${i}_spi_miso* ] -clock_fall
+        set_input_delay  -min -clock $refclk  -1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
 
     }
 
