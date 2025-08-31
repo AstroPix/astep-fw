@@ -21,6 +21,9 @@ module main_rfg(
     input   wire                  hk_stat_conversions_counter_enable,
     output wire [7:0]            hk_ctrl,
     output wire                  hk_ctrl_select_adc,
+    output wire                  hk_ctrl_select_dac,
+    output wire                  hk_ctrl_spi_cpol,
+    output wire                  hk_ctrl_spi_cpha,
     // AXIS Master interface to write to FIFO hk_adcdac_mosi_fifo,
     // --------------------,
     output reg [7:0]             hk_adcdac_mosi_fifo_m_axis_tdata,
@@ -324,6 +327,9 @@ module main_rfg(
     // Register Bits assignments
     // ---------------
     assign hk_ctrl_select_adc = hk_ctrl_reg[0];
+    assign hk_ctrl_select_dac = hk_ctrl_reg[1];
+    assign hk_ctrl_spi_cpol = hk_ctrl_reg[2];
+    assign hk_ctrl_spi_cpha = hk_ctrl_reg[3];
     assign layer_0_cfg_ctrl_hold = layer_0_cfg_ctrl_reg[0];
     assign layer_0_cfg_ctrl_reset = layer_0_cfg_ctrl_reg[1];
     assign layer_0_cfg_ctrl_disable_autoread = layer_0_cfg_ctrl_reg[2];

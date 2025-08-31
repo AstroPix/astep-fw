@@ -22,14 +22,9 @@ module housekeeping_main(
     output wire				ext_spi_csn,
     input  wire				ext_spi_miso,
     output wire				ext_spi_mosi,
+    input  wire             spi_cpol,
+    input  wire             spi_cpha,
 
-    /*input  wire [7:0]		ext_dac_mosi_s_axis_tdata,
-    input  wire				ext_dac_mosi_s_axis_tlast,
-    output wire				ext_dac_mosi_s_axis_tready,
-    input  wire				ext_dac_mosi_s_axis_tvalid,
-    output wire				ext_dac_spi_clk,
-    output wire				ext_dac_spi_csn,
-    output wire				ext_dac_spi_mosi,*/
 
     input  wire				xadc_conversion_trigger,
     output wire [15:0]		xadc_temperature,
@@ -40,7 +35,7 @@ module housekeeping_main(
 
     // Connections
     //----------------
-     
+
 
     // Sections
     //---------------
@@ -48,7 +43,7 @@ module housekeeping_main(
 
     // Instances
     //------------
-        
+
     // Module Instance
     xadc_hk_driver  xadc_hk_driver_I(
         .clk(clk_core),
@@ -59,8 +54,8 @@ module housekeeping_main(
         .vccint(xadc_vccint),
         .vccint_write(xadc_vccint_write)
     );
-            
-    
+
+
     // Module Instance
     ext_adcdac_driver  ext_adcdac_driver(
         .clk_core(clk_core),
@@ -79,26 +74,13 @@ module housekeeping_main(
         .ext_spi_clk(ext_spi_clk),
         .ext_spi_csn(ext_spi_csn),
         .ext_spi_miso(ext_spi_miso),
-        .ext_spi_mosi(ext_spi_mosi)
+        .ext_spi_mosi(ext_spi_mosi),
+        .spi_cpol(spi_cpol),
+        .spi_cpha(spi_cpha)
     );
-            
-    
-    // Module Instance
-    /*ext_dac_driver  ext_dac_driver(
-        .clk_core(clk_core),
-        .clk_core_resn(clk_core_resn),
-        .clk_spi(clk_spi),
-        .clk_spi_resn(clk_spi_resn),
-        .ext_dac_mosi_s_axis_tdata(ext_dac_mosi_s_axis_tdata),
-        .ext_dac_mosi_s_axis_tlast(ext_dac_mosi_s_axis_tlast),
-        .ext_dac_mosi_s_axis_tready(ext_dac_mosi_s_axis_tready),
-        .ext_dac_mosi_s_axis_tvalid(ext_dac_mosi_s_axis_tvalid),
-        .ext_dac_spi_clk(ext_dac_spi_clk),
-        .ext_dac_spi_csn(ext_dac_spi_csn),
-        .ext_dac_spi_mosi(ext_dac_spi_mosi)
-    );*/
-                
+
+
+
+
 
 endmodule
-
-        

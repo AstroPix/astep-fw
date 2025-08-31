@@ -157,11 +157,14 @@
 
 
 
-|[7:1] |0 |
-|--|-- |
-|RSVD |select_adc|
+|[7:4] |3 |2 |1 |0 |
+|--|-- |-- |-- |-- |
+|RSVD |spi_cpha|spi_cpol|select_dac|select_adc|
 
 - select_adc: Selects ADC SPI Output. 0 selects DAC, 1 selects ADC
+- select_dac: Selects DAC SPI Output. If ADC is also selected, only ADC is selected
+- spi_cpol: Sets SPI Master CPOL mode
+- spi_cpha: Sets SPI Master CPHA mode
 
 
 ## <a id='hk_adcdac_mosi_fifo'></a>hk_adcdac_mosi_fifo

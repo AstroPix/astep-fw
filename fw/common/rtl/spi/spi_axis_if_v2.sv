@@ -2,8 +2,7 @@
 
 module spi_axis_if_v2 #(
     parameter QSPI = 0,
-    parameter MSB_FIRST = 0,
-    parameter CLOCK_OUT_CG = 1'b0 ) (
+    parameter MSB_FIRST = 0  ) (
 
     // System clock
     input wire                    clk,
@@ -132,6 +131,9 @@ module spi_axis_if_v2 #(
                     if (mosi_has_data) begin
                         spi_clock_state <= A;
                         spi_clk_reg     <= !spi_clk_reg;
+                    end
+                    else begin
+                        spi_clk_reg     <= cpol;
                     end
                 end
                 {1'b0,A}: begin

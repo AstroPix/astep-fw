@@ -37,7 +37,12 @@ set baseRegisters [subst {
         {HK_XADC_VCCINT         -size 16 -sw_read_only -hw_write -doc "XADC FPGA VCCINT (automatically updated by firmware)"}
         {HK_CONVERSION_TRIGGER   -counter -interrupt -size 32 -match_reset 32'd10 -updown -doc "This register is a counter that generates regular interrupts to fetch new XADC values"}
         {HK_STAT_CONVERSIONS_COUNTER -size 32 -sw_read_only -counter -enable -hw_ignore -doc "Counter increased after each XADC conversion (for information) "}
-        {HK_CTRL  -doc "Controls for HK modules" -bits {{SELECT_ADC -doc "Selects ADC SPI Output. 0 selects DAC, 1 selects ADC"}}}
+        {HK_CTRL  -doc "Controls for HK modules" -bits {
+            {select_adc -doc "Selects ADC SPI Output. 0 selects DAC, 1 selects ADC"}
+            {select_dac -doc "Selects DAC SPI Output. If ADC is also selected, only ADC is selected"}
+            {spi_cpol -doc "Sets SPI Master CPOL mode"}
+            {spi_cpha -doc "Sets SPI Master CPHA mode"}
+        }}
         {HK_ADCDAC_MOSI_FIFO -fifo_axis_master -with_tlast -doc "FIFO to send bytes to ADC or DAC"}
         {HK_ADC_MISO_FIFO -fifo_axis_slave -read_count  -doc "FIFO with read bytes from ADC"}
         {SPI_LAYERS_CKDIVIDER -clock_divider spi_layers -reset 8'h4 -async_reset -doc "This clock divider provides the clock for the Layer SPI interfaces"}

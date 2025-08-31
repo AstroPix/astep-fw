@@ -196,18 +196,18 @@ class BoardDriver():
         assert divider >=1 and divider <=255 , (f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency/2/255)}")
         return divider
 
-    async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = False):
+    async def configureLayerSPIFrequency(self, targetFrequencyHz : int , flush = True):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         await self.configureLayerSPIDivider(self.calculateSPIDivider(targetFrequencyHz),flush)
 
-    async def configureLayerSPIDivider(self, divider:int , flush = False):
+    async def configureLayerSPIDivider(self, divider:int , flush = True):
         await self.rfg.write_spi_layers_ckdivider(divider,flush)
 
-    async def configureHKSPIFrequency(self, targetFrequencyHz : int , flush = False):
+    async def configureHKSPIFrequency(self, targetFrequencyHz : int , flush = True):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         await self.configureHKSPIDivider(self.calculateSPIDivider(targetFrequencyHz),flush)
 
-    async def configureHKSPIDivider(self, divider:int , flush = False):
+    async def configureHKSPIDivider(self, divider:int , flush = True):
         await self.rfg.spi_hk_ckdivider(divider,flush)
 
     ## Layers

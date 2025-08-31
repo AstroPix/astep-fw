@@ -267,7 +267,7 @@ module astep24_3l_top(
     wire        layers_cfg_frame_tag_counter_ctrl_enable_match_trigger;
 
     wire hk_conversion_trigger_interrupt;
-    wire hk_ctrl_select_adc;
+    wire hk_ctrl_select_adc,hk_ctrl_select_dac;
 
     // external TS clock edge
     wire ext_timestamp_clk_rising;
@@ -306,6 +306,9 @@ module astep24_3l_top(
 
         .hk_ctrl(),
         .hk_ctrl_select_adc(hk_ctrl_select_adc),
+        .hk_ctrl_select_dac(hk_ctrl_select_dac),
+        .hk_ctrl_spi_cpol(hk_ctrl_spi_cpol),
+        .hk_ctrl_spi_cpha(hk_ctrl_spi_cpha),
         .hk_xadc_temperature(hk_xadc_temperature),
         .hk_xadc_temperature_write(hk_xadc_temperature_write),
         .hk_xadc_vccint(hk_xadc_vccint),
@@ -670,10 +673,11 @@ module astep24_3l_top(
         .ext_adcdac_mosi_s_axis_tready(hk_adcdac_mosi_fifo_m_axis_tready),
         .ext_adcdac_mosi_s_axis_tvalid(hk_adcdac_mosi_fifo_m_axis_tvalid),
 
-        .ext_spi_clk(ext_spi_clk_internal),
-        .ext_spi_csn(ext_spi_csn_internal),
+        .ext_spi_clk(ext_spi_clk),
         .ext_spi_miso(ext_adc_spi_miso),
         .ext_spi_mosi(ext_spi_mosi),
+        .spi_cpol(hk_ctrl_spi_cpol),
+        .spi_cpha(hk_ctrl_spi_cpha),
 
 
         .xadc_conversion_trigger(hk_conversion_trigger_interrupt),
@@ -696,16 +700,7 @@ module astep24_3l_top(
     wire [1:0] layer_1_spi_miso_loopback;
     wire [1:0] layer_2_spi_miso_loopback;
 
-    // Divide SPI ref clock by 2 because SPI master runs twice as slow as ref clock
-    /*logic spi_clk_loopback;
-    always_ff @(posedge spi_layers_ckdivider_divided_clk) begin
-        if (!spi_layers_ckdivider_divided_resn) begin
-            spi_clk_loopback <= 'b1;
-        end
-        else begin
-            spi_clk_loopback <= !spi_clk_loopback;
-        end
-        end*/
+
 
     loopback_spi_if  loopback_spi_layer_0 (
         .clk_core(clk_core),
@@ -801,24 +796,24 @@ module astep24_3l_top(
 
     //-- MOSI and CLK is shared
     //-- CSN is selected based on RFG control
-    assign ext_spi_clk = hk_ctrl_select_adc ? !ext_spi_clk_internal : ext_spi_clk_internal;
-    assign ext_dac_spi_csn = !hk_ctrl_select_adc ? ext_spi_csn_internal : 1;
-    assign ext_adc_spi_csn =  hk_ctrl_select_adc ? ext_spi_csn_internal : 1;
+    assign ext_adc_spi_csn =  !hk_ctrl_select_adc;
+    assign ext_dac_spi_csn =  !(hk_ctrl_select_dac & !hk_ctrl_select_adc);
 
 
     // Counter Clock Synchronisation for FPGA TS
+    // Not needed in current architecture because of MMMC clock synchronisation input
     //---------------------
 
     // Input external clock edge is synchronised into the core clock domain to enable Frame tag counter counting
 
-    edge_detect ext_timestamp_clk_edge_detect(
+    /*edge_detect ext_timestamp_clk_edge_detect(
         .clk(clk_core),
         .resn(clk_core_resn),
         .in(ext_timestamp_clk & layers_cfg_frame_tag_counter_ctrl_source_external),
         .rising_edge(ext_timestamp_clk_rising),
         .falling_edge()
     );
-
+    */
     //assign layers_cfg_frame_tag_counter_enable = ext_timestamp_clk_rising;
 
 

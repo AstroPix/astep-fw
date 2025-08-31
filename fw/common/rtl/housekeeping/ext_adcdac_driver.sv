@@ -9,7 +9,7 @@ module ext_adcdac_driver(
     input  wire				clk_core_resn,
     input  wire				clk_spi,
     input  wire				clk_spi_resn,
-    input  wire             select_adc, 
+    input  wire             select_adc,
     output wire [7:0]		ext_adc_miso_m_axis_tdata,
     input  wire				ext_adc_miso_m_axis_tready,
     output wire				ext_adc_miso_m_axis_tvalid,
@@ -21,7 +21,9 @@ module ext_adcdac_driver(
     output wire				ext_spi_clk,
     output wire				ext_spi_csn,
     input  wire				ext_spi_miso,
-    output wire				ext_spi_mosi
+    output wire				ext_spi_mosi,
+    input  wire             spi_cpol,
+    input  wire             spi_cpha
 );
 
     // Connections
@@ -32,13 +34,13 @@ module ext_adcdac_driver(
     wire [7:0] spi_io_m_axis_tdata; // size=8
     wire spi_io_m_axis_tvalid; // size=1
 
-    // Sections
+    // CSN
     //---------------
 
 
     // Instances
     //------------
-        
+
     // Module Instance
     fifo_axis_2clk_spi_hk  mosi_fifo(
         .axis_rd_data_count(/* WAIVED: Fifo fill status not needed */),
@@ -55,12 +57,12 @@ module ext_adcdac_driver(
         .s_axis_tready(ext_adcdac_mosi_s_axis_tready),
         .s_axis_tvalid(ext_adcdac_mosi_s_axis_tvalid)
     );
-            
-    
+
+
     // Module Instance
     wire miso_fifo_ready;
     wire spi_io_m_axis_tready = miso_fifo_ready || !select_adc;
-    spi_axis_if_v1 #(.QSPI(0),.MSB_FIRST(0),.CLOCK_OUT_CG(1)) spi_io(
+    /*spi_axis_if_v1 #(.QSPI(0),.MSB_FIRST(0),.CLOCK_OUT_CG(1)) spi_io(
         .clk(clk_spi),
         .resn(clk_spi_resn),
         .enable(1'd0),
@@ -74,9 +76,28 @@ module ext_adcdac_driver(
         .spi_csn(ext_spi_csn),
         .spi_miso(ext_spi_miso),
         .spi_mosi(ext_spi_mosi)
+    );*/
+
+    spi_axis_if_v2 #(.QSPI(0),.MSB_FIRST(0) ) spi_io(
+        .clk(clk_spi),
+        .resn(clk_spi_resn),
+        .enable(1'd0),
+        .cpol(spi_cpol),
+        .cpha(spi_cpha),
+        .msb_first(0),
+        .m_axis_tdata(spi_io_m_axis_tdata),
+        .m_axis_tready(spi_io_m_axis_tready),
+        .m_axis_tvalid(spi_io_m_axis_tvalid),
+
+        .s_axis_tdata(mosi_fifo_m_axis_tdata),
+        .s_axis_tready(mosi_fifo_m_axis_tready),
+        .s_axis_tvalid(mosi_fifo_m_axis_tvalid),
+        .spi_clk(ext_spi_clk),
+        .spi_miso(ext_spi_miso),
+        .spi_mosi(ext_spi_mosi)
     );
-            
-    
+
+
     // Module Instance
     wire miso_valid = spi_io_m_axis_tvalid & select_adc; // Slave out bytes are only valid if adc is selected
     fifo_axis_2clk_spi_hk  miso_fifo(
@@ -94,8 +115,6 @@ module ext_adcdac_driver(
         .s_axis_tready(miso_fifo_ready), // If ADC not selected, always set ready to 1
         .s_axis_tvalid(miso_valid)
     );
-                
+
 
 endmodule
-
-        
