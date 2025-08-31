@@ -26,14 +26,14 @@ import astep24_3l_sim
 @cocotb.test(timeout_time = 3 , timeout_unit = "ms")
 async def test_layers_config_sr(dut):
     """Writs SR Config to each row/layer, check for Load signal for each"""
- 
+
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
 
     ## Create ASIC config
-    driver.setupASICS(version = 2, rows = 3 , chipsPerRow = 1, configFile = "./files/config_c0_r0.yml")
+    driver.setupASICS(version = 3, rows = 3 , chipsPerRow = 1, configFile = "./files/config_v3_mc.yml")
 
     ## Send config
     async def wait_for_load(row):
@@ -43,9 +43,9 @@ async def test_layers_config_sr(dut):
         asic = driver.getAsic(row = row)
         fallingEdgeTask = cocotb.start_soon( wait_for_load(row))
         await asic.writeConfigSR(ckdiv = 1 , limit = 4)
-        ## After last bit to load = 4 written, we can wait for a falling edge of load 
+        ## After last bit to load = 4 written, we can wait for a falling edge of load
         await Join(fallingEdgeTask)
-    
+
 
     await Timer(150, units="us")
 
@@ -81,5 +81,5 @@ async def test_layer_0_config_sr_multichip(dut):
     #    ## After last bit to load = 4 written, we can wait for a falling edge of load
     #    FallingEdge(dut._id(f"layers_sr_out_ld0", extended=False))
     #)
-    
+
     await Timer(150, units="us")
