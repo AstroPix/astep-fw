@@ -20,7 +20,7 @@ async def test_injection(dut):
     boardDriver = await astep24_3l_sim.getDriver(dut)
 
     # Get Injection Board from driver
-    injBoard = boardDriver.geccoGetInjectionBoard()
+    injBoard = boardDriver.getInjectionBoard()
 
     # Configure
     injBoard.initdelay = 4
@@ -40,17 +40,17 @@ async def test_injection(dut):
     edgesJob = cocotb.start_soon(waitForEdges())
     await injBoard.start()
     await Join(edgesJob)
-   
-    
-    assert dut.injection_generator.done.value == 1 
 
-    # Make another run 
+
+    assert dut.injection_generator.done.value == 1
+
+    # Make another run
     injBoard.pulsesperset = 2
     edgesJob = cocotb.start_soon(waitForEdges())
     await injBoard.start()
     await Join(edgesJob)
 
-    assert dut.injection_generator.done.value == 1 
-    
-   
+    assert dut.injection_generator.done.value == 1
+
+
     await Timer(500, units="us")
