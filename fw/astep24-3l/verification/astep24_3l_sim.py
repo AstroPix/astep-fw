@@ -7,6 +7,7 @@ import  rfg.discovery
 import  rfg.cocotb.cocotb_spi
 from    rfg.cocotb.cocotb_uart import UARTIO
 from    rfg.cocotb.cocotb_spi  import SPIIO
+from    rfg.cocotb.cocotb_ftdi  import FTDIFIFOIO
 
 
 from   drivers.boards.board_driver import BoardDriver
@@ -68,7 +69,33 @@ async def getSPIDriver(dut):
 
     ## SPI
     #########
-    rfg_io = SPIIO(dut,msbFirst=False,clockPeriod=100)
+    rfg_io = SPIIO(dut,msbFirst=False,clockPeriod=50)
+    await Timer(10, units="us")
+
+    #rfg.cocotb.cocotb_spi.debug()
+
+    ## Sof Reset
+    #await rfg_io.softReset()
+
+    firmwareRF.withIODriver(rfg_io)
+    #await rfg_io.open()
+    await Timer(10, units="us")
+
+    boardDriver = SimBoard(firmwareRF)
+    await boardDriver.open()
+    await Timer(10, units="us")
+
+
+    return boardDriver
+
+async def getFTDIDriver(dut):
+
+    ## Load RF and Setup UARTIO
+    firmwareRF = rfg.discovery.loadOneFSPRFGOrFail()
+
+    ## SPI
+    #########
+    rfg_io = FTDIFIFOIO(dut)
     await Timer(10, units="us")
 
     #rfg.cocotb.cocotb_spi.debug()
