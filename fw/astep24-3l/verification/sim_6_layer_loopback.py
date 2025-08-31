@@ -87,9 +87,9 @@ async def test_loopback_layer0_autoread(dut):
 
     ## Configure layer and run some dummy bytes to get the Loopback reset correctly
     await driver.setLayerConfig(layer = 0 , reset = False , autoread =False, hold = False , chipSelect = False,disableMISO = False, flush = True)
+    await driver.setLayerConfig(layer = 0 , reset = False , autoread =True, hold = False , chipSelect = True,disableMISO = False, flush = True)
     await driver.writeLayerBytes(layer = 0, bytes = [0x00] * 16, flush=True)
     await Timer(50, units="us")
-    await driver.setLayerConfig(layer = 0 , reset = False , autoread =True, hold = False , chipSelect = True,disableMISO = False, flush = True)
 
 
     # Now we can write to the loopback
@@ -132,15 +132,16 @@ async def test_loopback_all_layers(dut):
 
         ## Trigger Layer 0 Master, read bytes should be  the prepared ones
         await driver.setLayerConfig(layer = layer , reset = True , autoread =False, hold = False , chipSelect = False,disableMISO = False, flush = True)
-        await driver.setLayerConfig(layer = layer , reset = False , autoread =False, hold = False , chipSelect = True,disableMISO = False, flush = True)
 
+        await lpModel.enableLoopback()
+        await driver.setLayerConfig(layer = layer , reset = False , autoread =False, hold = False , chipSelect = True,disableMISO = False, flush = True)
         await driver.writeLayerBytes(layer = layer, bytes = [0x00] * 16, flush=True)
         await Timer(50, units="us")
 
 
         ## Enable and prepare some bytes in MISO
         ## The bytes should minimally conform to astropix frame, otherwise the frame decoder might kick in wrong
-        await lpModel.enableLoopback()
+
         await lpModel.writeMISOBytes([0x02,0xAB + layer ,0xCD])
         await driver.writeLayerBytes(layer = layer, bytes = [0x00] * 16, flush=True)
         await Timer(50, units="us")
