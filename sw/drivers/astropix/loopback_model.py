@@ -12,7 +12,10 @@ class Astropix3LBModel():
     async def enableLoopback(self,flush=True):
         """Enable Loopback by setting bit in layer config register"""
         regval =  await getattr(self.driver.rfg, f"read_layer_{self.layer}_cfg_ctrl")()
+
+
         regval |= (1<<5)
+
         await getattr(self.driver.rfg, f"write_layer_{self.layer}_cfg_ctrl")(regval,flush)
 
     async def disableLoopback(self,flush=True):
@@ -24,3 +27,6 @@ class Astropix3LBModel():
 
     async def writeMISOBytes(self,b:bytes,flush : bool =True):
         await getattr(self.driver.rfg, f"write_layer_{self.layer}_loopback_miso_bytes")(b,flush)
+
+    async def readMISOBytesSize(self):
+        return await getattr(self.driver.rfg, f"read_layer_{self.layer}_loopback_miso_write_size")()
