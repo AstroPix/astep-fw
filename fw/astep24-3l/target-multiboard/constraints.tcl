@@ -221,6 +221,7 @@ set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS33} [get_ports ext_spi_mosi]
 set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVDS_25} [get_ports clk_ext_p] ; # Pin 1
 set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVDS_25} [get_ports clk_ext_n] ; # Pin 2
 set_property  -dict {PACKAGE_PIN AA8 IOSTANDARD LVCMOS33} [get_ports clk_ext] ;  # Pin 3
+set_property PULLUP true [get_ports clk_ext]
 
 #set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_sin]
 #set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ck]

@@ -46,17 +46,16 @@ if {[llength [get_ports -quiet spi_clk]]>0} {
 ## External FPGA Timestamp clock that can be used to count in FPGA, and also timestamp Astropix
 #####
 
-## Generated Clock for SPI divided clock output
-#create_generated_clock -name ext_timestamp_clock -source [get_pins -of_objects [get_clocks -of_objects [get_pins -hierarchical *ext_timestamp_clk*]]] -divide_by 2 [get_pins -hierarchical *spi_layers_ckdivider_divided_clk*/Q]
-
-# Max 40 Mhz for external clocks diff or not
-create_clock -name ext_clk_diff -period 25 [get_ports clk_ext_p]
+## External clock single ended on all platforms
+## 40 Mhz for external clocks diff or not
 create_clock -name ext_clk_se   -period 25 [get_ports clk_ext]
 
-set_clock_groups -physically_exclusive -group {ext_clk_diff} -group {ext_clk_se}
+## Diff Clock only on specific boards
+if {$::IC_BOARD=="astropix-nexys"} {
 
-#set_input_delay  -max -clock ext_timestamp_clock 0 [get_ports -filter {DIRECTION == IN} ext_timestamp* ]
-
+    create_clock -name ext_clk_diff -period 25 [get_ports clk_ext_p]
+    set_clock_groups -physically_exclusive -group {ext_clk_diff} -group {ext_clk_se}
+}
 
 
 

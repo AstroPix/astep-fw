@@ -252,11 +252,6 @@ module astep24_3l_multitarget_top (
 
         BUFGMUX  clk_ext_diff_or_single_ended(.I0(clk_ext),.I1(clk_ext_diff),.O(clk_ext_internal),.S(io_ctrl_fpga_ts_clock_diff));
 
-        //MUXF7 clk_ext_diff_or_single_ended(.I0(clk_ext),.I1(clk_ext_diff),.O(clk_ext_internal),.S(io_ctrl_fpga_ts_clock_diff));
-        //
-        //IBUFDS  clk_ext_idiff( .I(clk_ext), .IB(io_ctrl_fpga_ts_clock_diff ? clk_ext_n : 1'b0), .O(clk_ext_internal) );
-
-
         //assign ext_timestamp_clk_internal =  io_ctrl_fpga_ts_clock_diff ? ext_timestamp_clk_diff : ext_timestamp_clk;
 
         //wire timestamp_clk_internal_to_out = io_ctrl_astropix_ts_is_fpga_ext_ts ? ext_timestamp_clk_internal : timestamp_clk_internal;
@@ -288,9 +283,16 @@ module astep24_3l_multitarget_top (
 
     `else
             // CMOD Case
-            OBUF  clk_sample_se_single( .I(sample_clk_gated), .O(sample_clk));
-
             assign clk_ext_internal = clk_ext;
+
+            BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk),.CE(io_ctrl_sample_clock_enable));
+
+            // Output buffer to enable timestamp clock to astropix
+            BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
+
+//            OBUF  clk_sample_se_single( .I(sample_clk_gated), .O(sample_clk));
+
+
 
             // Remove line below
             //assign ext_timestamp_clk_internal = 'b0;
@@ -309,8 +311,7 @@ module astep24_3l_multitarget_top (
                 .O(timestamp_clk_internal_to_out),
                 .S(io_ctrl_astropix_ts_is_fpga_ext_ts));*/
 
-            // Output buffer to enable timestamp clock to astropix
-            BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
+
 
 
 

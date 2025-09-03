@@ -247,6 +247,8 @@ proc run_bit {board version defines constraints_file} {
 
         puts  $out "global chipversion"
         puts  $out "global defines_list"
+        puts  $out "global IC_BOARD"
+        puts  $out "set ::IC_BOARD ${::IC_BOARD}"
         puts  $out [subst {set chipversion $chipversion}]
         puts  $out [subst -nocommand {set defines_list [list $defines_list]}]
         close $out
