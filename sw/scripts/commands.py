@@ -1,3 +1,21 @@
+
+def isbyte(s):
+    """
+    Check if str s can be converted into a byte (int between 0-255)
+    Supports decimal, hex and binary
+    """
+    return (s.isdigit() and int(s)>=0 and int(s)<=255) \
+        or (s.startswith("0x") and int(s, 16)>=0 and int(s, 16)<=255) \
+        or (s.startswith("0b") and int(s, 2)>=0 and int(s, 2)<=255)
+
+def tonum(s):
+    if not isbyte(s):
+        raise ValueError("{} is not a positive int.".format(data[j]))
+    if s.isdigit(): return int(s)
+    elif s.startswith("0x"): return int(s, 16)
+    elif s.startswith("0b"): return int(s, 2)
+    else: raise ValueError("{} is not a positive int.".format(data[j]))
+
 class ComsInterpreter:
     """
     Member dict: (static const) Contains all commands with the corresponding codes
@@ -19,7 +37,7 @@ class ComsInterpreter:
                      "lrc":1, "lfc":1, "loc":1, 
                      "pix":4, "row":3, "col":3, "sth":2, 
                      "icm":2, 
-                     "sip":5, "siv":3, "inj":0, "jni":0}
+                     "sip":4, "siv":2, "inj":0, "jni":0}
         self.cargs={}
         for k, v in self.dict.items():
             self.cargs[v] = self.args[k]
@@ -48,11 +66,11 @@ class ComsInterpreter:
                     if data[j] in self.dict:
                         raise ValueError("{} is a command, but {} needs {} arguments".format(\
                                           data[j], c, self.args[c]))
-                    if not data[j].isdigit():
+                    if not isbyte(data[j]):
                         raise ValueError("{} is not a positive int.".format(data[j]))
                 prog.append(self.dict[c])
                 for j in range(i+1, i+1+self.args[c]):
-                    prog.append(int(data[j]))
+                    prog.append( tonum(data[j]) )
                 i += self.args[c]+1
             else:
                 raise ValueError("{} is not a command, but a command was expected".format(c))
