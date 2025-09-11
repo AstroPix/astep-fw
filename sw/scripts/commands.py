@@ -10,14 +10,16 @@ class ComsInterpreter:
     Method getBytes: returns current program
     """
     def __init__(self):
-        self.dict = {"NOP":0xc5, "ROD":0xca, "HKD":0xcc, 
-                     "LRC":0xd1, "LOC":0xd4, 
-                     "PIX":0xd7, "STH":0xdd, 
-                     "SIP":0xe2, "SIV":0xe4, "INJ":0xe7, "JNI":0xe8}
-        self.args = {"NOP":0, "ROD":1, "HKD":1, 
-                     "LRC":2, "LOC":2, 
-                     "PIX":5, "STH":3, 
-                     "SIP":5, "SIV":3, "INJ":0, "JNI":0}
+        self.dict = {"nop":0xc5, "rod":0xca, "hkd":0xcc, "shv":0xcf, "saf":0xd1, 
+                     "lrc":0xd7, "lfc":0xd8, "loc":0xdb, 
+                     "pix":0xdd, "row":0xde, "col":0xe1, "sth":0xe2, 
+                     "icm":0xe8, 
+                     "sip":0xf3, "siv":0xf5, "inj":0xf6, "jni":0xf9}
+        self.args = {"nop":0, "rod":1, "hkd":1, "shv":1, "saf":1, 
+                     "lrc":1, "lfc":1, "loc":1, 
+                     "pix":4, "row":3, "col":3, "sth":2, 
+                     "icm":2, 
+                     "sip":5, "siv":3, "inj":0, "jni":0}
         self.cargs={}
         for k, v in self.dict.items():
             self.cargs[v] = self.args[k]
