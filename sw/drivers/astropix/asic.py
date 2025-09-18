@@ -286,7 +286,7 @@ class Asic():
         :param msbfirst: Send vector MSB first
         """
         bitvector = BitArray()
-        configSource = self.cfg[f'config_{targetChip}'] if (self.nchips>1) else self.cfg["config"]#Latter used for V3 single chip
+        configSource = self.cfg[f'config_{targetChip}'] if (self._num_chips>1) else self.cfg["config"]#Latter used for V3 single chip
         for key in configSource:
             for values in configSource[key].values():
                 if(key=='vdacs'):

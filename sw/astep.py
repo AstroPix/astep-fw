@@ -70,7 +70,7 @@ class AstepRun:
         # Configure SPI readout
         await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
     
-    async def fpga_configure_autoread_keepalive(self, nchips:int|None=None):
+    async def fpga_configure_autoread_keepalive(self, nchips:int|None=None, flush=False):
         """
         Compute number of bytes needed between interrupt high and end of data stream in autoread mode
         :param nchips: number of chips in the daisy chain, default=None to compute from the configurations files if alerady loaded.
@@ -135,8 +135,8 @@ class AstepRun:
         """
         Returns the maximum number of chips of all daisy chains
         """
-        return nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())) # dict
-        #return nchips = max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
+        return max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())) # dict
+        #return max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
 
 
     #Interface with asic.py 
@@ -239,14 +239,14 @@ class AstepRun:
             await self.boardDriver.setLayerConfig(layer, reset=False, hold=False, chipSelect=True, autoread=False, disableMISO=True, flush=True)
             await self.boardDriver.writeSPI([0x00]*128, layer)
             counter = 1
-            while (await self.boardDriver.getLayerStatus(layer) & 0x1) == 0 && counter < 20:
+            while (await self.boardDriver.getLayerStatus(layer) & 0x1) == 0 and counter < 20:
                 await self.boardDriver.writeSPI([0x00]*128, layer)
                 counter += 1
             await self.boardDriver.setLayerConfig(layer, reset=False, hold=True, chipSelect=False, autoread=False, disableMISO=True, flush=True)
 
-    async def buffer_flush(self)
+    async def buffer_flush(self):
         await self.chips_flush()
-        buff = await self.boardDriver.readoutGetBufferSize():
+        buff = await self.boardDriver.readoutGetBufferSize()
         await self.boardDriver.readoutReadBytes(buff)
 
 

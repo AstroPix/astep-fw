@@ -4,6 +4,9 @@ from deprecated import deprecated
 import rfg.io
 import rfg.core
 import asyncio
+from bitstring import BitArray
+import math
+import time
 
 from drivers.astropix.asic import Asic
 
@@ -124,15 +127,15 @@ class BoardDriver():
         :returns: SPI ASIC config pattern
         """
         ## Generate Bit vector for config
-        if value is None:
-            value = self.gen_config_vector_SPI(msbfirst = False,targetChip = targetChip)
+        if config is None:
+            config = self.asics[layer].getCfgBits(targetChip, msbfirst=False,)
         # Write SPI SR Command to set MUX
         if broadcast:
             data = bytearray([SPI_SR_BROADCAST])
         else:
             data = bytearray([SPI_HEADER_SR | targetChip])
         # data
-        for bit in value:
+        for bit in config:
             sin = SPI_SR_BIT1 if bit else SPI_SR_BIT0
             data.append(sin)
         # Append Load signal and empty bytes
@@ -140,7 +143,7 @@ class BoardDriver():
             data.extend([SPI_SR_LOAD] * n_load)
         # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
         data.extend([SPI_EMPTY_BYTE] * ((self._num_chips-1) *2))
-        logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(value), value)
+        logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(config), config)
         return data
 
     ## IO control and clocks
@@ -256,7 +259,7 @@ class BoardDriver():
         ctrl = await self.rfg.read_layer_0_cfg_ctrl()
         if hold: ctrl |= 1
         else: ctrl &= ~1
-        await getattr(self.rfg.write_layer_0_cfg_ctrl(ctrl, flush=flush)
+        await self.rfg.write_layer_0_cfg_ctrl(ctrl, flush=flush)
 
     async def resetLayers(self, waitTime:float=0.5, flush:bool=True):
         """Reset all layers because the reset line is shared.
@@ -439,7 +442,7 @@ class BoardDriver():
         for chunk in range(0, len(payload), step):
             chunkBytes = payload[chunk:chunk+step]
             if steps>1: logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
-            if self.getLayerControl(layer) & 0x2 == 0x2:
+            if (await self.getLayerControl(layer) & 0x2) == 0x2:
                 logger.warning("Reset is asserted! Data will be written after reset is de-asserted.")
             await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(chunkBytes,True)
             # Wait for the current chunk to be written before sending the next one
