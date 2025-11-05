@@ -1,18 +1,16 @@
-
-
-
-
 import cocotb
-from cocotb.triggers    import Timer,RisingEdge,FallingEdge, Combine
-from cocotb.clock       import Clock
+from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
+from cocotb.clock import Clock
 from cocotbext.uart import UartSource, UartSink
 
 import vip.cctb
 
 ## Import simulation target driver
 import astep24_3l_sim
+import rfg.cocotb.cocotb_spi
 
-@cocotb.test(timeout_time = 1,timeout_unit="ms")
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_clocking_resets(dut):
     await vip.cctb.common_clock_reset(dut)
 
@@ -22,16 +20,14 @@ async def test_clocking_resets(dut):
     dut.resn.value = 0
     await FallingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
-    dut.resn.value =1
+    dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
-
-
 
     await Timer(10, units="us")
 
 
-@cocotb.test(timeout_time = 1,timeout_unit="ms")
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_clocking_ext_clk_autoswitch(dut):
     await vip.cctb.common_clock_reset(dut)
 
@@ -41,7 +37,7 @@ async def test_clocking_ext_clk_autoswitch(dut):
     dut.resn.value = 0
     await FallingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
-    dut.resn.value =1
+    dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
 
@@ -52,7 +48,9 @@ async def test_clocking_ext_clk_autoswitch(dut):
     await FallingEdge(dut.clk_core_resn)
     await RisingEdge(dut.clk_core_resn)
 
-    assert dut.clocking_reset_I.clk_ext_selected.value == 1, "Clock Clksel should be 1, meaning external"
+    assert dut.clocking_reset_I.clk_ext_selected.value == 1, (
+        "Clock Clksel should be 1, meaning external"
+    )
 
     ## Make another reset to test back to non external clock then switchover again
     ## There's only one reset for main reset + switch over because switchover happens fast
@@ -60,11 +58,12 @@ async def test_clocking_ext_clk_autoswitch(dut):
     dut.resn.value = 0
     await FallingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
-    dut.resn.value =1
+    dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
 
-    assert dut.clocking_reset_I.clk_ext_selected.value == 1, "Clock Clksel should be 1, meaning external"
-
+    assert dut.clocking_reset_I.clk_ext_selected.value == 1, (
+        "Clock Clksel should be 1, meaning external"
+    )
 
     ## Turn off Ext Clock and see that PLL switches back to main clock
     ext_task.cancel()
@@ -79,9 +78,9 @@ async def test_clocking_ext_clk_autoswitch(dut):
 
     await Timer(10, units="us")
 
-@cocotb.test(timeout_time = 1,timeout_unit="ms")
-async def test_clocking_dividers(dut):
 
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def test_clocking_dividers(dut):
     await vip.cctb.common_clock_reset(dut)
     dut.resn.value = 0
     await Timer(2, units="us")
@@ -90,15 +89,16 @@ async def test_clocking_dividers(dut):
     await RisingEdge(dut.main_rfg_I.spi_layers_ckdivider_divided_clk)
     await RisingEdge(dut.main_rfg_I.spi_hk_ckdivider_divided_clk)
 
-    await Combine(RisingEdge(dut.main_rfg_I.spi_layers_ckdivider_divided_resn),RisingEdge(dut.main_rfg_I.spi_hk_ckdivider_divided_resn))
-
+    await Combine(
+        RisingEdge(dut.main_rfg_I.spi_layers_ckdivider_divided_resn),
+        RisingEdge(dut.main_rfg_I.spi_hk_ckdivider_divided_resn),
+    )
 
     await Timer(50, units="us")
 
 
-@cocotb.test(timeout_time = 1,timeout_unit="ms")
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_buffers_reset(dut):
-
     ## Get Target Driver
     driver = await astep24_3l_sim.getDriver(dut)
 
@@ -107,22 +107,28 @@ async def test_buffers_reset(dut):
     await Timer(10, units="us")
 
     ## Create SPI Slave
-    slave = vip.spi.VSPISlave(clk = dut.layer_0_spi_clk, csn = dut.layer_0_spi_csn,mosi=dut.layer_0_spi_mosi,miso=dut.layer_0_spi_miso,misoDefaultValue=0xFF)
+    slave = vip.spi.VSPISlave(
+        clk=dut.layer_0_spi_clk,
+        csn=dut.layer_0_spi_csn,
+        mosi=dut.layer_0_spi_mosi,
+        miso=dut.layer_0_spi_miso,
+        misoDefaultValue=0xFF,
+    )
     slave.start_monitor()
 
     ## Write MOSI Bytes to Layer
-    await driver.writeLayerBytes(layer = 0 , bytes = [0x00]*16,flush=True)
+    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
     await Timer(100, units="us")
     dut.resn.value = 0
     await Timer(2, units="us")
-    dut.resn.value =1
+    dut.resn.value = 1
 
     await Timer(50, units="us")
 
-@cocotb.test(timeout_time = 1,timeout_unit="ms")
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_spi_divider_api(dut):
-
-
+    # rfg.cocotb.cocotb_spi.debug()
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
@@ -132,12 +138,19 @@ async def test_spi_divider_api(dut):
     boardDriver = await astep24_3l_sim.getDriver(dut)
 
     ## Enable Layer
-    await boardDriver.setLayerConfig(layer = 0 , reset = False , autoread =False, hold = False , chipSelect = True,disableMISO = True, flush = True)
+    await boardDriver.setLayerConfig(
+        layer=0,
+        reset=False,
+        autoread=False,
+        hold=False,
+        chipSelect=True,
+        disableMISO=True,
+        flush=True,
+    )
 
     ## Set Clock divider for 2Mhz
-    await boardDriver.configureLayerSPIFrequency(2000000,flush=True)
-    await boardDriver.writeLayerBytes(layer = 0 , bytes = [0x00]*8,flush=True)
-
+    await boardDriver.configureLayerSPIFrequency(2000000, flush=True)
+    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -146,13 +159,12 @@ async def test_spi_divider_api(dut):
 
     await Timer(100, units="us")
 
-    assert edge2 - edge1 == 500 , "2Mhz SPI Frequency should show 500ns between edges"
+    assert edge2 - edge1 == 500, "2Mhz SPI Frequency should show 500ns between edges"
 
     ## Set Clock divider for 500Khz
-    await boardDriver.configureLayerSPIFrequency(500000,flush=True)
+    await boardDriver.configureLayerSPIFrequency(500000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer = 0 , bytes = [0x00]*8,flush=True)
-
+    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -161,23 +173,20 @@ async def test_spi_divider_api(dut):
 
     await Timer(100, units="us")
 
-    assert edge2 - edge1 == 2000 , "500Khz SPI Frequency should show 2000ns between edges"
-
-
-
+    assert edge2 - edge1 == 2000, (
+        "500Khz SPI Frequency should show 2000ns between edges"
+    )
 
     ## Set Clock divider for 10Mhz
-    await boardDriver.configureLayerSPIFrequency(10000000,flush=True)
+    await boardDriver.configureLayerSPIFrequency(10000000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer = 0 , bytes = [0x00]*8,flush=True)
-
+    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
     await RisingEdge(dut.layer_0_spi_clk)
     edge2 = cocotb.utils.get_sim_time("ns")
 
-
-    assert edge2 - edge1 == 100 , "10Mhz SPI Frequency should show 100ns between edges"
+    assert edge2 - edge1 == 100, "10Mhz SPI Frequency should show 100ns between edges"
 
     await Timer(100, units="us")

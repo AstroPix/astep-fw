@@ -22,7 +22,7 @@ clean_sim:
 ## RFG
 rfg: common/main_rfg.sv
 common/main_rfg.sv: common/astep24_3layers.rfg.tcl
-	@cd common && icf_rfg ./astep24_3layers.rfg.tcl -md $(BASE)/docs/markdown/fw/main_rfg.md
+	@cd common && icf_rfg -md $(BASE)/docs/markdown/fw/main_rfg.md ./astep24_3layers.rfg.tcl
 
 ## Firmware build
 ##############

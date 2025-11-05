@@ -30,6 +30,9 @@ ${BASE}/fw/common/rtl/rfg/protocol/rfg_axis_readout_framing.sv
 ## Layer
 -f ${BASE}/fw/common/rtl/layers/layers_readout_switched.f
 
+## TLU
+${BASE}/fw/common/rtl/trigger/tlu_client.sv
+
 ## Layer Loopback
 ${BASE}/fw/common/rtl/asic_model/loopback_spi_if.sv
 
@@ -44,7 +47,7 @@ ${BASE}/fw/common/rtl/utilities/reset_sync.sv
 ${BASE}/fw/common/rtl/utilities/async_input_sync.sv
 #${BASE}/fw/common/rtl/utilities/async_signal_sync.sv
 ${BASE}/fw/common/rtl/utilities/resets_synchronizer.sv
-${BASE}/fw/common/rtl/utilities/edge_detect.sv
+#${BASE}/fw/common/rtl/utilities/edge_detect.sv
 
 ${BASE}/fw/common/rtl/fifo/fifo_ptr_logic.sv
 ${BASE}/fw/common/rtl/fifo/mini_fwft_fifo.sv

@@ -43,7 +43,7 @@ class SPIBytesDecoder():
             #await self.frame_decoding_semaphore.acquire()
             byte = await self.receive_bytes_queue.get()
             if not frame_start and byte != 0xBC:
-                logger.info("Found Start of Frame for readout queue %d",byte)
+                logger.debug("Found Start of Frame for readout queue %d",byte)
                 currentQueue = byte
                 frame_start = True
             elif frame_start and currentLength < self.currentExpectedLength:
@@ -51,13 +51,13 @@ class SPIBytesDecoder():
                 logger.info("Read payload byte %x",byte)
                 self.decoded_bytes_queue.put(byte)
                 if currentLength is self.currentExpectedLength:
-                    logger.info("Reached requested %d bytes",self.currentExpectedLength)
+                    logger.debug("Reached requested %d bytes",self.currentExpectedLength)
                     frame_start = False 
                     currentLength = 0
             else:
                 logger.info("Got IDLE Byte 2 %x",byte)
                 pass
-                #logger.info("SAFE Reached requested %d bytes",self.currentExpectedLength)
+                #logger.debug("SAFE Reached requested %d bytes",self.currentExpectedLength)
                 #frame_start = False 
                 #currentLength = 0
     
@@ -75,10 +75,10 @@ class SPIBytesDecoder():
                 frame_start = True
             elif frame_start and currentLength < self.currentExpectedLength:
                 currentLength += 1
-                logger.info(f"Read payload byte {hex(byte)},{currentLength}/{self.currentExpectedLength}")
+                logger.debug(f"Read payload byte {hex(byte)},{currentLength}/{self.currentExpectedLength}")
                 self.decoded_bytes_queue.put(byte)
                 if currentLength == self.currentExpectedLength:
-                    logger.info("Reached requested %d bytes",self.currentExpectedLength)
+                    logger.debug("Reached requested %d bytes",self.currentExpectedLength)
                     frame_start = False 
                     currentLength = 0
                     finished = True

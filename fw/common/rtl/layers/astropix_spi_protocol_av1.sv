@@ -11,7 +11,8 @@ module astropix_spi_protocol_av1 #(
     parameter USER_WIDTH = 1,
     parameter LAYER_ID = 3'h0,
     parameter IDLE_BYTE = 8'h3D,
-    parameter ASTROPIX_PAYLOAD_LENGTH = 3'd4)(
+    parameter ASTROPIX_PAYLOAD_LENGTH = 3'd4,
+    parameter TS_WIDTH=64)(
 
 
     // System clock and control
@@ -21,36 +22,37 @@ module astropix_spi_protocol_av1 #(
     input wire enable,
 
     // AXIS slave to receive bytes from SPI Readout
-    input  wire [DATA_WIDTH-1:0]  s_axis_tdata,
-    input  wire                   s_axis_tvalid,
-    output reg                    s_axis_tready,
+    input  wire [DATA_WIDTH-1:0]    s_axis_tdata,
+    input  wire                     s_axis_tvalid,
+    output reg                      s_axis_tready,
     //  wire                   s_axis_tlast,
-    
+
 
     // AXIS master to forward bytes to FIFO
-    output reg [DATA_WIDTH-1:0]   m_axis_tdata,
-    output reg                    m_axis_tvalid,
-    input  wire                   m_axis_tready,
-    output reg                    m_axis_tlast,
-    output wire [DEST_WIDTH-1:0]  m_axis_tdest,
+    output reg [DATA_WIDTH-1:0]     m_axis_tdata,
+    output reg                      m_axis_tvalid,
+    input  wire                     m_axis_tready,
+    output reg                      m_axis_tlast,
+    output wire [DEST_WIDTH-1:0]    m_axis_tdest,
 
 
     // Readout control
-    output reg                    readout_active,
+    output reg                      readout_active,
 
-    // Statistics 
-    output reg                    stat_frame_detected,
-    output reg                    stat_idle_detected,
-    output reg                    stat_wronglength_detected,
+    // Statistics
+    output reg                      stat_frame_detected,
+    output reg                      stat_idle_detected,
+    output reg                      stat_wronglength_detected,
 
     // Status
-    output reg                    status_frame_decoding,
+    output reg                      status_frame_decoding,
 
     // Configs
-    input  wire                   cfg_disable_autoread,
-    input  wire [31:0]            cfg_frame_tag_counter,
-    input  wire [7:0]             cfg_nodata_continue, // Number of IDLE bytes to keep readout active after interrupt is high
-    input  wire                   cfg_layer_reset
+    input  wire                     cfg_disable_autoread,
+    input  wire [TS_WIDTH-1:0]	    cfg_fpga_timestamp,
+    input  wire [1:0]		        cfg_fpga_timestamp_size, // 0 -> 16 bits, 1 -> 32 ,2 -> 48, 3-> 64
+    input  wire [7:0]               cfg_nodata_continue, // Number of IDLE bytes to keep readout active after interrupt is high
+    input  wire                     cfg_layer_reset
 );
 
     // Receiving interface
@@ -58,12 +60,12 @@ module astropix_spi_protocol_av1 #(
     wire slave_byte_valid       = s_axis_tready && s_axis_tvalid;
     wire slave_byte_available   = s_axis_tvalid;
 
-    byte_t receive_frame_length; 
-    byte_t receive_frame_length_frozen; 
+    byte_t              receive_frame_length;
+    byte_t              receive_frame_length_frozen;
 
-    byte_t forward_byte_buffer;
+    byte_t              forward_byte_buffer;
 
-    reg [31:0] forward_frozen_timestamp;
+    reg [TS_WIDTH-1:0]  forward_frozen_timestamp;
 
     // Forware interface to FIFO or switch
     //--------------
@@ -77,17 +79,30 @@ module astropix_spi_protocol_av1 #(
     // Readout activate delay after interrupt removed
     reg [7:0] nodata_continue_counter;
 
-    // Frame Header Buffer until headers are send 
+    // Frame Header Buffer until headers are send
     reg [7:0] frame_buffer;
 
     // Process
     //-----------------
-    enum {WAIT_FRAME,HEADER_LENGTH,HEADER_ID,RECEIVE,FORWARD,TIMESTAMP0,TIMESTAMP1,TIMESTAMP2,TIMESTAMP3} protocol_state;
+    enum {  WAIT_FRAME,
+            HEADER_LENGTH,
+            HEADER_ID,
+            RECEIVE,
+            FORWARD,
+            TIMESTAMP0,
+            TIMESTAMP1,
+            TIMESTAMP2,
+            TIMESTAMP3,
+            TIMESTAMP4,
+            TIMESTAMP5,
+            TIMESTAMP6,
+            TIMESTAMP_END
+    } protocol_state;
 
-    always @(posedge clk) begin 
-        if (!resn || cfg_layer_reset) begin 
+    always @(posedge clk) begin
+        if (!resn || cfg_layer_reset) begin
             s_axis_tready           <= 1'b0;
-            
+
             readout_active          <= 1'b0;
             protocol_state          <= WAIT_FRAME;
 
@@ -100,39 +115,39 @@ module astropix_spi_protocol_av1 #(
 
             status_frame_decoding   <= 1'b0;
         end
-        else begin 
-            
+        else begin
+
            // m_axis_tvalid <= 1'b0;
 
             // Force Readout on interrupt
             //------------
-            if (!interruptn && !cfg_disable_autoread) begin 
+            if (!interruptn && !cfg_disable_autoread) begin
                 readout_active          <= 1'b1;
                 nodata_continue_counter <= cfg_nodata_continue;
             end else if (interruptn && protocol_state==WAIT_FRAME) begin
-                
+
                 if (nodata_continue_counter==0) begin
                     readout_active <= 1'b0;
                 end else if (slave_byte_available) begin
                     nodata_continue_counter <= nodata_continue_counter -1;
-                end 
+                end
 
             end
-            
-            
+
+
             // Receive Bytes
             //-------------------
             case (protocol_state)
-                
 
-                WAIT_FRAME: begin 
+
+                WAIT_FRAME: begin
                     status_frame_decoding   <= 1'b0;
                     m_axis_tlast            <= 1'b0;
-                    s_axis_tready           <= 1'b1; 
+                    s_axis_tready           <= 1'b1;
 
                     // Got Frame Header, and not Idle byte
-                    if (slave_byte_valid && s_axis_tdata!=IDLE_BYTE) begin 
-                        
+                    if (slave_byte_valid && s_axis_tdata!=IDLE_BYTE) begin
+
                         // Send Header Length
                         protocol_state              <= HEADER_LENGTH;
 
@@ -141,26 +156,26 @@ module astropix_spi_protocol_av1 #(
 
                         // Length: ID + FRAME LENGTH + 4 TS bytes
                         frame_buffer                <= s_axis_tdata;
-                        m_axis_tdata                <= s_axis_tdata[2:0] + 6;
+                        m_axis_tdata                <= 1 + (s_axis_tdata[2:0]+1) + (cfg_fpga_timestamp_size*2+2);
                         m_axis_tvalid               <= 1'b1;
-                        s_axis_tready               <= 1'b0; 
+                        s_axis_tready               <= 1'b0;
 
                         // Toggle Frame detected for 1 cycle to enable counting
                         stat_frame_detected          <= 1'b1;
 
                         // Save Counter for timestamp
-                        forward_frozen_timestamp     <= cfg_frame_tag_counter;
+                        forward_frozen_timestamp     <= cfg_fpga_timestamp;
 
                         // Report decoding status
                         status_frame_decoding        <= 1'b1;
 
-                    end else if (slave_byte_valid && s_axis_tdata==IDLE_BYTE) begin 
+                    end else if (slave_byte_valid && s_axis_tdata==IDLE_BYTE) begin
 
                         // Toggle Frame detected for 1 cycle to enable counting
                         stat_idle_detected <= 1'b1;
 
                     end
-                    else begin 
+                    else begin
 
                         stat_idle_detected  <= 1'b0;
 
@@ -168,13 +183,13 @@ module astropix_spi_protocol_av1 #(
 
                 end
 
-                HEADER_LENGTH: begin 
+                HEADER_LENGTH: begin
                     stat_frame_detected          <= 1'b0;
 
-                    
+
 
                     // Send Header ID
-                    if (master_byte_valid) begin 
+                    if (master_byte_valid) begin
                         protocol_state          <= HEADER_ID;
                         m_axis_tdata            <= LAYER_ID;
 
@@ -182,48 +197,48 @@ module astropix_spi_protocol_av1 #(
                             stat_wronglength_detected <= 1'b1;
                         end
                     end
-                    
+
 
                 end
 
-                HEADER_ID: begin 
+                HEADER_ID: begin
 
                     stat_wronglength_detected <= 1'b0;
 
                     // Send Frame
-                    if (master_byte_valid) begin 
+                    if (master_byte_valid) begin
                         protocol_state          <= FORWARD;
                         m_axis_tdata            <= frame_buffer;
                     end
 
                 end
-            
 
-                FORWARD: begin 
-                    
+
+                FORWARD: begin
+
                     stat_frame_detected          <= 1'b0;
-                    if (master_byte_valid) begin 
+                    if (master_byte_valid) begin
 
                         // Finished, add other data
-                        if (receive_frame_length==0) begin 
+                        if (receive_frame_length==0) begin
                             protocol_state  <= TIMESTAMP0;
                             m_axis_tvalid   <= 1'b1;
                             m_axis_tdata    <= forward_frozen_timestamp[7:0];
                             s_axis_tready   <= 1'b0;
-                        end else begin 
+                        end else begin
                             protocol_state  <= RECEIVE;
                             m_axis_tvalid   <= 1'b0;
                             s_axis_tready   <= 1'b1;
                         end
-                        
+
                         m_axis_tlast <= 1'b0;
                     end
                 end
 
-                RECEIVE: begin 
-                    if (slave_byte_valid) begin 
+                RECEIVE: begin
+                    if (slave_byte_valid) begin
 
-                        protocol_state          <= FORWARD; 
+                        protocol_state          <= FORWARD;
 
                         // Decount one byte
                         receive_frame_length <= receive_frame_length -1;
@@ -234,44 +249,76 @@ module astropix_spi_protocol_av1 #(
                         // Output
                         m_axis_tdata            <= s_axis_tdata;
                         m_axis_tvalid           <= 1'b1;
-                        
+
 
                     end
                 end
 
-                
 
-                TIMESTAMP0: begin 
-                    if (master_byte_valid) begin 
-                        protocol_state  <= TIMESTAMP1;
+
+                TIMESTAMP0: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= cfg_fpga_timestamp_size == 2'd0 ? TIMESTAMP_END : TIMESTAMP1;
                         m_axis_tvalid   <= 1'b1;
                         m_axis_tdata    <= forward_frozen_timestamp[15:8];
                     end
                 end
-                TIMESTAMP1: begin 
-                    if (master_byte_valid) begin 
+                TIMESTAMP1: begin
+                    if (master_byte_valid) begin
                         protocol_state  <= TIMESTAMP2;
                         m_axis_tvalid   <= 1'b1;
                         m_axis_tdata    <= forward_frozen_timestamp[23:16];
                     end
                 end
-                TIMESTAMP2: begin 
-                    if (master_byte_valid) begin 
-                        protocol_state  <= TIMESTAMP3;
+                TIMESTAMP2: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= cfg_fpga_timestamp_size == 2'd1 ? TIMESTAMP_END : TIMESTAMP3;
                         m_axis_tvalid   <= 1'b1;
                         m_axis_tdata    <= forward_frozen_timestamp[31:24];
                         m_axis_tlast    <= 1'b1;
                     end
                 end
-                TIMESTAMP3: begin 
-                    if (master_byte_valid) begin 
+                TIMESTAMP3: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= TIMESTAMP4;
+                        m_axis_tvalid   <= 1'b1;
+                        m_axis_tdata    <= forward_frozen_timestamp[39:32];
+                        m_axis_tlast    <= 1'b1;
+                    end
+                end
+                TIMESTAMP4: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= cfg_fpga_timestamp_size == 2'd2 ? TIMESTAMP_END : TIMESTAMP5;
+                        m_axis_tvalid   <= 1'b1;
+                        m_axis_tdata    <= forward_frozen_timestamp[47:40];
+                        m_axis_tlast    <= 1'b1;
+                    end
+                end
+                TIMESTAMP5: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= TIMESTAMP6;
+                        m_axis_tvalid   <= 1'b1;
+                        m_axis_tdata    <= forward_frozen_timestamp[55:48];
+                        m_axis_tlast    <= 1'b1;
+                    end
+                end
+                TIMESTAMP6: begin
+                    if (master_byte_valid) begin
+                        protocol_state  <= TIMESTAMP_END;
+                        m_axis_tvalid   <= 1'b1;
+                        m_axis_tdata    <= forward_frozen_timestamp[63:56];
+                        m_axis_tlast    <= 1'b1;
+                    end
+                end
+                TIMESTAMP_END: begin
+                    if (master_byte_valid) begin
                         protocol_state  <= WAIT_FRAME;
                         m_axis_tvalid   <= 1'b0;
                         m_axis_tlast    <= 1'b0;
                     end
                 end
 
-                default: begin 
+                default: begin
                     protocol_state <= WAIT_FRAME;
                 end
             endcase
@@ -279,4 +326,4 @@ module astropix_spi_protocol_av1 #(
     end
 
 
-endmodule 
+endmodule

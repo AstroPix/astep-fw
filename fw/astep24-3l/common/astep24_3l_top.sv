@@ -100,7 +100,13 @@ module astep24_3l_top(
 
     // External Clock for FPGA Timestamp clock
     //-------
-    input wire ext_timestamp_clk
+    input  wire ext_timestamp_clk,
+
+    // External trigger event inputs
+    // ---------------------
+    input  wire tlu_t0,
+    input  wire tlu_trigger,
+    output wire tlu_busy
 );
 
     // Wires needed in multiple places below
@@ -179,7 +185,7 @@ module astep24_3l_top(
 
     // SW interface
     //-------------
-    wire [7:0] sw_if_rfg_address;
+    wire [15:0] sw_if_rfg_address;
     wire [7:0] sw_if_rfg_write_value;
     wire [7:0] sw_if_rfg_read_value;
     wire sw_if_rfg_write;
@@ -262,9 +268,24 @@ module astep24_3l_top(
     wire [7:0]  layers_readout_s_axis_tdata;
     wire [31:0] layers_readout_read_size;
     wire [7:0]  layers_cfg_nodata_continue;
-    wire [31:0] layers_cfg_frame_tag_counter;
-    wire        layers_cfg_frame_tag_counter_ctrl_enable;
-    wire        layers_cfg_frame_tag_counter_ctrl_enable_match_trigger;
+
+    // Wires for FPGA TS counter
+    wire [63:0] layers_fpga_timestamp_counter,tlu_ts_out;
+    reg         layers_fpga_timestamp_counter_clear; // Set to 1 upon external trigger negedge or always 0
+    reg  [63:0] layers_fpga_timestamp_counter_to_layers; // This register is either mirroring the counter, or updating on trigger input if feature enabled
+    wire [1:0]  layers_fpga_timestamp_ctrl_timestamp_size;
+    wire        layers_fpga_timestamp_ctrl_enable;
+    wire        layers_fpga_timestamp_ctrl_use_divider;
+    wire        layers_fpga_timestamp_divider_interrupt;
+
+    wire layers_fpga_timestamp_ctrl_count = layers_fpga_timestamp_ctrl_enable &&
+        (
+            (layers_fpga_timestamp_ctrl_use_divider && layers_fpga_timestamp_divider_interrupt) ||
+            !layers_fpga_timestamp_ctrl_use_divider
+        );
+
+    wire [15:0] layers_tlu_busy_duration;
+    wire [15:0] layers_tlu_trigger_delay;
 
     wire hk_conversion_trigger_interrupt;
     wire hk_ctrl_select_adc,hk_ctrl_select_dac;
@@ -458,19 +479,26 @@ module astep24_3l_top(
         // Configs
         //---------------
 
-        .layers_cfg_frame_tag_counter_ctrl(),
-        .layers_cfg_frame_tag_counter_ctrl_force_count(layers_cfg_frame_tag_counter_ctrl_force_count),
-        .layers_cfg_frame_tag_counter_ctrl_enable(layers_cfg_frame_tag_counter_ctrl_enable),
-        .layers_cfg_frame_tag_counter_ctrl_source_match_counter(layers_cfg_frame_tag_counter_ctrl_source_match_counter),
-        .layers_cfg_frame_tag_counter_ctrl_source_external(layers_cfg_frame_tag_counter_ctrl_source_external),
+        .layers_fpga_timestamp_ctrl(),
+        .layers_fpga_timestamp_ctrl_enable(layers_fpga_timestamp_ctrl_enable),
+        .layers_fpga_timestamp_ctrl_use_divider(layers_fpga_timestamp_ctrl_use_divider),
+        .layers_fpga_timestamp_ctrl_use_tlu(layers_fpga_timestamp_ctrl_use_tlu),
+        .layers_fpga_timestamp_ctrl_tlu_busy_on_t0(layers_fpga_timestamp_ctrl_tlu_busy_on_t0),
+        .layers_fpga_timestamp_ctrl_timestamp_size(layers_fpga_timestamp_ctrl_timestamp_size),
+        //.layers_fpga_timestamp_ctrl_use_trigger_reset(layers_fpga_timestamp_ctrl_use_trigger_reset),
+        //.layers_fpga_timestamp_ctrl_use_trigger_freeze(layers_fpga_timestamp_ctrl_use_trigger_freeze),
 
-        .layers_cfg_frame_tag_counter_trigger(),
-        .layers_cfg_frame_tag_counter_trigger_interrupt(layers_cfg_frame_tag_counter_trigger_interrupt),
-        .layers_cfg_frame_tag_counter_trigger_enable(layers_cfg_frame_tag_counter_ctrl_source_match_counter),
-        .layers_cfg_frame_tag_counter_trigger_match(),
+        .layers_fpga_timestamp_divider(),
+        .layers_fpga_timestamp_divider_interrupt(layers_fpga_timestamp_divider_interrupt),
+        .layers_fpga_timestamp_divider_enable(layers_fpga_timestamp_ctrl_use_divider),
+        .layers_fpga_timestamp_divider_match(),
 
-        .layers_cfg_frame_tag_counter(layers_cfg_frame_tag_counter),
-        .layers_cfg_frame_tag_counter_enable(layers_cfg_frame_tag_counter_ctrl_enable && (layers_cfg_frame_tag_counter_trigger_interrupt || layers_cfg_frame_tag_counter_ctrl_force_count || (ext_timestamp_clk_rising && layers_cfg_frame_tag_counter_ctrl_source_external))),
+        .layers_fpga_timestamp_counter(tlu_ts_out),
+        //.layers_fpga_timestamp_counter_enable(layers_fpga_timestamp_ctrl_count),
+        //.layers_fpga_timestamp_counter_clear(layers_fpga_timestamp_counter_clear),
+        .layers_tlu_trigger_delay(layers_tlu_trigger_delay),
+        .layers_tlu_busy_duration(layers_tlu_busy_duration),
+
 
         .layers_cfg_nodata_continue(layers_cfg_nodata_continue),
 
@@ -531,6 +559,9 @@ module astep24_3l_top(
     wire [1:0] layer_0_spi_miso_internal;
     wire [1:0] layer_1_spi_miso_internal;
     wire [1:0] layer_2_spi_miso_internal;
+
+
+
     layers_readout_switched #(.LAYER_COUNT(3)) switched_readout(
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
@@ -596,7 +627,8 @@ module astep24_3l_top(
             layer_1_cfg_ctrl_disable_autoread,
             layer_0_cfg_ctrl_disable_autoread
         }),
-        .config_frame_tag_counter(layers_cfg_frame_tag_counter),
+        .config_fpga_timestamp(tlu_ts_out),
+        .config_fpga_timestamp_size(layers_fpga_timestamp_ctrl_timestamp_size),
         .config_nodata_continue(layers_cfg_nodata_continue),
         .config_layers_reset({
             layer_2_reset,
@@ -800,21 +832,46 @@ module astep24_3l_top(
     assign ext_dac_spi_csn =  !(hk_ctrl_select_dac & !hk_ctrl_select_adc);
 
 
-    // Counter Clock Synchronisation for FPGA TS
-    // Not needed in current architecture because of MMMC clock synchronisation input
+    // FPGA Timestamp Counter
+    // - If external clear and freeze are selected, clear counter on trigger "T0" input, and update the counter reg going to layer decoder upon trigger negedge pulse
+    // - If external trigger features are not used, just count as configured and pass the counter to the layer decoder at each clock cycle
     //---------------------
 
-    // Input external clock edge is synchronised into the core clock domain to enable Frame tag counter counting
+    tlu_client  #(
+         .TRIG_TS_WIDTH(64),
+         .TRIG_ID_WIDTH(32),
+         .BUSY_DURATION_WIDTH(16),
+         .TRIGGER_DELAY_WIDTH(16),
+         .USE_CHIPSCOPE_TLU(0)
+      ) tlu (
+        .tlu_clk_in(clk_core),
+        .tlu_resn_in(clk_core_resn & layers_fpga_timestamp_ctrl_enable),
+        .tlu_sync_in(tlu_t0),
+        .tlu_trig_in(tlu_trigger),
+        .tlu_busy_out(tlu_busy),
 
-    /*edge_detect ext_timestamp_clk_edge_detect(
-        .clk(clk_core),
-        .resn(clk_core_resn),
-        .in(ext_timestamp_clk & layers_cfg_frame_tag_counter_ctrl_source_external),
-        .rising_edge(ext_timestamp_clk_rising),
-        .falling_edge()
-    );
-    */
-    //assign layers_cfg_frame_tag_counter_enable = ext_timestamp_clk_rising;
+        .enable_in(layers_fpga_timestamp_ctrl_use_tlu),
+        .enable_counter_in(layers_fpga_timestamp_ctrl_count),
+
+        .t0_out(),
+        .trigger_out(),
+        .trigger_ts_out(tlu_ts_out),
+        .trigger_id_out(),
+        .triggerdata_valid_out(),
+
+        .t0_inject_in(1'b0),
+        .trigger_inject_in(1'b0),
+
+        .conf_busy_min_duration_in(layers_tlu_busy_duration),
+        .conf_trigger_delay_in(layers_tlu_trigger_delay),
+        .conf_t0_mode_in(1'b1),
+        .conf_gate_trigger_before_t0_in(1'b1),
+        .conf_gate_trigger_when_busy_in(1'b1),
+        .conf_busy_on_t0_in(layers_fpga_timestamp_ctrl_tlu_busy_on_t0),
+
+        // Not needed for now
+        .busy_in(1'b0)
+      );
 
 
 endmodule

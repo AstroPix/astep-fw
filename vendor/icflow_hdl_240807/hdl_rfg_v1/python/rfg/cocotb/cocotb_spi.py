@@ -1,44 +1,54 @@
-
 import logging
 
-from queue          import Queue
+from queue import Queue
 
 import vip.spi
-from   vip.spi      import VSPIMaster
+from vip.spi import VSPIMaster
 
 import rfg.core
 import rfg.io.spi
-from   rfg.io.spi   import SPIBytesDecoder
+from rfg.io.spi import SPIBytesDecoder
 
 import cocotb
 from cocotb.triggers import Join
-from cocotb.triggers import Timer,RisingEdge
+from cocotb.triggers import Timer, RisingEdge
 
 
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 logger = logging.getLogger(__name__)
+
 
 def debug():
     logger.setLevel(logging.DEBUG)
     vip.spi.debug()
     rfg.io.spi.debug()
 
+
 def info():
     logger.setLevel(logging.INFO)
     rfg.io.spi.info()
     vip.spi.info()
+
 
 class SPIIO(rfg.core.RFGIO):
     """"""
 
     readout_timeout = 2
 
-    def __init__(self,dut,msbFirst=True,clockPeriod = 5):
-
+    def __init__(self, dut, msbFirst=True, clockPeriod=5):
         ## Init VSPI
-        self.spi = VSPIMaster(dut,dut.spi_clk,dut.spi_csn,dut.spi_mosi,dut.spi_miso,msbFirst,clockPeriod = clockPeriod)
+        self.spi = VSPIMaster(
+            dut,
+            dut.spi_clk,
+            dut.spi_csn,
+            dut.spi_mosi,
+            dut.spi_miso,
+            msbFirst,
+            clockPeriod=clockPeriod,
+        )
 
         ## Init Bytes decoder on receiving queue
         self.spiDecoder = SPIBytesDecoder(self.spi.miso_queue)
@@ -48,33 +58,35 @@ class SPIIO(rfg.core.RFGIO):
         # Send a frame with CS 1 and not ready bits in to avoid sim error on "x"
         # Send another bunch of empty bytes after chip selected to finalize resetting the FIFOS
         logger.info(f"RFG SPI Master, MSB First = {self.spi.msbFirst}")
-        await self.spi.send_frame([0x00]*10,use_chip_select = False,no_readout=True)
+        await self.spi.send_frame([0x00] * 10, use_chip_select=False, no_readout=True)
         self.spi.assert_chip_select()
         await Timer(1, units="us")
-        await self.spi.send_frame([0x00]*10,use_chip_select = False,no_readout=True)
+        await self.spi.send_frame([0x00] * 10, use_chip_select=False, no_readout=True)
 
-        #cocotb.start_soon(self.spiDecoder.start_protocol_decoding())
+        # cocotb.start_soon(self.spiDecoder.start_protocol_decoding())
 
     async def close(self):
         self.spi.reset()
 
-    async def writeBytes(self,b : bytearray):
+    async def writeBytes(self, b: bytearray):
         b.append(0x00)
         b.append(0x00)
-        logger.debug("RFG Writing %d bytes",len(b))
-        await self.spi.send_frame(b,use_chip_select = False)
+        logger.debug("RFG Writing %d bytes", len(b))
+        await self.spi.send_frame(b, use_chip_select=False)
         return len(b)
 
-    async def readBytes(self,count : int ) -> bytes:
-        logger.debug(f"RFG Readingc {count} bytes")
+    async def readBytes(self, count: int) -> bytes:
+        logger.debug(f"RFG Reading {count} bytes")
         ## Wait on the decoding queue
         self.spiDecoder.currentExpectedLength = count
         decodeTask = cocotb.start_soon(self.spiDecoder.run_frame_decoding())
 
-        await self.spi.send_frame(map(lambda x: 0x00, range(count+10)),use_chip_select = False)
+        await self.spi.send_frame(
+            map(lambda x: 0x00, range(count + 10)), use_chip_select=False
+        )
         readBytes = []
         for x in range(count):
-            b = self.spiDecoder.decoded_bytes_queue.get(timeout = self.readout_timeout)
+            b = self.spiDecoder.decoded_bytes_queue.get(timeout=self.readout_timeout)
             readBytes.append(b)
 
         await Join(decodeTask)

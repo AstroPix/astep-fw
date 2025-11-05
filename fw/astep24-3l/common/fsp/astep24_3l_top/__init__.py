@@ -55,22 +55,24 @@ LAYER_1_LOOPBACK_MOSI = 0x6a
 LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
 LAYER_2_LOOPBACK_MOSI = 0x6f
 LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
-LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x74
-LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x75
-LAYERS_CFG_FRAME_TAG_COUNTER = 0x79
-LAYERS_CFG_NODATA_CONTINUE = 0x7d
-LAYERS_SR_OUT = 0x7e
-LAYERS_SR_IN = 0x7f
-LAYERS_INJ_CTRL = 0x80
-LAYERS_INJ_WADDR = 0x81
-LAYERS_INJ_WDATA = 0x82
-LAYERS_READOUT = 0x83
-LAYERS_READOUT_READ_SIZE = 0x84
-IO_CTRL = 0x88
-IO_LED = 0x89
-GECCO_SR_CTRL = 0x8a
-HK_CONVERSION_TRIGGER_MATCH = 0x8b
-LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x8f
+LAYERS_FPGA_TIMESTAMP_CTRL = 0x74
+LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x75
+LAYERS_FPGA_TIMESTAMP_COUNTER = 0x79
+LAYERS_TLU_TRIGGER_DELAY = 0x81
+LAYERS_TLU_BUSY_DURATION = 0x83
+LAYERS_CFG_NODATA_CONTINUE = 0x85
+LAYERS_SR_OUT = 0x86
+LAYERS_SR_IN = 0x87
+LAYERS_INJ_CTRL = 0x88
+LAYERS_INJ_WADDR = 0x89
+LAYERS_INJ_WDATA = 0x8a
+LAYERS_READOUT = 0x8b
+LAYERS_READOUT_READ_SIZE = 0x8c
+IO_CTRL = 0x90
+IO_LED = 0x91
+GECCO_SR_CTRL = 0x92
+HK_CONVERSION_TRIGGER_MATCH = 0x93
+LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0x97
 
 
 
@@ -125,22 +127,24 @@ class main_rfg(AbstractRFG):
         LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
         LAYER_2_LOOPBACK_MOSI = 0x6f
         LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
-        LAYERS_CFG_FRAME_TAG_COUNTER_CTRL = 0x74
-        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER = 0x75
-        LAYERS_CFG_FRAME_TAG_COUNTER = 0x79
-        LAYERS_CFG_NODATA_CONTINUE = 0x7d
-        LAYERS_SR_OUT = 0x7e
-        LAYERS_SR_IN = 0x7f
-        LAYERS_INJ_CTRL = 0x80
-        LAYERS_INJ_WADDR = 0x81
-        LAYERS_INJ_WDATA = 0x82
-        LAYERS_READOUT = 0x83
-        LAYERS_READOUT_READ_SIZE = 0x84
-        IO_CTRL = 0x88
-        IO_LED = 0x89
-        GECCO_SR_CTRL = 0x8a
-        HK_CONVERSION_TRIGGER_MATCH = 0x8b
-        LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH = 0x8f
+        LAYERS_FPGA_TIMESTAMP_CTRL = 0x74
+        LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x75
+        LAYERS_FPGA_TIMESTAMP_COUNTER = 0x79
+        LAYERS_TLU_TRIGGER_DELAY = 0x81
+        LAYERS_TLU_BUSY_DURATION = 0x83
+        LAYERS_CFG_NODATA_CONTINUE = 0x85
+        LAYERS_SR_OUT = 0x86
+        LAYERS_SR_IN = 0x87
+        LAYERS_INJ_CTRL = 0x88
+        LAYERS_INJ_WADDR = 0x89
+        LAYERS_INJ_WDATA = 0x8a
+        LAYERS_READOUT = 0x8b
+        LAYERS_READOUT_READ_SIZE = 0x8c
+        IO_CTRL = 0x90
+        IO_LED = 0x91
+        GECCO_SR_CTRL = 0x92
+        HK_CONVERSION_TRIGGER_MATCH = 0x93
+        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0x97
     
     
     
@@ -734,50 +738,76 @@ class main_rfg(AbstractRFG):
     
     
     
-    async def write_layers_cfg_frame_tag_counter_ctrl(self,value : int,flush = False):
-        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],value = value,increment = False,valueLength=1)
+    async def write_layers_fpga_timestamp_ctrl(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],value = value,increment = False,valueLength=1)
         if flush == True:
             await self.flush()
         
     
-    async def read_layers_cfg_frame_tag_counter_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
-        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+    async def read_layers_fpga_timestamp_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
         
     
-    async def read_layers_cfg_frame_tag_counter_ctrl_raw(self, count : int = 1 ) -> bytes: 
-        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_CTRL'],count = count, increment = False)
+    async def read_layers_fpga_timestamp_ctrl_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = False)
         
     
     
     
-    async def write_layers_cfg_frame_tag_counter_trigger(self,value : int,flush = False):
-        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],value = value,increment = True,valueLength=4)
+    async def write_layers_fpga_timestamp_divider(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER'],value = value,increment = True,valueLength=4)
         if flush == True:
             await self.flush()
         
     
-    async def read_layers_cfg_frame_tag_counter_trigger(self, count : int = 4 , targetQueue: str | None = None) -> int: 
-        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+    async def read_layers_fpga_timestamp_divider(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
         
     
-    async def read_layers_cfg_frame_tag_counter_trigger_raw(self, count : int = 4 ) -> bytes: 
-        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER'],count = count, increment = True)
+    async def read_layers_fpga_timestamp_divider_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER'],count = count, increment = True)
         
     
     
     
-    async def write_layers_cfg_frame_tag_counter(self,value : int,flush = False):
-        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER'],value = value,increment = True,valueLength=4)
+    async def read_layers_fpga_timestamp_counter(self, count : int = 8 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_COUNTER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_fpga_timestamp_counter_raw(self, count : int = 8 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_COUNTER'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_tlu_trigger_delay(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_TLU_TRIGGER_DELAY'],value = value,increment = True,valueLength=2)
         if flush == True:
             await self.flush()
         
     
-    async def read_layers_cfg_frame_tag_counter(self, count : int = 4 , targetQueue: str | None = None) -> int: 
-        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+    async def read_layers_tlu_trigger_delay(self, count : int = 2 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_TLU_TRIGGER_DELAY'],count = count, increment = True , targetQueue = targetQueue), 'little') 
         
     
-    async def read_layers_cfg_frame_tag_counter_raw(self, count : int = 4 ) -> bytes: 
-        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER'],count = count, increment = True)
+    async def read_layers_tlu_trigger_delay_raw(self, count : int = 2 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_TLU_TRIGGER_DELAY'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_tlu_busy_duration(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_TLU_BUSY_DURATION'],value = value,increment = True,valueLength=2)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_tlu_busy_duration(self, count : int = 2 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_TLU_BUSY_DURATION'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_tlu_busy_duration_raw(self, count : int = 2 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_TLU_BUSY_DURATION'],count = count, increment = True)
         
     
     
@@ -962,17 +992,17 @@ class main_rfg(AbstractRFG):
     
     
     
-    async def write_layers_cfg_frame_tag_counter_trigger_match(self,value : int,flush = False):
-        self.addWrite(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],value = value,increment = True,valueLength=4)
+    async def write_layers_fpga_timestamp_divider_match(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH'],value = value,increment = True,valueLength=4)
         if flush == True:
             await self.flush()
         
     
-    async def read_layers_cfg_frame_tag_counter_trigger_match(self, count : int = 4 , targetQueue: str | None = None) -> int: 
-        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+    async def read_layers_fpga_timestamp_divider_match(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH'],count = count, increment = True , targetQueue = targetQueue), 'little') 
         
     
-    async def read_layers_cfg_frame_tag_counter_trigger_match_raw(self, count : int = 4 ) -> bytes: 
-        return  await self.syncRead(register = self.Registers['LAYERS_CFG_FRAME_TAG_COUNTER_TRIGGER_MATCH'],count = count, increment = True)
+    async def read_layers_fpga_timestamp_divider_match_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH'],count = count, increment = True)
         
     

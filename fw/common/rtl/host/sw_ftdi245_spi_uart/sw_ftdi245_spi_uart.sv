@@ -13,7 +13,7 @@ module sw_ftdi245_spi_uart(
     input  wire             clk_ftdi,
     input  wire             clk_ftdi_resn,
 
-    output wire [7:0]		rfg_address,
+    output wire [15:0]		rfg_address,
     output wire				rfg_read,
     input  wire				rfg_read_valid,
     input  wire [7:0]		rfg_read_value,

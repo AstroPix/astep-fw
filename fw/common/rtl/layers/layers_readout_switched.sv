@@ -6,7 +6,8 @@ Multi Layers parametezied
 
 */
 module layers_readout_switched #(
-    parameter LAYER_COUNT = 5
+    parameter LAYER_COUNT = 5,
+    parameter TS_WIDTH=64
 ) (
 
     // Clocking
@@ -43,7 +44,8 @@ module layers_readout_switched #(
     // Configurations
     //---------------------
     input wire  [LAYER_COUNT-1:0]       config_disable_autoread,
-    input wire  [31:0]                  config_frame_tag_counter,
+    input wire  [TS_WIDTH-1:0]          config_fpga_timestamp,
+    input wire  [1:0]                   config_fpga_timestamp_size,
     input wire  [7:0]                   config_nodata_continue,
     input wire  [LAYER_COUNT-1:0]       config_layers_reset,
     input wire  [LAYER_COUNT-1:0]       config_layers_disable_miso,
@@ -75,10 +77,10 @@ module layers_readout_switched #(
     wire  [LAYER_COUNT-1:0]       layers_miso_m_axis_tready;
     genvar li;
     generate
-        for (li = 0 ; li < LAYER_COUNT ; li++) begin 
-            
+        for (li = 0 ; li < LAYER_COUNT ; li++) begin
+
             layer_if_a #(.LAYER_ID(li+1)) layer_if_I (
-                
+
                 .clk_core(clk_core),
                 .clk_core_resn(clk_core_resn),
                 .clk_spi(clk_io),
@@ -103,7 +105,8 @@ module layers_readout_switched #(
                 .spi_mosi(layers_spi_mosi[li]),
 
                 .cfg_disable_autoread(config_disable_autoread[li]),
-                .cfg_frame_tag_counter(config_frame_tag_counter),
+                .cfg_fpga_timestamp(config_fpga_timestamp),
+                .cfg_fpga_timestamp_size(config_fpga_timestamp_size),
                 .cfg_nodata_continue(config_nodata_continue),
                 .cfg_layer_reset(config_layers_reset[li]),
                 .cfg_disable_miso(config_layers_disable_miso[li]),
@@ -112,11 +115,11 @@ module layers_readout_switched #(
                 .stat_idle_detected(layers_stat_count_idle[li]),
                 .stat_wronglength_detected(layers_stat_wronglength[li])
             );
-          
+
 
         end
 
-    
+
     endgenerate
 
 
