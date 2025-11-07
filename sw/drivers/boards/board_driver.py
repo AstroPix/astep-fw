@@ -1,12 +1,11 @@
+import asyncio
+
+import rfg.core
+import rfg.io
 from deprecated import deprecated
 
 import drivers.astep.housekeeping
-import rfg.io
-import rfg.core
-import asyncio
-
 from drivers.astropix.asic import Asic
-
 from drivers.astropix.loopback_model import Astropix3LBModel
 
 
@@ -15,6 +14,9 @@ class BoardDriver:
         self.rfg = rfg
         self.houseKeeping = drivers.astep.housekeeping.Housekeeping(self, rfg)
         self.asics = []
+
+        ## By default the FW is reset with 32 bits
+        self.fpgaTimeStampBytesCount = 4
 
         # Synchronisation Utils
         ########
@@ -246,25 +248,6 @@ class BoardDriver:
 
     ## Layers
     ##################
-    async def configureLayersFrameTag(self, enable, flush=False):
-        await self.rfg.write_layers_cfg_frame_tag_counter_ctrl(
-            1 if enable is True else 0, flush
-        )
-
-    async def configureLayersFrameTagFrequency(
-        self, targetFrequencyHz: int, flush=False
-    ):
-        """Calculated required divider to reach the provided target SPI clock frequency"""
-        coreFrequency = self.getFPGACoreFrequency()
-        divider = int(coreFrequency / (targetFrequencyHz))
-        assert divider >= 1 and divider <= 255, (
-            f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency / 255)}"
-        )
-        await self.configureLayersFrameTagDivider(divider, flush)
-
-    async def configureLayersFrameTagDivider(self, divider, flush=False):
-        await self.rfg.write_layers_cfg_frame_tag_counter_trigger_match(divider, False)
-        await self.rfg.write_layers_cfg_frame_tag_counter_trigger(0, flush)
 
     # async def layerSelectSPI(self, layer , cs : bool, flush = False):
     #     """This helper method asserts the shared CSN to 0 by selecting CS on layer 0
@@ -618,8 +601,6 @@ class BoardDriver:
     ############
     #
 
-    fpgaTimeStampBytesCount: int = 4
-
     async def layersConfigFPGATimestamp(
         self,
         enable: bool,
@@ -629,7 +610,24 @@ class BoardDriver:
         timestamp_size: int = 1,
         flush: bool = False,
     ):
-        """Configure the FPGA Timestamp to count from the internal match counter, the external TS input or force at each clock cycle"""
+        """
+        Configure the FPGA Timestamp to count from the internal match counter, the external TS input or force at each clock cycle
+
+        Args:
+            enable (bool): Enable the FPGA Timestamp - If 0, the Timestamp will be 0 and not counting
+            use_divider (bool): Enable the Timestamp divider - use #layersConfigFPGATimestampFrequency to configure frequency
+            use_tlu (bool): Enable the TLU Logic
+            tlu_busy_on_t0 (bool, optional): If set to True, the TLU will assert busy upon a trigger sync "t0" event
+            timestamp_size (int, optional): Number of timestamp bits added to data frames.
+
+                * 0 = 16bits
+                * 1 = 32bits
+                * 2 = 48bits
+                * 3 = 64bits
+
+            flush (bool, optional): Write the register change to the firmware now
+
+        """
         # assert not (source_match_counter is True and source_external is True), (
         #    "Don't configure FPGA TS to both count from internal match counter or the external clock"
         # )
@@ -649,10 +647,31 @@ class BoardDriver:
     async def layersConfigFPGATimestampFrequency(
         self, targetFrequencyHz: int, flush: bool = False
     ):
-        """Configure the internal matching counter to trigger an FPGA Timestmap count with a certain frequency"""
+        """
+        Configure the FPGA Timestamp divider frequency.
+        This method writes the divider register which is matched against the divider counter.
+        If counter and divider match, a one cycle interrupt signal is asserted to increment the timestamp counter by 1, effectively dividing the counting speed.
+        This method calculates the right divider value based on the desired freqency
+
+        Args:
+            frequency (int): The target freqency
+            flush (bool, optional): Write the register change to the firmware now
+
+        Raises:
+            AssertError: If the selected frequency is too low or too high, outside of the divider counter range
+
+        """
         coreFrequency = self.getFPGACoreFrequency()
         divider = int(coreFrequency / (targetFrequencyHz))
         assert divider >= 1 and divider < pow(2, 32), (
             f"Target Freq is too slow, Divider {divider} is too high, min. clock frequency: {int(coreFrequency / pow(2, 32))}"
         )
         await self.rfg.write_layers_fpga_timestamp_divider(divider, flush)
+
+    async def layersConfigTLUBusyTime(self, clockCycles: int, flush: bool = False):
+        """
+        Configure the Number of clock cycles during which the TLU busy output is asserted to 1 after a trigger or sync event.
+        The register is 16bits wide, maximum number of clock cycles is 65535
+        """
+        assert clockCycles > 0 and clockCycles <= 65535
+        await self.rfg.write_layers_tlu_busy_duration(clockCycles, flush)

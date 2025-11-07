@@ -1,17 +1,14 @@
-import sys
 import os
 import os.path
-
-import cocotb
-from cocotb.triggers import Timer, RisingEdge, Join, Combine, with_timeout
-from cocotb.clock import Clock
-
-import vip.cctb
-import vip.astropix3
-
+import sys
 
 ## Import simulation target driver
 import astep24_3l_sim
+import cocotb
+import vip.astropix3
+import vip.cctb
+from cocotb.clock import Clock
+from cocotb.triggers import Combine, Join, RisingEdge, Timer, with_timeout
 
 
 async def print_layers_stats(dut, driver):
@@ -77,8 +74,14 @@ async def impl_test_layer_0_single_frame_noautoread_tssize(
         "IDLE + Number of Frame bytes must be equal to number of bytes out of model"
     )
 
-    ## Now Flush the readout buffer to be able to run that method a second time
-    await driver.readoutReadBytes(7 + driver.fpgaTimeStampBytesCount)
+    ## Now Get readout buffer to be able to run that method a second time
+    ## Also check that the dataframe second byte has the correct length
+    bytes = await driver.readoutReadBytes(7 + driver.fpgaTimeStampBytesCount)
+
+    dut._log.info(f"Frame Bytes: {bytes}")
+    assert bytes[0] == 1 + 5 + driver.fpgaTimeStampBytesCount, (
+        "Data Frame Length should equal 5 bytes of astropix and X bytes of timestamp depending on the configuration"
+    )
     await print_layers_stats(dut, driver)
 
     await Timer(50, units="us")
@@ -111,11 +114,20 @@ async def test_layer_0_single_frame_noautoread_alltssizes(dut):
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_layer_0_double_frame_noautoread(dut):
+    """"""
     ## Driver, asic, clock+reset
     asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     dut._log.info(
         "Current Readout size after untapped frame: %d",
@@ -135,10 +147,12 @@ async def test_layer_0_double_frame_noautoread(dut):
 
     ## Check That two Frames were seen
     await Timer(50, units="us")
-    assert await driver.readoutGetBufferSize() == 11 * 2
+    assert (
+        await driver.readoutGetBufferSize() == (7 + driver.fpgaTimeStampBytesCount) * 2
+    )
 
     ## Readout and print
-    bytes = await driver.readoutReadBytes(11 * 2)
+    bytes = await driver.readoutReadBytes((7 + driver.fpgaTimeStampBytesCount) * 2)
     for b in bytes:
         print(f"B={hex(b)}")
 
@@ -161,6 +175,14 @@ async def test_layer_0_spi_stall(dut):
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
     await Timer(50, units="us")
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     await driver.setLayerConfig(
         layer=0, reset=False, hold=False, autoread=False, chipSelect=True, flush=True
@@ -200,11 +222,21 @@ async def test_layer_0_spi_stall(dut):
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_layer_0_single_frame_autoread(dut):
+    """"""
+
     ## Driver, asic, clock+reset
     asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     assert await driver.readoutGetBufferSize() == 0
 
@@ -237,11 +269,21 @@ async def test_layer_0_single_frame_autoread(dut):
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_layer_0_two_differentframes_autoread(dut):
+    """"""
+
     ## Driver, asic, clock+reset
     asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     assert await driver.readoutGetBufferSize() == 0
 
@@ -277,11 +319,21 @@ async def test_layer_0_two_differentframes_autoread(dut):
 
 @cocotb.test(timeout_time=2, timeout_unit="ms", skip=True)
 async def test_layer_0_single_frame_autoread_stopduringread(dut):
+    """"""
+
     ## Driver, asic, clock+reset
     asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(5, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     assert await driver.readoutGetBufferSize() == 0
 
@@ -344,6 +396,14 @@ async def test_3_layers_single_frame(dut):
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
 
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
+
     #########
 
     ## Start the layers, with autoread enabled
@@ -365,30 +425,20 @@ async def test_3_layers_single_frame(dut):
     await Timer(100, units="us")
     readoutLength = await driver.readoutGetBufferSize()
 
-    ## Each frame length is 12 (see previous test) -> We should have 3*12
+    ## Each frame length is 11 (see previous test) -> We should have 3*11
     assert readoutLength == 3 * 11
 
     await Timer(10, units="us")
 
     dut._log.info("Done Frames in sequence")
 
+    ## Flush readout buffer
+    await driver.readoutReadBytes(3 * 11)
+
     ###########
 
     ## Same test but generate the frames in parallel
-    ## First warm reset
-    await vip.cctb.warm_reset(dut)
     await Timer(50, units="us")
-
-    ## Start the layers, with autoread enabled
-    await driver.setLayerConfig(
-        layer=0, reset=False, hold=False, autoread=True, flush=False
-    )
-    await driver.setLayerConfig(
-        layer=1, reset=False, hold=False, autoread=True, flush=False
-    )
-    await driver.setLayerConfig(
-        layer=2, reset=False, hold=False, autoread=True, flush=True
-    )
 
     ## Generate Frames
     tasks = []
@@ -399,9 +449,11 @@ async def test_3_layers_single_frame(dut):
     dut._log.info("Sequencing tasks done")
 
     ## Wait a bit and check the readout size
-    await Timer(50, units="us")
+    await Timer(100, units="us")
     readoutLength = await driver.readoutGetBufferSize()
     assert readoutLength == 3 * 11
+
+    await print_layers_stats(dut, driver)
 
     await Timer(50, units="us")
 
@@ -421,41 +473,16 @@ async def test_3_layers_multiple_frames_parallel(dut):
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
 
-    await driver.configureLayersFrameTag(enable=True, flush=True)
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
 
     await print_layers_stats(dut, driver)
 
-    #########
-
-    ## Start the layers, with autoread enabled
-    # await driver.setLayerConfig(layer = 0, reset = False, hold = False, autoread = True , flush = False )
-    # await driver.setLayerConfig(layer = 1, reset = False, hold = False, autoread = True , flush = False )
-    # await driver.setLayerConfig(layer = 2, reset = False, hold = False, autoread = True , flush = True )
-
-    ## Generate Frames to all in parallel
-    # for i in range(3):
-    #    await asics[i].generateTestFrame(length = 5)
-    #    await asics[i].generateTestFrame(length = 5)
-
-    ## Wait a bit and get the bytes size
-    # await Timer(200, units="us")
-    # readoutLength = await driver.readoutGetBufferSize()
-
-    ## Each frame length is 12 (see previous test) -> We should have 3*12
-    # await print_layers_stats(dut,driver)
-    # assert readoutLength == 3*11*2 , f"Expected {3*11*2} bytes"
-
-    # await Timer(10, units="us")
-
-    # dut._log.info("Done Frames in sequence")
-
-    # await Timer(50, units="us")
-    # return
-    ###########
-
-    ## Same test but generate the frames in parallel
-    ## First warm reset
-    await vip.cctb.warm_reset(dut)
     await Timer(50, units="us")
 
     ## Start the layers, with autoread enabled
@@ -481,7 +508,7 @@ async def test_3_layers_multiple_frames_parallel(dut):
     Combine(*tasks)
     dut._log.info("Sequencing tasks done")
 
-    ## Wait a bit and check the readout size
+    ## Wait a bit and check the readout size - also read the bytes to avoid buffer getting full, since simulation buffer size is small (16)
     totalBytes = 0
     for i in range(6):
         await Timer(20, units="us")
