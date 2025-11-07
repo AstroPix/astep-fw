@@ -4,10 +4,10 @@ PYTHON ?= /usr/bin/python3
 
 
 serve: setup
-	@.venv/bin/python3 -m mkdocs serve
+	@.venv/bin/mkdocs serve --livereload
 
 generate: setup
-	@.venv/bin/python3 -m mkdocs build
+	@.venv/bin/mkdocss build
 
 setup: .venv/bin/mkdocs .venv/bin/icf_updated
 

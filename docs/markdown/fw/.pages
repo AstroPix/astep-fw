@@ -3,6 +3,7 @@ nav:
     - architecture.md
     - clocking_reset_startup.md
     - layer_if.md
+    - fpga_timestamp.md
     - host_if.md
     - hardware_targets.md
     - main_rfg.md
