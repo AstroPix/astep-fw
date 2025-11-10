@@ -7,7 +7,7 @@ serve: setup
 	@.venv/bin/mkdocs serve --livereload
 
 generate: setup
-	@.venv/bin/mkdocss build
+	@.venv/bin/mkdocs build
 
 setup: .venv/bin/mkdocs .venv/bin/icf_updated
 

@@ -139,7 +139,7 @@ The Layer interface encapsulates data from the sensor in a layer frame format, m
 - **Byte 0**: The Length of trailing data (up to 255 bytes, which could allow merging multiple sensor data frames)
 - **Byte 1**: The ID of the layer - This value is fixed in fpga code via a parameter, but could be made software configurable
 - **Bytes 2 : n - 4**: The Sensor data, n represents the number of bytes from the sensor. 5 Bytes for V2/V3 or 8 Bytes for V4
-- **Bytes n-4 : end**: An FPGA Timestamp counter value captured when the first sensor data byte has been detected
+- **Bytes n-4 : end**: An FPGA Timestamp counter value captured when the first sensor data byte has been detected (See [Trigger Logic](./fpga_timestamp.md) for timestamp configuration details)
 
 <figure markdown>
   ![block-layer-packet](./astep-fw-drawings.drawio)

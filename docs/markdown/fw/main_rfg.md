@@ -726,7 +726,7 @@
 **Address**: 0x74
 
 
-**Reset Value**: 8'h0
+**Reset Value**: 8'hA
 
 
 | [7:6] | [5:4] | 3 | 2 | 1 | 0 |
@@ -736,7 +736,7 @@
 - enable : -
 - use_divider : If 1, the FGPA Timestamp will increment after the matching counter reached its match value, otherwise will increment on each core clock cycle
 - use_tlu : If 1, the TLU module will be used
-- tlu_busy_on_t0 : -
+- tlu_busy_on_t0 : If 1, the busy signal out of TLU will be asserted after t0 initial
 - timestamp_size : 16/32/48/64 bits Timestamp width
 
 
@@ -938,7 +938,7 @@
 **Address**: 0x90
 
 
-**Reset Value**: 8'b00001000
+**Reset Value**: 8'b00011000
 
 
 | [7:6] | 5 | 4 | 3 | 2 | 1 | 0 |
