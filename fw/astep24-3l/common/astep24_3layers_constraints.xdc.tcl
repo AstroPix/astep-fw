@@ -84,6 +84,10 @@ for {set i 0} {$i < $layersCount} {incr i} {
     #create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
     create_generated_clock -name spi_layer${i}_clock_internal -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 2  [get_pins astep24_3l_top_I/switched_readout/genblk1\[$i\].layer_if_I/spi_io/spi_clk_reg_reg/Q]
 }
+
+## Generated HK SPI Clouck output produced by spi master, twice as slow as reference spi clock
+create_generated_clock -name hk_spi_divided_clock_internal -source [get_pins -of_objects [get_clocks hk_spi_divided]] -divide_by 2  [get_pins astep24_3l_top_I/housekeeping/ext_adcdac_driver/spi_io/spi_clk_reg_reg/Q]
+
 #set i 0
 #foreach layer_clk [get_ports -quiet layer_*_spi_clk] {
 #    create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
@@ -135,4 +139,26 @@ if {[llength [get_ports -quiet ext_spi*]]>0} {
 
     set_input_delay  -max -clock hk_spi_divided  2                      [get_ports ext_spi_adc_miso ] -clock_fall
     set_input_delay  -min -clock hk_spi_divided  -1                     [get_ports ext_spi_adc_miso ] -clock_fall
+}
+
+## TLU
+###############
+
+set_input_delay  -max -clock ext_clk_se  2                          [get_ports tlu_t0 ]
+set_input_delay  -min -clock ext_clk_se  -1                         [get_ports tlu_t0 ]
+
+
+if {$::IC_BOARD=="astropix-nexys"} {
+    set_input_delay  -max -clock ext_clk_se  2                      [get_ports tlu_trigger_p ]
+    set_input_delay  -min -clock ext_clk_se  -1                     [get_ports tlu_trigger_p ]
+
+    set_output_delay -max -clock ext_clk_se 5                           [get_ports {tlu_busy_p tlu_busy_n }  ]
+    set_output_delay -min -clock ext_clk_se 2                           [get_ports {tlu_busy_p tlu_busy_n}  ]
+
+} else {
+    set_input_delay  -max -clock ext_clk_se  2                      [get_ports tlu_trigger ]
+    set_input_delay  -min -clock ext_clk_se  -1                     [get_ports tlu_trigger ]
+
+    set_output_delay -max -clock ext_clk_se 5                           [get_ports {tlu_busy }  ]
+    set_output_delay -min -clock ext_clk_se 2                           [get_ports {tlu_busy}  ]
 }

@@ -218,10 +218,31 @@ set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS33} [get_ports ext_spi_mosi]
 
 
 ### Pmod header JC
-set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVDS_25} [get_ports clk_ext_p] ; # Pin 1
-set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVDS_25} [get_ports clk_ext_n] ; # Pin 2
-set_property  -dict {PACKAGE_PIN AA8 IOSTANDARD LVCMOS33} [get_ports clk_ext] ;  # Pin 3
-set_property PULLUP true [get_ports clk_ext]
+### REFERENCE
+#set_property -dict { PACKAGE_PIN Y6    IOSTANDARD LVCMOS33 } [get_ports { jc[0] }]; #IO_L18P_T2_34 Sch=jc_p[1]
+#set_property -dict { PACKAGE_PIN AA6   IOSTANDARD LVCMOS33 } [get_ports { jc[1] }]; #IO_L18N_T2_34 Sch=jc_n[1]
+#set_property -dict { PACKAGE_PIN AA8   IOSTANDARD LVCMOS33 } [get_ports { jc[2] }]; #IO_L22P_T3_34 Sch=jc_p[2]
+#set_property -dict { PACKAGE_PIN AB8   IOSTANDARD LVCMOS33 } [get_ports { jc[3] }]; #IO_L22N_T3_34 Sch=jc_n[2]
+#set_property -dict { PACKAGE_PIN R6    IOSTANDARD LVCMOS33 } [get_ports { jc[4] }]; #IO_L17P_T2_34 Sch=jc_p[3]
+#set_property -dict { PACKAGE_PIN T6    IOSTANDARD LVCMOS33 } [get_ports { jc[5] }]; #IO_L17N_T2_34 Sch=jc_n[3]
+#set_property -dict { PACKAGE_PIN AB7   IOSTANDARD LVCMOS33 } [get_ports { jc[6] }]; #IO_L20P_T3_34 Sch=jc_p[4]
+#set_property -dict { PACKAGE_PIN AB6   IOSTANDARD LVCMOS33 } [get_ports { jc[7] }]; #IO_L20N_T3_34 Sch=jc_n[4]
+
+# OLD version from bobae
+#set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVDS_25} [get_ports clk_ext_p] ; # Pin 1
+#set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVDS_25} [get_ports clk_ext_n] ; # Pin 2
+#set_property  -dict {PACKAGE_PIN AA8 IOSTANDARD LVCMOS33} [get_ports clk_ext] ;  # Pin 3
+#set_property PULLUP true [get_ports clk_ext]
+
+# Updated TLU mapping for DESY standard setup
+set_property -dict { PACKAGE_PIN Y6    IOSTANDARD LVDS_25 } [get_ports { tlu_trigger_p }]; #IO_L18P_T2_34 Sch=jc_p[1]
+set_property -dict { PACKAGE_PIN AA6   IOSTANDARD LVDS_25 } [get_ports { tlu_trigger_n }]; #IO_L18N_T2_34 Sch=jc_n[1]
+set_property -dict { PACKAGE_PIN AA8   IOSTANDARD LVCMOS33 } [get_ports { tlu_t0 }]; #IO_L22P_T3_34 Sch=jc_p[2]
+set_property -dict { PACKAGE_PIN AB8   IOSTANDARD LVCMOS33 } [get_ports { clk_ext }]; #IO_L22N_T3_34 Sch=jc_n[2] This PIN should be  CONT/NOTUSED - used as single ended clk for now for backward compatibility
+set_property -dict { PACKAGE_PIN R6    IOSTANDARD LVDS_25 } [get_ports { clk_ext_p }]; #IO_L17P_T2_34 Sch=jc_p[3]
+set_property -dict { PACKAGE_PIN T6    IOSTANDARD LVDS_25 } [get_ports { clk_ext_n }]; #IO_L17N_T2_34 Sch=jc_n[3]
+set_property -dict { PACKAGE_PIN AB7   IOSTANDARD LVCMOS33 } [get_ports { tlu_busy_p }]; #IO_L20P_T3_34 Sch=jc_p[4]
+set_property -dict { PACKAGE_PIN AB6   IOSTANDARD LVCMOS33 } [get_ports { tlu_busy_n }]; #IO_L20N_T3_34 Sch=jc_n[4]
 
 #set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_sin]
 #set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ck]

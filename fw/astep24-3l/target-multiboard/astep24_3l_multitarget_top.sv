@@ -8,7 +8,7 @@ module astep24_3l_multitarget_top (
 
     input  wire				sysclk,
 
-    // Board Stuff
+    // Board Stuff NEXYS
     //-----------
     input  wire				resn,
 
@@ -62,11 +62,23 @@ module astep24_3l_multitarget_top (
     input wire              clk_ext_n,
     input wire              clk_ext,
 
+    // TLU
+    input wire              tlu_t0,
+    input wire              tlu_trigger_p,
+    input wire              tlu_trigger_n,
+    output wire             tlu_busy_p,
+     output wire            tlu_busy_n,
+
     `elsif TARGET_CMOD
 
     input  wire             ext_resn, // Resetn from pin, beagle board connector
 
     input wire              clk_ext,
+
+    // TLU
+    input wire              tlu_t0,
+    input wire              tlu_trigger,
+    output wire             tlu_busy,
 
     output wire [1:0]       led,
     output wire             led0_r,
@@ -80,6 +92,7 @@ module astep24_3l_multitarget_top (
     `endif
 
     //--------------------
+
 
     // Sample + Timestamp clocks
     // Sample clock can be differential or single ended at the chip on the Carrier
@@ -238,9 +251,12 @@ module astep24_3l_multitarget_top (
 
 
 
-
+    // Clocks and TLU for targets
     // SCLOCK_SE_DIFF ->  SE clock as differential to carrier other wise CMOS single ended to carrier
     // Normal Diff sample clock -> directly to chip or can be replicated 4 times in telescope mode
+    // ---------------
+
+
     wire clk_ext_internal;
     `ifdef TARGET_NEXYS
 
@@ -281,6 +297,14 @@ module astep24_3l_multitarget_top (
             OBUFDS  clk_sample_odiff( .I(sample_clk_gated), .O(sample_clk_p), .OB(sample_clk_n));
         `endif
 
+        // TLU
+        IBUFDS  tlu_trigger_diffin( .I(tlu_trigger_p), .IB(tlu_trigger_n), .O(tlu_trigger) );
+        wire   tlu_busy;
+        assign tlu_busy_p =  tlu_busy;
+        assign tlu_busy_n =  !tlu_busy;
+
+
+    //-- CMOD
     `else
             // CMOD Case
             assign clk_ext_internal = clk_ext;
@@ -560,7 +584,12 @@ module astep24_3l_multitarget_top (
         .io_ctrl_gecco_sample_clock_se(io_ctrl_gecco_sample_clock_se),
         .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable),
         .io_ctrl_fpga_ts_clock_diff(io_ctrl_fpga_ts_clock_diff),
-        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts)
+        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts),
+
+        // 11/25,  Richard added TLU trigger I/O
+        .tlu_t0(tlu_t0),
+        .tlu_trigger(tlu_trigger),
+        .tlu_busy(tlu_busy)
 
 
     );

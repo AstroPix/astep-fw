@@ -162,7 +162,7 @@ set baseRegisters {
     LAYERS_READOUT   {-fifo_axis_slave -read_count -doc "Reads from the readout data fifo"}
     IO_CTRL {
         -doc "Configuration register for I/O multiplexers and gating."
-        -reset 8'b00001000
+        -reset 8'b00011000
         -bits {
             sample_clock_enable        {-doc "Sample clock output enable. Sample clock output is 0 if this bit is set to 0"}
             timestamp_clock_enable     {-doc "Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0"}

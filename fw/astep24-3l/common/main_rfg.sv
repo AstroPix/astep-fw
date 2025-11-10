@@ -437,7 +437,7 @@ module main_rfg(
             layer_0_loopback_mosi_read_size_reg <= '0;
             layer_1_loopback_mosi_read_size_reg <= '0;
             layer_2_loopback_mosi_read_size_reg <= '0;
-            layers_fpga_timestamp_ctrl_reg <= 8'h0;
+            layers_fpga_timestamp_ctrl_reg <= 8'hA;
             layers_fpga_timestamp_divider_reg <= '0;
             layers_fpga_timestamp_divider_up <= 1'b1;
             layers_tlu_trigger_delay_reg <= 16'd2;
@@ -449,7 +449,7 @@ module main_rfg(
             layers_inj_waddr_reg <= '0;
             layers_inj_wdata_reg <= '0;
             layers_readout_read_size_reg <= '0;
-            io_ctrl_reg <= 8'b00001000;
+            io_ctrl_reg <= 8'b00011000;
             io_led_reg <= '0;
             gecco_sr_ctrl_reg <= '0;
             hk_conversion_trigger_match_reg <= 32'd10;
