@@ -22,6 +22,8 @@ from tqdm import tqdm
 import drivers.astep.serial
 import drivers.astropix.decode
 import drivers.boards
+from drivers.cmod import CMODBoard
+from drivers.gecco import GeccoCarrierBoard
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -66,7 +68,7 @@ class AstepRun:
     async def fpga_configure_clocks(
         self,
         FPGATSfreq: int = 1000000,
-        externalTS: bool = False,
+        useTLU: bool = False,
         SPIfreq: int = 1000000,
         flush: bool = True,
     ):
@@ -79,13 +81,20 @@ class AstepRun:
         await self.boardDriver.layersConfigFPGATimestampFrequency(
             targetFrequencyHz=FPGATSfreq, flush=flush
         )
+
         await self.boardDriver.layersConfigFPGATimestamp(
             enable=True,
-            force=False,
-            source_match_counter=True,
-            source_external=externalTS,
-            flush=flush,
+            use_divider=True,
+            use_tlu=useTLU,
+            flush=True,
         )
+        # await self.boardDriver.layersConfigFPGATimestamp(
+        #    enable=True,
+        #    force=False,
+        #    source_match_counter=True,
+        #    source_external=externalTS,
+        #    flush=flush,
+        # )
         # Configure SPI readout
         await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
 
@@ -246,7 +255,7 @@ class AstepRun:
     # Set chip routing
     async def chips_setID(self, layer: int = 0, firstChip: int = 0) -> None:
         logger.info(f"Writting SPI Routing frame for Layer {layer}")
-        await self.boardDriver.writeSPIRoutingFrame(layer, firstChip)
+        await self.boardDriver.writeRoutingFrame(lane=layer, firstChipID=firstChip)
 
     # The method to write data to the asic.
     async def chips_setcfg(self):
@@ -266,7 +275,9 @@ class AstepRun:
                 await self.boardDriver.layersSelectSPI(flush=True)  # Set CS
                 for layer in self.boardDriver.asics.keys():
                     if chip < self.boardDriver.asics[layer].num_chips:
-                        await self.boardDriver.writeSPIConfig(layer, chip)
+                        await self.boardDriver.writeSPIAsicConfig(
+                            lane=layer, targetChip=chip
+                        )
                 await self.boardDriver.layersDeselectSPI(flush=True)  # Unset CS
 
     async def chips_reset_configure(self):
@@ -291,12 +302,14 @@ class AstepRun:
                 disableMISO=True,
                 flush=True,
             )
-            await self.boardDriver.writeSPI([0x00] * 128, layer)
+            await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 128)
             counter = 1
             while (
                 await self.boardDriver.getLayerStatus(layer) & 0x1
             ) == 0 and counter < 20:
-                await self.boardDriver.writeSPI([0x00] * 128, layer)
+                await self.boardDriver.writeSPIBytesToLane(
+                    lane=layer, bytes=[0x00] * 128
+                )
                 counter += 1
             await self.boardDriver.setLayerConfig(
                 layer,
@@ -737,13 +750,15 @@ class AstepRun:
         """Reads a register to check a write and readback to the firmware is working"""
         try:  # Attempts to write to and read from a register
             ## Try to read the firmware ID and or Version
-            await self.boardDriver.readFirmwareID()
+            fwId = await self.boardDriver.readFirmwareID()
+            logger.info(f"Reading FWID successful: {fwId}")
             # self.nexys.write_register(0x09, 0x55, True)
             # self.nexys.read_register(0x09)
             # self.nexys.spi_reset()
             # self.nexys.sr_readback_reset()
-        except Exception:
-            raise RuntimeError("Could not read or write from astropix!")
+        except Exception as e:
+            logger.error("Testing FPGA I/O Failed, is the FW flashed?")
+            raise RuntimeError("Could not read or write from FW,  is the FW flashed?")
 
     # progress bar
     def _wait_progress(self, seconds: int):

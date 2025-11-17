@@ -1,4 +1,5 @@
 """"""
+
 """
 Created on 30/09/23
 
@@ -6,18 +7,21 @@ Created on 30/09/23
 
 """
 
-import logging
-import rfg.core
-import re
-import atexit
 import asyncio
+import atexit
+import logging
+import re
 from functools import partial
 
+import rfg.core
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
 def debug():
     logger.setLevel(logging.DEBUG)
+
 
 FLAG_LIST_SERIAL = 0
 FLAG_LIST_DESCRIPTOR = 2
@@ -25,11 +29,12 @@ FLAG_LIST_DESCRIPTOR = 2
 try:
     import ftd2xx as ftd
 except ModuleNotFoundError as e:
-        logger.error(f"FTD2XX python module is not installed: {str(e)}")
-        exit(-1)
+    logger.error(f"FTD2XX python module is not installed: {str(e)}")
+    exit(-1)
 except OSError as e:
-        logger.error(f"FTD2XX Library is not installed: {str(e)}")
-        exit(-1)
+    logger.error(f"FTD2XX Library is not installed: {str(e)}")
+    exit(-1)
+
 
 def isFTDIConnected():
     """Return true if an FTDI Device was detected"""
@@ -41,39 +46,48 @@ def isFTDIConnected():
     except ftd.DeviceError as e:
         return False
 
-def listFTDIDevices(flag = FLAG_LIST_SERIAL):
+
+def listFTDIDevices(flag=FLAG_LIST_SERIAL):
     """Returns a list with info as requested, or an empty list if no device is connected"""
     try:
-        res =  ftd.listDevices(flag)
+        res = ftd.listDevices(flag)
         return [] if res is None else list(enumerate(res))
     except ftd.DeviceError as e:
         return []
 
-def listFTDIDevicesMatching(searchPattern : str , flag = FLAG_LIST_SERIAL):
-    devices = listFTDIDevices(flag)
-    return  [indexAndDesc for indexAndDesc in devices if searchPattern in str(indexAndDesc[1])]
 
+def listFTDIDevicesMatching(searchPattern: str, flag=FLAG_LIST_SERIAL):
+    devices = listFTDIDevices(flag)
+    return [
+        indexAndDesc
+        for indexAndDesc in devices
+        if searchPattern in str(indexAndDesc[1])
+    ]
 
 
 class FTDIIO(rfg.core.RFGIO):
+    _deviceHandle: ftd.FTD2XX | None = None
 
-    _deviceHandle : ftd.FTD2XX | None = None
-
-    def __init__(self,searchPattern : str , searchFlag:int = FLAG_LIST_SERIAL):
+    def __init__(self, searchPattern: str, searchFlag: int = FLAG_LIST_SERIAL):
+        super().__init__()
         self.searchPattern = searchPattern
         self.searchFlag = searchFlag
         self._deviceHandle = None
 
     async def open(self):
-        matchingDevices = listFTDIDevicesMatching(self.searchPattern,self.searchFlag)
+        matchingDevices = listFTDIDevicesMatching(self.searchPattern, self.searchFlag)
         if len(matchingDevices) == 0:
-            raise OSError(f"Cannot Open FTDI RFG IO, no device matches pattern {self.searchPattern}")
+            raise OSError(
+                f"Cannot Open FTDI RFG IO, no device matches pattern {self.searchPattern}"
+            )
         elif len(matchingDevices) > 1:
-            raise OSError(f"Cannot Open FTDI RFG IO, more than one device matches pattern {self.searchPattern}")
+            raise OSError(
+                f"Cannot Open FTDI RFG IO, more than one device matches pattern {self.searchPattern}"
+            )
         else:
-            self.matchedDevice = matchingDevices[0] ## (index,descriptor)
+            self.matchedDevice = matchingDevices[0]  ## (index,descriptor)
             self._deviceHandle = ftd.open(self.matchedDevice[0])
-            atexit.register(exit_close,self)
+            atexit.register(exit_close, self)
             self.__setup()
             logger.info(f"Opened FTDI Device {self.matchedDevice[1]}")
 
@@ -95,61 +109,65 @@ class FTDIIO(rfg.core.RFGIO):
                 self.matchedDevice = None
                 self._deviceHandle = None
 
-
-    def readBytesIO(self,count:int) -> bytes:
+    def readBytesIO(self, count: int) -> bytes:
         remaining = count
         bytes = bytearray()
         while remaining > 0:
-            logger.debug("Reading %d bytes from FTDI",remaining)
+            logger.debug("Reading %d bytes from FTDI", remaining)
             rbytes = self._deviceHandle.read(remaining)
-            logger.debug("Read %d bytes from FTDI ",len(rbytes))
-            if len(rbytes)>0:
+            logger.debug("Read %d bytes from FTDI ", len(rbytes))
+            if len(rbytes) > 0:
                 bytes.extend(rbytes)
                 remaining = remaining - len(rbytes)
             else:
-                if rfg.io.isIOCancelled():
+                if rfg.io.isIOCancelled() or self.isIOOperationCancelled():
                     break
 
         return bytes
 
-
-    def writeBytesIO(self,bytesToWrite : bytearray):
+    def writeBytesIO(self, bytesToWrite: bytearray):
         remaining = len(bytesToWrite)
         total = len(bytesToWrite)
         while remaining > 0:
-            logger.debug("Writing %d bytes to FTDI",remaining)
-            outBytes = bytes(bytesToWrite[total-remaining:total:1])
+            logger.debug("Writing %d bytes to FTDI", remaining)
+            outBytes = bytes(bytesToWrite[total - remaining : total : 1])
             written = self._deviceHandle.write(outBytes)
-            logger.debug("Written %d bytes to FTDI",written)
-            if written>0:
+            logger.debug("Written %d bytes to FTDI", written)
+            if written > 0:
                 remaining = remaining - written
             else:
-                if rfg.io.isIOCancelled():
+                if rfg.io.isIOCancelled() or self.isIOOperationCancelled():
                     break
 
-
-    async def writeBytes(self,bytes : bytearray):
+    async def writeBytes(self, bytes: bytearray):
         try:
-            result = await asyncio.get_running_loop().run_in_executor(None, partial(self.writeBytesIO,bytesToWrite=bytes))
-            #print(f"Res uart: {len(result)}")
+            result = await asyncio.get_running_loop().run_in_executor(
+                None, partial(self.writeBytesIO, bytesToWrite=bytes)
+            )
+            # print(f"Res uart: {len(result)}")
             return result
         except Exception as e:
-            print("Error writebytes: "+str(e))
+            print("Error writebytes: " + str(e))
 
-
-
-    async def readBytes(self,count : int ) -> bytes:
-
-        #print("Reading")
+    async def readBytes(self, count: int) -> bytes:
+        # print("Reading")
         try:
-            result = await asyncio.get_running_loop().run_in_executor(None, partial(self.readBytesIO,count=count))
-            #print(f"Res uart: {len(result)}")
-            return result
+            async with asyncio.timeout(2):
+                result = await asyncio.get_running_loop().run_in_executor(
+                    None, partial(self.readBytesIO, count=count)
+                )
+                # print(f"Res uart: {len(result)}")
+                return result
+        except TimeoutError as e:
+            logger.error("Could not read bytes from FTDI until timeout")
+            self.signalCancelIOOperation()
+            raise Exception("Could not read bytes from FW (timeout)")
         except Exception as e:
-            print("Error readbytes: "+str(e))
+            logger.error("Error reading bytes from FTDI: " + str(e))
+            raise e
 
 
-
-def exit_close(io : FTDIIO):
+def exit_close(io: FTDIIO):
     """This function is called through atexit to ensure Device is properly closed upon program exit"""
+    logger.info("Closing FTDI Device")
     asyncio.run(io.close())

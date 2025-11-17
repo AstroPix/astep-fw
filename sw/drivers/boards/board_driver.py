@@ -149,7 +149,7 @@ class BoardDriver:
 
     async def writeRoutingFrame(self, lane: int = 0, firstChipID: int = 0):
         spiBytes = self.getAsic(lane).getRoutingFrame(
-            firstChipID, paddingBytes=self.asics[lane].num_chips - 1 * 2
+            firstChipID=firstChipID, paddingBytes=self.asics[lane].num_chips - 1 * 2
         )
         await self.writeSPIBytesToLane(lane=lane, bytes=spiBytes)
 

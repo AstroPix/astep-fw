@@ -174,8 +174,15 @@ async def newmain(args):
     from astep import AstepRun as Run  # Name TBC
 
     arun = Run(chipversion=3)
+
+    logger.info("Opening FPGA")
+
+    # Open Board, Gecco or CMOD UART
     # await arun.open_fpga(cmod=True, uart=True) #CMOD
     await arun.open_fpga(cmod=False, uart=False)  # Gecco
+
+    logger.info("FPGA Opened")
+
     await arun.fpga_configure_clocks()
     await arun.fpga_configure_autoread_keepalive(4)
     arun.load_yaml(args.yaml, args.chipsPerRow)
@@ -186,10 +193,10 @@ async def newmain(args):
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
     await arun.buffer_flush()
-    await arun.chips_enable_readout()
+    await arun.chips_enable_readout(autoread=False)
     # Main loop here
     await arun.chips_disable_readout()
-    arun.fpga_close_connection()
+    await arun.fpga_close_connection()
 
 
 async def main(args):
@@ -567,6 +574,9 @@ if __name__ == "__main__":
     formatter = logging.Formatter(
         "%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s"
     )
+
+    # Richard 17/11/25 Create Loggin File Handle, make sure containing folder exists
+    os.makedirs(os.path.dirname(os.path.abspath(logname)), exist_ok=True)
     fh = logging.FileHandler(logname)
     fh.setFormatter(formatter)
     sh = logging.StreamHandler()
@@ -626,4 +636,12 @@ if __name__ == "__main__":
     elif args.readout < 0 or args.readout > 4098:
         args.readout = 4096
 
-    asyncio.run(newmain(args))
+    try:
+        asyncio.run(newmain(args))
+        logger.info("Finished Main")
+
+    except KeyboardInterrupt:
+        logger.info("Stopping due to CTRL-C")
+        sys.exit(-1)
+    except Exception as e:
+        logger.error(f"Error during main: {e}")
