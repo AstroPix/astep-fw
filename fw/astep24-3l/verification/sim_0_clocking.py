@@ -1,13 +1,11 @@
-import cocotb
-from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
-from cocotb.clock import Clock
-from cocotbext.uart import UartSource, UartSink
-
-import vip.cctb
-
 ## Import simulation target driver
 import astep24_3l_sim
+import cocotb
 import rfg.cocotb.cocotb_spi
+import vip.cctb
+from cocotb.clock import Clock
+from cocotb.triggers import Combine, FallingEdge, RisingEdge, Timer
+from cocotbext.uart import UartSink, UartSource
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -117,7 +115,7 @@ async def test_buffers_reset(dut):
     slave.start_monitor()
 
     ## Write MOSI Bytes to Layer
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await Timer(100, units="us")
     dut.resn.value = 0
     await Timer(2, units="us")
@@ -126,7 +124,7 @@ async def test_buffers_reset(dut):
     await Timer(50, units="us")
 
 
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_spi_divider_api(dut):
     # rfg.cocotb.cocotb_spi.debug()
 
@@ -150,7 +148,9 @@ async def test_spi_divider_api(dut):
 
     ## Set Clock divider for 2Mhz
     await boardDriver.configureLayerSPIFrequency(2000000, flush=True)
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -164,7 +164,9 @@ async def test_spi_divider_api(dut):
     ## Set Clock divider for 500Khz
     await boardDriver.configureLayerSPIFrequency(500000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -180,7 +182,9 @@ async def test_spi_divider_api(dut):
     ## Set Clock divider for 10Mhz
     await boardDriver.configureLayerSPIFrequency(10000000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")

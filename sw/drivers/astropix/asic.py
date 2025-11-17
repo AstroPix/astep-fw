@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """"""
+
 """
 Created on Fri Jun 25 16:28:27 2021
 
@@ -9,30 +10,46 @@ Editor for astropix.py module: Autumn Bauman
 Functions for ASIC configuration
 """
 import logging
-import yaml
-import sys
 
-from bitstring import BitArray
-
-import logging 
-import time
-#import asyncio
+# import asyncio
 import math
+import sys
+import time
+
+import yaml
+from bitstring import BitArray
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 def debug():
     logger.setLevel(logging.DEBUG)
 
 
+## Constants
+##############
 
-class Asic():
+# SR
+SPI_SR_BROADCAST = 0x7E
+SPI_SR_BIT0 = 0x00
+SPI_SR_BIT1 = 0x01
+SPI_SR_LOAD = 0x03
+SPI_EMPTY_BYTE = 0x00
+
+# Daisychain 3bit Header + 5bit ID
+SPI_HEADER_EMPTY = 0b001 << 5
+SPI_HEADER_ROUTING = 0b010 << 5
+SPI_HEADER_SR = 0b011 << 5
+
+
+class Asic:
     """Configure ASIC"""
 
-    def __init__(self, chipname:str="astropix", chipversion:int=3, nchips:int=1) -> None:
-        """
-        """
+    def __init__(
+        self, chipname: str = "astropix", chipversion: int = 3, nchips: int = 1
+    ) -> None:
+        """ """
         self._chipname = chipname
         self._chipversion = chipversion
         self._num_chips = nchips
@@ -91,7 +108,7 @@ class Asic():
     @num_rows.setter
     def num_rows(self, rows):
         self._num_rows = rows
-        
+
     @property
     def num_chips(self):
         """Get/set number of chips in chain setup
@@ -103,11 +120,12 @@ class Asic():
     def num_chips(self, chips):
         self._num_chips = chips
 
+    def interrupt_pushpull(self, chip: int, enable: bool):
+        self.asic_config[f"config_{chip}"]["digitalconfig"]["interrupt_pushpull"][1] = (
+            0 if enable is False else 1
+        )
 
-    def interrupt_pushpull(self, chip:int, enable:bool):
-        self.asic_config[f'config_{chip}']['digitalconfig']['interrupt_pushpull'][1] = 0 if enable is False else 1
-
-    def enable_inj_row(self, chip:int, row:int, inplace:bool=False):
+    def enable_inj_row(self, chip: int, row: int, inplace: bool = False):
         """
         Enable injection in specified row
         Takes:
@@ -115,10 +133,16 @@ class Asic():
         inplace:bool - True - Updates asic after updating pixel mask
         """
         if row < self.num_rows:
-            self.asic_config[f'config_{chip}']['recconfig'][f'col{row}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b000_00000_00000_00000_00000_00000_00000_00001
-        if inplace: self.asic_update()
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{row}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
+                    f"col{row}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                | 0b000_00000_00000_00000_00000_00000_00000_00001
+            )
+        if inplace:
+            self.asic_update()
 
-    def enable_inj_col(self, chip:int, col:int, inplace:bool=False):
+    def enable_inj_col(self, chip: int, col: int, inplace: bool = False):
         """
         Enable injection in specified column
         Takes:
@@ -126,10 +150,16 @@ class Asic():
         inplace:bool - True - Updates asic after updating pixel mask
         """
         if col < self.num_cols:
-            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | 0b010_00000_00000_00000_00000_00000_00000_00000
-        if inplace: self.asic_update()
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
+                    f"col{col}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                | 0b010_00000_00000_00000_00000_00000_00000_00000
+            )
+        if inplace:
+            self.asic_update()
 
-    def enable_ampout_col(self, chip:int, col:int, inplace:bool=False):
+    def enable_ampout_col(self, chip: int, col: int, inplace: bool = False):
         """
         Enables analog output, Select Col for analog mux and disable other cols
         Takes:
@@ -138,16 +168,23 @@ class Asic():
         inplace:bool - True - Updates asic after updating pixel mask
         """
 
-        #Disable all analog pixels
+        # Disable all analog pixels
         for i in range(self.num_cols):
-            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] & 0b011_11111_11111_11111_11111_11111_11111_11111
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1]
+                & 0b011_11111_11111_11111_11111_11111_11111_11111
+            )
 
-        #Enable analog pixel in column <col>
-        self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] | 0b100_00000_00000_00000_00000_00000_00000_00000
-        
-        if inplace: self.asic_update()
+        # Enable analog pixel in column <col>
+        self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1]
+            | 0b100_00000_00000_00000_00000_00000_00000_00000
+        )
 
-    def enable_pixel(self, chip:int, col:int, row:int, inplace:bool=False):
+        if inplace:
+            self.asic_update()
+
+    def enable_pixel(self, chip: int, col: int, row: int, inplace: bool = False):
         """
         Turns on comparator in specified pixel
         Takes:
@@ -156,14 +193,24 @@ class Asic():
         row: int - Row of pixel
         inplace:bool - True - Updates asic after updating pixel mask
         """
-        assert row >= 0 and row < self.num_rows , f"Row outside of accepted range 0 <= row < {self.num_rows}"
-        assert col >= 0 and col < self.num_cols , f"Row outside of accepted range 0 <= row < {self.num_cols}"
-        if(row < self.num_rows and col < self.num_cols):
-            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & ~(2 << row)
+        assert row >= 0 and row < self.num_rows, (
+            f"Row outside of accepted range 0 <= row < {self.num_rows}"
+        )
+        assert col >= 0 and col < self.num_cols, (
+            f"Row outside of accepted range 0 <= row < {self.num_cols}"
+        )
+        if row < self.num_rows and col < self.num_cols:
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
+                    f"col{col}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                & ~(2 << row)
+            )
 
-        if inplace: self.asic_update()
+        if inplace:
+            self.asic_update()
 
-    def disable_pixel(self, chip:int, col:int, row:int, inplace:bool=False):
+    def disable_pixel(self, chip: int, col: int, row: int, inplace: bool = False):
         """
         Disable comparator in specified pixel
 
@@ -173,30 +220,44 @@ class Asic():
         row: int - Row of pixel
         inplace:bool - True - Updates asic after updating pixel mask
         """
-        if(row < self.num_rows and col < self.num_cols):
-            self.asic_config[f'config_{chip}']['recconfig'][f'col{col}'][1] = self.asic_config[f'config_{chip}']['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] | (2 << row)
-        if inplace: self.asic_update()
+        if row < self.num_rows and col < self.num_cols:
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
+                    f"col{col}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                | (2 << row)
+            )
+        if inplace:
+            self.asic_update()
 
+    # AS: update below this
 
-    #AS: update below this
-
-    def disable_inj_row(self, row:int):
+    def disable_inj_row(self, row: int):
         """Disable row injection switch
         :param row: Row number
         """
         if row < self.num_rows:
-            self.asic_config['recconfig'][f'col{row}'][1] = self.asic_config['recconfig'].get(f'col{row}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b111_11111_11111_11111_11111_11111_11111_11110
-
+            self.asic_config["recconfig"][f"col{row}"][1] = (
+                self.asic_config["recconfig"].get(
+                    f"col{row}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                & 0b111_11111_11111_11111_11111_11111_11111_11110
+            )
 
     def disable_inj_col(self, col: int):
         """Disable col injection switch
         :param col: Col number
         """
         if col < self.num_cols:
-            self.asic_config['recconfig'][f'col{col}'][1] = self.asic_config['recconfig'].get(f'col{col}', 0b001_11111_11111_11111_11111_11111_11111_11110)[1] & 0b101_11111_11111_11111_11111_11111_11111_11111
+            self.asic_config["recconfig"][f"col{col}"][1] = (
+                self.asic_config["recconfig"].get(
+                    f"col{col}", 0b001_11111_11111_11111_11111_11111_11111_11110
+                )[1]
+                & 0b101_11111_11111_11111_11111_11111_11111_11111
+            )
 
     def get_pixel(self, col: int, row: int):
-        return self.is_pixel_enabled(col,row)
+        return self.is_pixel_enabled(col, row)
 
     def is_pixel_enabled(self, col: int, row: int):
         """
@@ -206,7 +267,7 @@ class Asic():
         row: int - row of pixel
         """
         if row < self.num_rows:
-            if self.asic_config['recconfig'].get(f'col{col}')[1] & (1<<(row+1)):
+            if self.asic_config["recconfig"].get(f"col{col}")[1] & (1 << (row + 1)):
                 return False
             return True
 
@@ -217,8 +278,10 @@ class Asic():
         """
         Reset recconfig by disabling all pixels and disabling all injection switches and mux ouputs
         """
-        for key in self.asic_config['recconfig']:
-            self.asic_config['recconfig'][key][1] = 0b001_11111_11111_11111_11111_11111_11111_11110
+        for key in self.asic_config["recconfig"]:
+            self.asic_config["recconfig"][key][1] = (
+                0b001_11111_11111_11111_11111_11111_11111_11110
+            )
 
     @staticmethod
     def __int2nbit(value: int, nbits: int) -> BitArray:
@@ -231,8 +294,8 @@ class Asic():
         try:
             return BitArray(uint=value, length=nbits)
         except ValueError:
-            logger.error('Bad setting - Allowed Values 0 - %d', 2**nbits-1)
-            #return None
+            logger.error("Bad setting - Allowed Values 0 - %d", 2**nbits - 1)
+            # return None
             sys.exit(1)
 
     def load_conf_from_yaml(self, filename: str, **kwargs) -> None:
@@ -241,7 +304,7 @@ class Asic():
         :param filename: Name of yml file in config folder
         """
         ## Name the chip astropix by default
-        chipname = kwargs.get('chipname', 'astropix')
+        chipname = kwargs.get("chipname", "astropix")
         self.chipname = chipname
 
         with open(f"{filename}", "r", encoding="utf-8") as stream:
@@ -250,145 +313,175 @@ class Asic():
             except yaml.YAMLError as exc:
                 logger.error(exc)
 
-        
         # Get Chain settings
         try:
-            self._num_chips = dict_from_yml[self.chip].get('chain')['length']
-            logger.info("%s%d  Configuration file with %d chips found!", self.chipname, self.chipversion, self._num_chips)
+            self._num_chips = dict_from_yml[self.chip].get("chain")["length"]
+            logger.info(
+                "%s%d  Configuration file with %d chips found!",
+                self.chipname,
+                self.chipversion,
+                self._num_chips,
+            )
         except (KeyError, TypeError):
-            logger.debug("%s%d DaisyChain Length config not found!", self.chipname, self.chipversion)
-            logger.debug("Use %s%d DaisyChain Length %i from chipsPerRow run parameter", self.chipname, self.chipversion, self._num_chips)
-        logger.info("%s%d Number of chips in chain: %d ", self.chipname, self.chipversion, self._num_chips)
- 
+            logger.debug(
+                "%s%d DaisyChain Length config not found!",
+                self.chipname,
+                self.chipversion,
+            )
+            logger.debug(
+                "Use %s%d DaisyChain Length %i from chipsPerRow run parameter",
+                self.chipname,
+                self.chipversion,
+                self._num_chips,
+            )
+        logger.info(
+            "%s%d Number of chips in chain: %d ",
+            self.chipname,
+            self.chipversion,
+            self._num_chips,
+        )
+
         # Get chip geometry
         try:
-            self.num_cols = dict_from_yml[self.chip].get('geometry')['cols']
-            self.num_rows = dict_from_yml[self.chip].get('geometry')['rows']
+            self.num_cols = dict_from_yml[self.chip].get("geometry")["cols"]
+            self.num_rows = dict_from_yml[self.chip].get("geometry")["rows"]
 
-            logger.info("%s%d matrix dimensions found!", self.chipname, self.chipversion)
+            logger.info(
+                "%s%d matrix dimensions found!", self.chipname, self.chipversion
+            )
         except KeyError:
-            logger.error("%s%d matrix dimensions not found!", self.chipname, self.chipversion)
-            #sys.exit(1)
+            logger.error(
+                "%s%d matrix dimensions not found!", self.chipname, self.chipversion
+            )
+            # sys.exit(1)
 
         # Get chip configs
         for chip_number in range(self._num_chips):
             try:
-                self.asic_config[f'config_{chip_number}'] = dict_from_yml.get(self.chip)[f'config_{chip_number}']
+                self.asic_config[f"config_{chip_number}"] = dict_from_yml.get(
+                    self.chip
+                )[f"config_{chip_number}"]
                 logger.info("Chain chip_%d config found!", chip_number)
             except KeyError:
                 logger.error("Chain chip_%d config not found!", chip_number)
                 sys.exit(1)
 
-    def getCfgBits(self, targetChip:int=None, msbfirst:bool=False) -> BitArray:
+    def getConfigBits(self, msbfirst: bool = False, targetChip: int = -1) -> BitArray:
         """
-        Generate asic bitvector from digital, bias and dacconfig
-        :param targetChip: Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
-        :param msbfirst: Send vector MSB first
-        """
-        bitvector = BitArray()
-        configSource = self.cfg[f'config_{targetChip}'] if (self._num_chips>1) else self.cfg["config"]#Latter used for V3 single chip
-        for key in configSource:
-            for values in configSource[key].values():
-                if(key=='vdacs'):
-                    bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
-                    bitvector_vdac_reversed.reverse()
-                    bitvector.append(bitvector_vdac_reversed)
-                else:
-                    bitvector.append(self.__int2nbit(values[1], values[0]))
-        if not msbfirst:
-            bitvector.reverse()
-        return bitvector
+        Generate asic bitvector from digital, bias and dacconfig.
+        Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
 
-    def gen_config_chain(self, msbfirst:bool=False) -> BitArray:
+        This method returns an array of bitvector, each for a chip in the daisychain. If the targetChup parameter is used, the array contains one bitvector for the target chip.
+
+        Args:
+
+            msbfirst(bool,optional): Send vector MSB first
+            targetChip(int,optional): Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
         """
-        Generate bitvector for all the asics in a chain
-        """
-        bitvector = BitArray()
-        for chip in range(self._num_chips-1, -1, -1): #configure far end of daisy chain first
-            bitvector.append(self.getCfgBits(chip, msbfirst))
+
+        chipConfigs = []
+
+        rangeStart = self._num_chips - 1 if targetChip == -1 else targetChip
+        rangeStop = 0 if targetChip == -1 else targetChip - 1
+        for chip in range(rangeStart, rangeStop, -1):
+            chipBitvector = BitArray()
+            for key in self.asic_config[f"config_{chip}"]:
+                for values in self.asic_config[f"config_{chip}"][key].values():
+                    if key == "vdacs":
+                        bitvector_vdac_reversed = BitArray(
+                            self.__int2nbit(values[1], values[0])
+                        )
+                        bitvector_vdac_reversed.reverse()
+                        chipBitvector.append(bitvector_vdac_reversed)
+                    else:
+                        chipBitvector.append(self.__int2nbit(values[1], values[0]))
+
             logger.info("Generated chip_%d config successfully!", chip)
-        logger.debug(bitvector)
-        return bitvector 
 
-    def gen_config_vector_SR(self, msbfirst:bool=False) -> BitArray:
-        """
-        Generate asic bitvector from digital, bias and dacconfig
-        For use with SR configuration
-        :param msbfirst: Send vector MSB first
-        """
-        return self.gen_config_chain(msbfirst)
-        #bitvector = BitArray()
-        #for chip in range(self._num_chips-1, -1, -1): #configure far end of daisy chain first
-        #    chipBitvector = BitArray()
-        #    for key in self.asic_config[f'config_{chip}']:
-        #        for values in self.asic_config[f'config_{chip}'][key].values():
-        #            if(key=='vdacs'):
-        #                bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
-        #                bitvector_vdac_reversed.reverse()
-        #                chipBitvector.append(bitvector_vdac_reversed)
-        #            else:
-        #                chipBitvector.append(self.__int2nbit(values[1], values[0]))
-        #
-        #    if not msbfirst:
-        #        chipBitvector.reverse()
+            if not msbfirst:
+                chipBitvector.reverse()
 
-        #    bitvector.append(chipBitvector)
+            # Add chip config to result
+            chipConfigs.append(chipBitvector)
 
-        #    logger.info("Generated chip_%d config successfully!", chip)
-        #logger.debug(bitvector)
-        #return bitvector 
+        return chipConfigs
 
-    def gen_config_vector_SPI(self, msbfirst:bool=False, targetChip:int=-1) -> BitArray:
+    def getRoutingFrame(self, paddingBytes: int, firstChipID: int = 0):
         """
-        Generate asic bitvector from digital, bias and dacconfig
-        :param msbfirst: Send vector MSB first
-        :param targetChip: Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
+        Returns the Routing Bytes to write to Astropix - writting to the Chip is done by th Board Driver
+
+        Args:
+
+            paddingBytes(int): The number of dummy 0x00 bytes to add after the initial routing command header - Set this to roughly the number of chips in the daisychain * 2
+            firstChipID(int): The ID for the first chip, the following chip in the daisychain will be assigned firstChipID+1
         """
-        if targetChip==-1 and self._num_chips > 1:
-            return self.gen_config_chain(msbfirst)
+        return [SPI_HEADER_ROUTING | firstChipID] + [0x00] * paddingBytes
+
+    def getSPIConfigFrame(
+        self,
+        load: bool = True,
+        n_load: int = 10,
+        broadcast: bool = False,
+        targetChip: int = 0,
+        config: BitArray | None = None,
+    ) -> bytearray:
+        """
+        Converts the ASIC Config bits to the SPI Bytes to write to Astropix
+        This method only creates a frame for a single chip. Make sure the targetChip parameter is within configured range
+
+        :param load: bool, includes load signal, default=True
+        :param n_load: int, length of load signal, default=10
+        :param broadcast: bool, Enable Broadcast - in that case the config of targetChip will be broadcasted, default=False
+        :param layer: int, daisy chain to target, default=0
+        :param targetChip: int, ChipID of source config, set in header if !broadcast, default=0
+        :param config: BitArray, vector of config bits, default=None (generated from targetchip and layer)
+        :returns: SPI ASIC config pattern
+
+        """
+
+        assert targetChip >= 0 and targetChip < self._num_chips, (
+            "Target Chip is out of range"
+        )
+
+        ## Generate Bit vector for config
+        if config is None:
+            chipConfigs = self.getConfigBits(
+                targetChip=targetChip,
+                msbfirst=False,
+            )
+            logger.info(f"SPI Config bits, len={len(chipConfigs)}")
+            config = self.getConfigBits(
+                targetChip=targetChip,
+                msbfirst=False,
+            )[0]
+
+        # Write SPI SR Command to set MUX
+        if broadcast:
+            data = bytearray([SPI_SR_BROADCAST])
         else:
-            return self.getCfgBits(msbfirst)
-            #for chip in range(self._num_chips-1, -1, -1):
-            #    chipBitvector = BitArray()
-            #    for key in self.asic_config[f'config_{chip}']:
-            #        for values in self.asic_config[f'config_{chip}'][key].values():
-            #            if(key=='vdacs'):
-            #                bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
-            #                bitvector_vdac_reversed.reverse()
-            #                chipBitvector.append(bitvector_vdac_reversed)
-            #            else:
-            #                chipBitvector.append(self.__int2nbit(values[1], values[0]))
+            data = bytearray([SPI_HEADER_SR | targetChip])
 
-            #    logger.info("Generated chip_%d config successfully!", chip)
-            #
-            #    if not msbfirst:
-            #        chipBitvector.reverse()
+        # data
+        for bit in config:
+            sin = SPI_SR_BIT1 if bit else SPI_SR_BIT0
+            data.append(sin)
 
-            #    bitvector.append(chipBitvector)
+        # Append Load signal and empty bytes
+        if load:
+            data.extend([SPI_SR_LOAD] * n_load)
 
-        ## Create config for a single chip
-        ## This can be if the config is single chip, or for multichip if we want the bits or a single chip, for example when writing SPI config to a certain chip
-        #    configSource = self.asic_config[f'config_{targetChip}'] #if (self._num_chips>1) else self.asic_config    
-        #    for key in configSource:
-        #        for values in configSource[key].values():
-        #            #bitvector.append(self.__int2nbit(values[1], values[0]))
-        #            if(key=='vdacs'):
-        #                bitvector_vdac_reversed = BitArray(self.__int2nbit(values[1], values[0]))
-        #                bitvector_vdac_reversed.reverse()
-        #                bitvector.append(bitvector_vdac_reversed)
-        #            else:
-        #                bitvector.append(self.__int2nbit(values[1], values[0]))
+        # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
+        data.extend([SPI_EMPTY_BYTE] * ((self._num_chips - 1) * 2))
+        logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(config), config)
+        return data
 
-        #    if not msbfirst:
-        #        bitvector.reverse()
+    ##################################
+    ## OLD ORIGINAL CODE WHERE THE ASIC MODEL also Wrote its config via RFG
+    ## NOW Methods above generate the Bytes and bits sequences for SPI or SR config and the Board Driver writes them to the correct register in the firmware
+    ###########################
 
-        #logger.debug(bitvector)
-
-        #return bitvector     
-
- 
     ## SR Update
-    #async def writeConfigSR(self, ckdiv=8, limit:int|None=None):
+    # async def writeConfigSR(self, ckdiv=8, limit:int|None=None):
     #    """This method writes the Config bits through the register file bits (SIN,CK1,CK2, LOAD)
     #    Args:
     #        ckdiv(int) : Repeats the write for ck1/ck2/load ckdiv times to strech the signal. Set this value higher for faster software interface
@@ -396,7 +489,7 @@ class Asic():
     #    """
     #    ## Generate Bit vector for config
     #    bits = self.gen_config_vector_SR(msbfirst = False)
-    #    if limit is not None: 
+    #    if limit is not None:
     #        bits = bits[:limit]
 
     #    logger.info("Writing SR Config for row=%d,len=%d",self.row,len(bits))
@@ -406,7 +499,6 @@ class Asic():
 
     #    ## Write to SR using register
     #    for bit in bits:
-
 
     #        # SIN (bit 3 in register)
     #        sinValue = (1 if bit == True else 0) << 2
@@ -419,21 +511,19 @@ class Asic():
     #        # CK2
     #        self.rfg.addWrite(register = targetRegister, value = sinValue | 0x2 , repeat = ckdiv)
     #        self.rfg.addWrite(register = targetRegister, value = sinValue , repeat = ckdiv)
-    #    
+    #
     #    ## Set Load (loads start bit 4)
     #    self.rfg.addWrite(register = targetRegister, value = sinValue | (0x1 << (self.row +3)) , repeat = ckdiv)
     #    self.rfg.addWrite(register = targetRegister, value = 0 , repeat = ckdiv)
 
-
     #    await self.rfg.flush()
 
-
-    #async def writeSPIRoutingFrame(self, firstChipID: int = 0x00):
+    # async def writeSPIRoutingFrame(self, firstChipID: int = 0x00):
     #    #print(bin(SPI_HEADER_ROUTING | firstChipID))
     #    # await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4,True)
     #    await self.writeSPI([SPI_HEADER_ROUTING | firstChipID] + [0x00]*(self._num_chips-1)*4)
 
-    #def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0, value=None)  -> bytearray:
+    # def createSPIConfigFrame(self, load: bool = True, n_load: int = 10, broadcast: bool = False, targetChip: int = 0, value=None)  -> bytearray:
     #    """
     #    Converts the ASIC Config bits to the corresponding bytes to send via SPI
     #    :param value: Bytearray vector of config bits
@@ -450,7 +540,7 @@ class Asic():
 
     #    # Number of Bytes to write
     #    #length = len(value) * 5 + 4
-    #    
+    #
 
     #    # Write SPI SR Command to set MUX
     #    if broadcast:
@@ -472,12 +562,11 @@ class Asic():
     #    # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
     #    data.extend([SPI_EMPTY_BYTE] * ((self._num_chips-1) *4))
 
-
     #    logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(value), value)
 
     #    return data
     #
-    #async def writeSPI(self, payload, timeout=1.):
+    # async def writeSPI(self, payload, timeout=1.):
     #    """Writes the payload over SPI
     #    :param payload: bytearray to be written (by chunks of 256 bytes)
     #    :param timeout: maximum duration allowed for a single chunk
@@ -491,7 +580,7 @@ class Asic():
     #        #if len(chunkBytes) != 256:
     #        #    task = asyncio.create_task(asyncio.sleep(20))
     #        #    await task
-    #        
+    #
     #        logger.info("Writing Chunck %d/%d len=%d",(chunk/step+1),steps,len(chunkBytes))
     #        await getattr(self.rfg, f"write_layer_{self.row}_mosi_bytes")(chunkBytes,True)
 
@@ -504,9 +593,7 @@ class Asic():
     #        if time.time() > maxtime:
     #            raise RuntimeError("Chunck {}/{} len={} timed out".format(int(chunk/step+1),steps,len(chunkBytes)))
 
-
-
-    #async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):
+    # async def writeConfigSPI(self, broadcast: bool = False, targetChip : int = 0 ):
     #    """Generate Config Shift Register bits, spi protocol bytes and send them"""
     #    spiBytes = self.createSPIConfigFrame(targetChip = targetChip , broadcast = broadcast)
     #    logger.info("Writing SPI Config for chip %d,row=%d,len=%d",targetChip,self.row,len(spiBytes))

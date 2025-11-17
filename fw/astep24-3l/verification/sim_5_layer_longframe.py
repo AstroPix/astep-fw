@@ -74,7 +74,7 @@ async def run_gen_read_test(
         while not finished:
             ## If not autoread, we need to send some bytes to trigger reading out random.randint(16,24)
             if not autoRead:
-                await driver.writeLayerBytes(layer=0, bytes=[0x00] * 32, flush=True)
+                await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 32)
                 await Timer(500, units="ns")
                 mosiTimeout = 20
                 while mosiTimeout > 0 and (
@@ -217,7 +217,7 @@ async def run_gen_read_test_multi(
             ## If not autoread, we need to send some bytes to trigger reading out random.randint(16,24)
             if not autoRead:
                 for i in range(len(asics)):
-                    await driver.writeLayerBytes(layer=i, bytes=[0x00] * 16, flush=True)
+                    await driver.writeSPIBytesToLane(lane=i, bytes=[0x00] * 16)
 
                 await Timer(500, units="ns")
                 for i in range(len(asics)):

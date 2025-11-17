@@ -63,7 +63,7 @@ async def impl_test_layer_0_single_frame_noautoread_tssize(
     await driver.setLayerConfig(
         layer=0, reset=False, hold=False, autoread=False, chipSelect=True, flush=True
     )
-    await driver.writeLayerBytes(layer=0, bytes=[0xAB] * 10, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0xAB] * 10)
     await generator.join()
 
     ## Check That one Frame was seen with the correct size depending on the timestamp size
@@ -142,7 +142,7 @@ async def test_layer_0_double_frame_noautoread(dut):
     await driver.setLayerConfig(
         layer=0, reset=False, hold=False, autoread=False, chipSelect=True, flush=True
     )
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await generator.join()
 
     ## Check That two Frames were seen
@@ -198,7 +198,7 @@ async def test_layer_0_spi_stall(dut):
     )
     totalBytes = 0
     for i in range(int(bytesToSendToSPI / 16) + 1):
-        await driver.writeLayerBytes(layer=0, bytes=[0xAB] * (15), flush=True)
+        await driver.writeSPIBytesToLane(lane=0, bytes=[0xAB] * (15))
         await Timer(25, units="us")
         readoutLength = await driver.readoutGetBufferSize()
         if readoutLength == 66:
