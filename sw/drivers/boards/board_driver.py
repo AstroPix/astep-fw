@@ -1,19 +1,30 @@
 import asyncio
+import logging
+import math
+import time
 
 import rfg.core
 import rfg.io
+from bitstring import BitArray
 from deprecated import deprecated
 
 import drivers.astep.housekeeping
 from drivers.astropix.asic import Asic
 from drivers.astropix.loopback_model import Astropix3LBModel
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+def debug():
+    logger.setLevel(logging.DEBUG)
+
 
 class BoardDriver:
     def __init__(self, rfg):
         self.rfg = rfg
         self.houseKeeping = drivers.astep.housekeeping.Housekeeping(self, rfg)
-        self.asics = []
+        self.asics = {}
 
         ## By default the FW is reset with 32 bits
         self.fpgaTimeStampBytesCount = 4
@@ -24,21 +35,6 @@ class BoardDriver:
         ## Opened Event -> Set/unset by close/open
         ## Useful to start or stop tasks dependent on open/close state of the driver
         self.openedEvent = asyncio.Event()
-
-    def selectUARTIO(self, portPath: str | None = None):
-        """This method is common to all targets now, because all targets have a USB-UART Converter available"""
-        if portPath == None:
-            import drivers.astep.serial
-
-            port = drivers.astep.serial.selectFirstLinuxFTDIPort()
-            if port:
-                self.rfg.withUARTIO(port.device)
-                return self
-            else:
-                raise RuntimeError("No Serial Port could be listed")
-        else:
-            self.rfg.withUARTIO(portPath)
-            return self
 
     async def open(self):
         """Open the Register File I/O Connection to the underlying driver"""
@@ -93,67 +89,146 @@ class BoardDriver:
     def getLoopbackModelForLayer(self, layer):
         return Astropix3LBModel(self, layer)
 
-    ## Chips
+    ## Chips config
     ################
-    async def setupASICSAuto(self, configFile: str):
-        # assert version >=2 and version < 4 , "Only Astropix 2 and 3 Supported"
-        self.asics.clear()
-        asic = Asic(rfg=self.rfg, row=0)
-        asic.chipversion = (await self.readFirmwareID()) & 0x0F
-        print(configFile)
-        self.asics.append(asic)
-
-        return asic
-
     def setupASICS(
         self,
         version: int,
-        rows: int = 1,
+        lanes: int = 1,
         chipsPerRow: int = 1,
         configFile: str | None = None,
     ):
-        """Configure one or multiple rows with a single config file
+        """Configure one or multiple lanes with a single config file
 
         Args:
             version: int, AstroPix chip version
-            rows: int, number of rows, default=1
+            lanes: int, number of lanes, default=1
             chipsPerRow: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
-        assert version >= 2 and version < 4, "Only Astropix 2 and 3 Supported"
-        if version == 2:
-            self.geccoGetVoltageBoard().dacvalues = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
+        assert version >= 2 and version < 4, "Only Astropix 2,3 and 4 Supported"
 
-        for i in range(rows):
+        # OLD -> init of gecco voltage board for v2 -> this is one somewhere else here
+        # if version == 2:
+        #    self.geccoGetVoltageBoard().dacvalues = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
+
+        for i in range(lanes):
             self.setupASIC(
-                version, row=i, chipsPerRow=chipsPerRow, configFile=configFile
+                version, lane=i, chipsPerLane=chipsPerRow, configFile=configFile
             )
 
     def setupASIC(
         self,
         version: int,
-        row: int = 0,
-        chipsPerRow: int = 1,
+        lane: int = 0,
+        chipsPerLane: int = 1,
         configFile: str | None = None,
     ):
-        """Configures one row (aka daisy chain) with a single config file
+        """Configures one lane (aka daisy chain) with a single config file
+        This method creates the asic model or updates the existing one if this method is called multiple times
 
         Args:
             version: int, AstroPix chip version
-            row: int, number of the current row, default=0
-            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
+            lanes: int, number of the current row, default=0
+            chipsPerLane: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
-        asic = Asic(rfg=self.rfg, row=row)
-        asic.chipversion = version
+
+        ## Get ASIC or create it
+        asic = self.asics.setdefault(
+            lane, Asic(chipversion=version, nchips=chipsPerLane)
+        )
+        asic.num_chips = chipsPerLane
+
         if configFile is not None:
             asic.load_conf_from_yaml(configFile)
-        asic._num_chips = chipsPerRow
-        self.asics.append(asic)
 
-    def getAsic(self, row=0):
+    def getAsic(self, lane=0):
         """Returns the Asic Model for the Given Row - Other chips in the Daisy Chain are handeled by the returned 'front' model"""
-        return self.asics[row]
+        return self.asics[lane]
+
+    async def writeRoutingFrame(self, lane: int = 0, firstChipID: int = 0):
+        spiBytes = self.getAsic(lane).getRoutingFrame(
+            firstChipID, paddingBytes=self.asics[lane].num_chips - 1 * 2
+        )
+        await self.writeSPIBytesToLane(lane=lane, bytes=spiBytes)
+
+    async def writeSRAsicConfig(self, lane: int = 0, ckdiv=8, limit: int | None = None):
+        """
+        Write ASIC Config via Shift Register - This method must write configuration for at least all the chips until the target chip
+        In this first new version, it will always write configuration for all the Chips.
+
+            Args:
+                ckdiv(int) : Repeats the write for ck1/ck2/load ckdiv times to strech the signal. Set this value higher for faster software interface
+                limit(int) : Only write limit bits to SR - Mostly useful in simulation to limit runtime which checking the I/O are correctly driven
+
+        """
+
+        ## Generate Bit vector for config
+        ## If limit is used, retain only a few bits from the resuklt
+        configs = self.getAsic(lane).getConfigBits(msbfirst=False)
+        bits = []
+        for config in configs:
+            bits.extend(config)
+
+        if limit is not None:
+            bits = bits[:limit]
+
+        logger.info("Writing SR Config for row=%d,len=%d", lane, len(bits))
+
+        ## Save target register for the write here - this can be easily updated in case some hardware platforms have different names for registers
+        targetRegister = self.rfg.Registers["LAYERS_SR_OUT"]
+
+        ## Write to SR using register
+        sinValue = 0
+        for bit in bits:
+            # SIN (bit 3 in register)
+            sinValue = (1 if bit else 0) << 2
+            self.rfg.addWrite(
+                register=targetRegister, value=sinValue, repeat=ckdiv
+            )  # ensure SIN has higher delay than CLK1 to avoid setup violation / incorrect sampling
+
+            # CK1
+            self.rfg.addWrite(
+                register=targetRegister, value=sinValue | 0x1, repeat=ckdiv
+            )
+            self.rfg.addWrite(register=targetRegister, value=sinValue, repeat=ckdiv)
+
+            # CK2
+            self.rfg.addWrite(
+                register=targetRegister, value=sinValue | 0x2, repeat=ckdiv
+            )
+            self.rfg.addWrite(register=targetRegister, value=sinValue, repeat=ckdiv)
+
+        ## Set Load (loads start bit 4) for the correct lane
+        self.rfg.addWrite(
+            register=targetRegister, value=sinValue | (0x1 << (lane + 3)), repeat=ckdiv
+        )
+        self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
+
+        await self.rfg.flush()
+
+    async def writeSPIAsicConfig(
+        self,
+        lane: int,
+        load: bool = True,
+        n_load: int = 10,
+        broadcast: bool = False,
+        targetChip: int = 0,
+        config: BitArray | None = None,
+    ):
+        # Get SPI Frame Configs
+        spiBytes = self.getAsic(lane).getSPIConfigFrame(
+            load=load,
+            n_load=n_load,
+            broadcast=broadcast,
+            targetChip=targetChip,
+            config=config,
+        )
+
+        # Write all configs
+        # Write to layer
+        await self.writeSPIBytesToLane(lane, spiBytes)
 
     ## Clock and IO enablement
     # #################
@@ -525,28 +600,64 @@ class BoardDriver:
             disableMISO=True,
             flush=flush,
         )
-        # await self.holdLayers(hold=True, flush=flush)
-        # regval =  [await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")() for layer in range(3)]
-        # for layer in range(3):
-        #     regval[layer] = (regval[layer] | 0b010100) & 0b110111
-        # for layer in range(3):
-        #     await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval[layer],flush)
 
-    async def writeLayerBytes(self, layer: int, bytes: bytearray, flush: bool = False):
-        await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes, flush)
-
-    async def writeBytesToLayer(
+    async def writeSPIBytesToLane(
         self,
-        layer: int,
+        lane: int,
         bytes: bytearray,
-        waitBytesSend: bool = False,
-        flush: bool = False,
+        timeout: int = 5,
+        waitForLastChunk: bool = True,
     ):
-        await getattr(self.rfg, f"write_layer_{layer}_mosi_bytes")(bytes, flush)
-        if waitBytesSend is True:
-            await self.assertLayerNotInReset(layer)
-            while await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")() > 0:
-                pass
+        """
+        This method writes SPI Bytes to a layer - this updated version now chunks data to accomodate the buffer size
+        The method will flush bytes to the firmware automatically since we must check that we are not overflowing the SPI output buffer
+
+        Args:
+            lane(int): The lane to write SPI bytes to
+            bytes(bytearray): The bytes to write to the SPI Buffer
+            timeout(int,optional): Timeout in seconds until this method fails - this can be caused if the SPI Master is  deactivated (lane reset state) and the bytes are not exiting the output buffer
+            waitForLastChunk(bool,optional): If set to true, when the last chunck is written, return immediately
+        """
+
+        # Buffer size is the number of bytes we can write at once in the SPI output buffer
+        outputBufferSize = 256
+        steps = int(math.ceil(len(bytes) / outputBufferSize))
+        for chunk in range(0, len(bytes), outputBufferSize):
+            chunkBytes = bytes[chunk : chunk + outputBufferSize]
+
+            # if len(chunkBytes) != 256:
+            #    task = asyncio.create_task(asyncio.sleep(20))
+            #    await task
+
+            logger.info(
+                "Writing Chunck %d/%d len=%d",
+                (chunk / outputBufferSize + 1),
+                steps,
+                len(chunkBytes),
+            )
+            await getattr(self.rfg, f"write_layer_{lane}_mosi_bytes")(chunkBytes, True)
+
+            # Wait for the current chunk to be written before sending the next one
+            startTime = time.time()
+            currentTime = time.time()
+
+            if waitForLastChunk is False and steps == chunk:
+                while (
+                    await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")() > 0
+                    and (currentTime - startTime) <= timeout
+                ):
+                    # Update timeout
+                    #
+                    currentTime = time.time()
+                    pass
+
+            # logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
+            if (currentTime - startTime) > timeout:
+                raise RuntimeError(
+                    "Chunck {}/{} len={} timed out".format(
+                        int(chunk / outputBufferSize + 1), steps, len(chunkBytes)
+                    )
+                )
 
     async def getLayerMOSIBytesCount(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")()

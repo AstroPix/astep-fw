@@ -132,6 +132,26 @@ def bin2csv(fprefix):
 #######################################################
 #################### MAIN FUNCTION ####################
 
+async def newmain(args):
+    from astep import AstepRun as Run#Name TBC
+    arun = Run(chipversion = 3)
+    #await arun.open_fpga(cmod=True, uart=True) #CMOD
+    await arun.open_fpga(cmod=False, uart=False) #Gecco
+    await arun.fpga_configure_clocks()
+    await arun.fpga_configure_autoread_keepalive(4)
+    arun.load_yaml(args.yaml, args.chipsPerRow)
+    if args.inject:
+        arun.cfg_enable_pixel(*args.inject)
+        arun.cfg_enable_injection(*args.inject)
+    if args.analog:
+        arun.cfg_enable_analog(*args.analog)#Also turn that pixel on (just in case)
+    await arun.chips_reset_configure()
+    await arun.buffer_flush()
+    await arun.chips_enable_readout()
+    #Main loop here
+    await arun.chips_disable_readout()
+    arun.fpga_close_connection()
+
 async def main(args):
     # Welcome to the main (and only) function of this script!
     print(args) # Soon to be removed
@@ -390,5 +410,5 @@ if __name__ == "__main__":
     elif args.readout < 0 or args.readout > 4098: args.readout = 4096
 
 
-    asyncio.run(main(args))
+    asyncio.run(newmain(args))
 
