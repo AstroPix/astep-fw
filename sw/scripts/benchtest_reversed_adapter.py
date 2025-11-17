@@ -55,7 +55,8 @@ async def main(args, saveName):
 
     if args.gecco:
         logger.debug("initializing voltage")
-        await astro.init_voltages(dacvals=(8, list(reversed([1.1, 0, 1.1, 1, 0, 0, 1, args.threshold]))))  # th in mV
+        blv = 1.0  # baseline voltage
+        await astro.init_voltages(dacvals=(8, list(reversed([1.1, 0, 1.1, blv, 0, 0, 1, blv + args.threshold/1000]))))
 
     ## 12/17 Test: Configure FPGA TS "Tag" Rate
     
