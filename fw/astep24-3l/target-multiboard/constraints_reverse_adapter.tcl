@@ -15,6 +15,10 @@ global defines_list
 #    source $variablesScriptFromRun
 #}
 
+if {[lsearch -exact $defines_list REVERSEADAPTER] == -1} {
+    puts stderr "Use this contraint file only with REVERSEADAPTER option!"
+    exit 1
+}
 
 puts "Chip version: $chipversion"
 
@@ -520,23 +524,16 @@ set_property PULLUP true [get_ports layer_0_interruptn]
 
 ## If SCLOCK_SE_DIFF defined, se sample clock will be diff output, otherwise single ended LVCMOS
 if {[lsearch -exact $defines_list SCLOCK_SE_DIFF] != -1} {
-
-    # set_property -dict {PACKAGE_PIN B16 IOSTANDARD LVDS_25} [get_ports sample_clk_se_n]
-    # set_property -dict {PACKAGE_PIN B15 IOSTANDARD LVDS_25} [get_ports sample_clk_se_p]
     set_property -dict {PACKAGE_PIN A21 IOSTANDARD LVDS_25} [get_ports sample_clk_se_n]
     set_property -dict {PACKAGE_PIN B21 IOSTANDARD LVDS_25} [get_ports sample_clk_se_p]
 
 } else {
-    # set_property -dict {PACKAGE_PIN B16 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_n]
-    # set_property -dict {PACKAGE_PIN B15 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_p]
     set_property -dict {PACKAGE_PIN A21 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_n]
     set_property -dict {PACKAGE_PIN B21 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_p]
 }
 
 ## Normal Sample clock output can be one pair or 4 pairs if in telescope mode
 if {1} {
-    # set_property -dict {PACKAGE_PIN D21 IOSTANDARD LVDS_25} [get_ports sample_clk_n]
-    # set_property -dict {PACKAGE_PIN E21 IOSTANDARD LVDS_25} [get_ports sample_clk_p]
     set_property -dict {PACKAGE_PIN D19 IOSTANDARD LVDS_25} [get_ports sample_clk_n]
     set_property -dict {PACKAGE_PIN E19 IOSTANDARD LVDS_25} [get_ports sample_clk_p]
 } else {
