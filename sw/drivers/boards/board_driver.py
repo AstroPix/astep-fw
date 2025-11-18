@@ -149,8 +149,10 @@ class BoardDriver:
 
     async def writeRoutingFrame(self, lane: int = 0, firstChipID: int = 0):
         spiBytes = self.getAsic(lane).getRoutingFrame(
-            firstChipID=firstChipID, paddingBytes=self.asics[lane].num_chips - 1 * 2
+            firstChipID=firstChipID,
+            paddingBytes=((self.asics[lane].num_chips - 1) * 2 + 2),
         )
+
         await self.writeSPIBytesToLane(lane=lane, bytes=spiBytes)
 
     async def writeSRAsicConfig(self, lane: int = 0, ckdiv=8, limit: int | None = None):
@@ -625,6 +627,9 @@ class BoardDriver:
             waitForLastChunk(bool,optional): If set to true, when the last chunck is written, return immediately
         """
 
+        logger.info(
+            f"Writing {len(bytes)} bytes to SPI lane {lane}, current buffer size={await getattr(self.rfg, f'read_layer_{lane}_mosi_write_size')()}"
+        )
         # Buffer size is the number of bytes we can write at once in the SPI output buffer
         outputBufferSize = 256
         steps = int(math.ceil(len(bytes) / outputBufferSize))

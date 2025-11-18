@@ -409,7 +409,7 @@ class Asic:
 
         return chipConfigs
 
-    def getRoutingFrame(self, paddingBytes: int, firstChipID: int = 0):
+    def getRoutingFrame(self, firstChipID: int = 0, paddingBytes: int = 2):
         """
         Returns the Routing Bytes to write to Astropix - writting to the Chip is done by th Board Driver
 
@@ -418,7 +418,11 @@ class Asic:
             paddingBytes(int): The number of dummy 0x00 bytes to add after the initial routing command header - Set this to roughly the number of chips in the daisychain * 2
             firstChipID(int): The ID for the first chip, the following chip in the daisychain will be assigned firstChipID+1
         """
-        return [SPI_HEADER_ROUTING | firstChipID] + [0x00] * paddingBytes
+        frame = [SPI_HEADER_ROUTING | firstChipID] + [0x00] * paddingBytes
+        logger.debug(
+            f"Routing frame length={len(frame)},paddingBytesCount={paddingBytes}"
+        )
+        return frame
 
     def getSPIConfigFrame(
         self,
