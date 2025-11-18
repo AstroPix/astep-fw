@@ -2,13 +2,11 @@ import importlib.util
 import sys
 
 import cocotb
-from cocotb.triggers import Timer, RisingEdge
-from cocotb.clock import Clock
-
 import rfg.discovery
-from rfg.cocotb.cocotb_uart import UARTIO
+from cocotb.clock import Clock
+from cocotb.triggers import RisingEdge, Timer
 from rfg.cocotb.cocotb_spi import SPIIO
-
+from rfg.cocotb.cocotb_uart import UARTIO
 
 from drivers.astep.housekeeping import Housekeeping
 
@@ -47,9 +45,9 @@ async def common_system_clock(dut):
 async def common_clock_reset_nexys(dut):
     cocotb.start_soon(Clock(dut.sysclk, 10, units="ns").start())
     dut.btnc.value = 0  # Btn pressed is 1
-    dut.cpu_resetn.value = 0
+    dut.resn.value = 0
     await Timer(1, units="us")
-    dut.cpu_resetn.value = 1
+    dut.resn.value = 1
     await Timer(100, units="us")
 
 
