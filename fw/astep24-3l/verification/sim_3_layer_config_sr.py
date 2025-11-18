@@ -18,6 +18,49 @@ import astep24_3l_sim
 import rfg.core
 
 
+
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def test_layers_config_sr_bitgen(dut):
+    """Tests that the Board Driver generates the config bits"""
+
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+    
+
+    ## Create ASIC config
+    driver.setupASICS(
+        version=3, lanes=1, chipsPerLane=2, configFile="./files/config_v3_mc.yml"
+    )
+
+    ## Get Config for Target Chip 
+    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=0)
+    assert 1 == len(configs)
+    assert 4 == len(configs[0])
+    assert [1,1,0,1] == configs[0]
+    await Timer(150, units="us")
+    
+    ## Get Config for Target Chip 
+    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=1)
+    assert 1 == len(configs)
+    assert 4 == len(configs[0])
+    assert [0,0,0,1] == configs[0]
+    await Timer(150, units="us")
+    
+    
+    ## Get Config for all Chips
+    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=-1)
+    assert 2 == len(configs)
+    assert 4 == len(configs[0])
+    assert 4 == len(configs[1])
+    assert [0,0,0,1] == configs[0]
+    assert [1,1,0,1] == configs[1]
+    await Timer(150, units="us")
+
+    await Timer(150, units="us")
+    
+    
 @cocotb.test(timeout_time=3, timeout_unit="ms")
 async def test_layers_config_sr(dut):
     """Writs SR Config to each row/layer, check for Load signal for each"""
@@ -29,8 +72,11 @@ async def test_layers_config_sr(dut):
 
     ## Create ASIC config
     driver.setupASICS(
-        version=3, lanes=3, chipsPerRow=1, configFile="./files/config_v3_mc.yml"
+        version=3, lanes=3, chipsPerLane=1, configFile="./files/config_v3_mc.yml"
     )
+
+    await driver.resetLayersFull(wait=False)
+    await driver.resetLayersFull(wait=False)
 
     ## Send config
     async def wait_for_load(row):
@@ -60,7 +106,7 @@ async def test_layer_0_config_sr_multichip(dut):
 
     ## Create ASIC config
     driver.setupASICS(
-        version=3, lanes=1, chipsPerRow=2, configFile="./files/config_v3_mc.yml"
+        version=3, lanes=1, chipsPerLane=2, configFile="./files/config_v3_mc.yml"
     )
 
     ## Write Config and wait for edge

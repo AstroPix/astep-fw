@@ -371,7 +371,10 @@ class Asic:
         Generate asic bitvector from digital, bias and dacconfig.
         Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
 
-        This method returns an array of bitvector, each for a chip in the daisychain. If the targetChup parameter is used, the array contains one bitvector for the target chip.
+        This method returns an array of bitvector, each for a chip in the daisychain, in reverse order!
+        It means if you have 2 chips, you will get first the bits of chip_1, then chip_0
+        
+        If the targetChip parameter is used, the array contains one bitvector for the target chip.
 
         Args:
 
@@ -382,7 +385,7 @@ class Asic:
         chipConfigs = []
 
         rangeStart = self._num_chips - 1 if targetChip == -1 else targetChip
-        rangeStop = 0 if targetChip == -1 else targetChip - 1
+        rangeStop = -1 if targetChip == -1 else targetChip - 1
         for chip in range(rangeStart, rangeStop, -1):
             chipBitvector = BitArray()
             for key in self.asic_config[f"config_{chip}"]:

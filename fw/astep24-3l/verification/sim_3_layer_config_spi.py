@@ -42,7 +42,7 @@ async def test_layers_config_spi_chip0(dut):
 
     ## Create ASIC config
     driver.setupASICS(
-        version=3, lanes=3, chipsPerRow=2, configFile="./files/config_v3_mc.yml"
+        version=3, lanes=3, chipsPerLane=2, configFile="./files/config_v3_mc.yml"
     )
 
     ## Write Config via SPI
@@ -58,7 +58,7 @@ async def test_layers_config_spi_chip0(dut):
     )
     await driver.layersSelectSPI()
     await driver.writeSPIAsicConfig(lane=0, targetChip=0)
-    await Timer(10, units="us")
+    await Timer(1, units="us")
     # asic = driver.getAsic(0)
     # await asic.writeConfigSPI(targetChip=0)
     await driver.layersDeselectSPI()
@@ -72,7 +72,7 @@ async def test_layers_config_spi_chip0(dut):
     ## Test Broadcast
     await driver.layersSelectSPI()
     await driver.writeSPIAsicConfig(lane=0, broadcast=True)
-    await Timer(10, units="us")
+    await Timer(1, units="us")
     await driver.layersDeselectSPI()
 
     await Timer(10, units="us")
@@ -97,7 +97,7 @@ async def test_layers_config_spi_chip0_checkbits(dut):
 
     ## Create ASIC config
     driver.setupASICS(
-        version=3, lanes=3, chipsPerRow=2, configFile="./files/config_v3_mc.yml"
+        version=3, lanes=3, chipsPerLane=2, configFile="./files/config_v3_mc.yml"
     )
 
     ## Write Config via SPI
@@ -142,7 +142,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
 
     ## Create ASIC config
     driver.setupASICS(
-        version=3, lanes=3, chipsPerRow=2, configFile="./files/config_v3_mc.yml"
+        version=3, lanes=3, chipsPerLane=2, configFile="./files/config_v3_mc.yml"
     )
 
     ## Write Config via SPI to Chip 0

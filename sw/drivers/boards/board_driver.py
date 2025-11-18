@@ -95,7 +95,7 @@ class BoardDriver:
         self,
         version: int,
         lanes: int = 1,
-        chipsPerRow: int = 1,
+        chipsPerLane: int = 1,
         configFile: str | None = None,
     ):
         """Configure one or multiple lanes with a single config file
@@ -114,7 +114,7 @@ class BoardDriver:
 
         for i in range(lanes):
             self.setupASIC(
-                version, lane=i, chipsPerLane=chipsPerRow, configFile=configFile
+                version, lane=i, chipsPerLane=chipsPerLane, configFile=configFile
             )
 
     def setupASIC(
@@ -355,7 +355,7 @@ class BoardDriver:
         layer0Cfg = layer0Cfg | (1 << 3)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg, flush)
 
-    async def layersDeselectSPI(self, flush=False):
+    async def layersDeselectSPI(self, flush=True):
         """This helper method deasserts the shared CSN to 1 by deselecting CS on layer 0
         it's a helper to be used only if the hardware uses a shared Chip Select!!
         If any Layer is in autoread mode, chip select will stay asserted
@@ -390,11 +390,14 @@ class BoardDriver:
         layer0Cfg &= ~(1 << 1)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg, flush)
 
-    async def resetLayersFull(self, waitTime: float = 0.5, flush=True):
+    async def resetLayersFull(
+        self, waitTime: float = 0.5, wait: bool = True, flush=True
+    ):
         """Reset all layers because the reset line is shared.
 
         Args:
             waitTime (float):  Reset duration - Default 0.5s
+            wait(bool,optional): Wait before driving reset 1 and 0 - Useful in simulation, asyncio.sleep doesn't work there
         """
         layersCfg = [
             await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
@@ -405,7 +408,10 @@ class BoardDriver:
             await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(
                 layersCfg[layer], flush
             )
-        await asyncio.sleep(waitTime)
+
+        if wait:
+            await asyncio.sleep(waitTime)
+
         for layer in range(3):
             layersCfg[layer] &= ~(1 << 1)
             await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(
@@ -638,26 +644,26 @@ class BoardDriver:
             await getattr(self.rfg, f"write_layer_{lane}_mosi_bytes")(chunkBytes, True)
 
             # Wait for the current chunk to be written before sending the next one
-            startTime = time.time()
-            currentTime = time.time()
-
-            if waitForLastChunk is False and steps == chunk:
+            # If wait for Last Chunk is false and it is the last chunk, don't wait
+            # This is not implemented using asyncio.timeout because it doesn't work in simulation
+            if (waitForLastChunk is True and steps == chunk) or chunk < steps:
+                startTime = time.time()
+                currentTime = time.time()
+                # Wait until bufer written out to astropix
                 while (
                     await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")() > 0
                     and (currentTime - startTime) <= timeout
                 ):
-                    # Update timeout
-                    #
                     currentTime = time.time()
                     pass
 
-            # logger.info("Current MISO Write count=%d",await getattr(self.rfg, f"read_layer_{self.row}_mosi_write_size")())
-            if (currentTime - startTime) > timeout:
-                raise RuntimeError(
-                    "Chunck {}/{} len={} timed out".format(
-                        int(chunk / outputBufferSize + 1), steps, len(chunkBytes)
+                # Test if timeout condition
+                if (currentTime - startTime) > timeout:
+                    raise RuntimeError(
+                        "Chunck {}/{} len={} timed out".format(
+                            int(chunk / outputBufferSize + 1), steps, len(chunkBytes)
+                        )
                     )
-                )
 
     async def getLayerMOSIBytesCount(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")()
