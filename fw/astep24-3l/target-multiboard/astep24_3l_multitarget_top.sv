@@ -428,7 +428,7 @@ module astep24_3l_multitarget_top (
     // Sysclock 40Mhz -> 40M clock derived from board clock 
     // -----------
     always_ff @(posedge sysclk_40M ) begin
-        if (!resn) begin
+        if (!clk_core_resn) begin
             led_toggle_sysclk40M       <= 'b0;
             led_toggle_count_sysclk40M <= 'd0;
         end
@@ -447,7 +447,7 @@ module astep24_3l_multitarget_top (
     // -------------------------
     
     always_ff @(posedge clk_ext_internal ) begin
-        if (!resn) begin
+        if (!clk_core_resn) begin
             led_toggle_tlu40M       <= 'b0;
             led_toggle_count_tlu40M <= 'd0;
         end

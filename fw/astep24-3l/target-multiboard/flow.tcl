@@ -5,7 +5,7 @@
 ## This method used to generate a Date version for RFG, so that SW can read a build version to easily check which firmware is flashed
 proc getDateVersion args {
     set date [clock seconds]
-    return   [clock format $date -format "%y%m%d"]01
+    return   [clock format $date -format "%y%m%d"]$::env(BUILD_ITERATION)
 }
 
 # Get project file dir
