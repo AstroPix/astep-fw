@@ -13,6 +13,8 @@ module astep24_3l_top(
     output wire             clk_ext_selected,
     output wire				clk_sample,
     output wire				clk_timestamp,
+    
+    output wire             sysclk_40M, // 40M clock derived from Board Clock
 
     output wire             clk_core,
     output wire             clk_core_resn,
@@ -127,12 +129,15 @@ module astep24_3l_top(
     wire global_resn_o;
 
     assign clk_sample = clk_100;
-
+    
+    wire layers_fpga_timestamp_ctrl_use_tlu;
+    
     astep24_3l_top_clocking  clocking_reset_I (
 
         .sysclk_in(sysclk),
         .clk_ext(clk_ext),
         .resn(resn),
+        .ext_clk_allowed(layers_fpga_timestamp_ctrl_use_tlu),
         .global_resn_o(global_resn_o),
 
 

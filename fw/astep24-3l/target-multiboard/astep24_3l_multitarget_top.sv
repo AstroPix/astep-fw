@@ -371,16 +371,25 @@ module astep24_3l_multitarget_top (
     wire clk_ext_selected;
 
     `ifdef TARGET_NEXYS
-
+    
+    // LED to check clock running
     logic [31:0] led_toggle_count;
     logic        led_toggle;
+    
+    logic [31:0] led_toggle_count_sysclk40M;
+    logic        led_toggle_sysclk40M;
+    
+    logic [31:0] led_toggle_count_tlu40M;
+    logic        led_toggle_tlu40M;
 
     wire resn_internal = resn;
 
     assign ftdi_siwun = 1'b1;
 
 
-    assign led_internal[5:0] = rfg_io_led[5:0];
+    assign led_internal[3:0] = rfg_io_led[3:0];
+    assign led_internal[4] = led_toggle_tlu40M;
+    assign led_internal[5] = led_toggle_sysclk40M;
     assign led_internal[6] = led_toggle;
     assign led_internal[7] = clk_ext_selected;
 
@@ -394,7 +403,11 @@ module astep24_3l_multitarget_top (
 
     assign layer_0_spi_right_miso = 2'b00;
 
-
+    
+    // LED To quicklu Check Clocks 
+    // -----------------
+    
+    // Core Clock 80Mhz (after all PLL)
     // Make LED Toggle 2/sec on core clock
     always_ff @(posedge clk_core ) begin
         if (!clk_core_resn) begin
@@ -411,6 +424,45 @@ module astep24_3l_multitarget_top (
             end
         end
     end
+    
+    // Sysclock 40Mhz -> 40M clock derived from board clock 
+    // -----------
+    always_ff @(posedge sysclk_40M ) begin
+        if (!resn) begin
+            led_toggle_sysclk40M       <= 'b0;
+            led_toggle_count_sysclk40M <= 'd0;
+        end
+        else begin
+            if (led_toggle_count_sysclk40M==32'd20000000) begin
+                led_toggle_sysclk40M <= ! led_toggle_sysclk40M;
+                led_toggle_count_sysclk40M <= 'd0;
+            end
+            else begin
+                led_toggle_count_sysclk40M <= led_toggle_count_sysclk40M + 32'd1;
+            end
+        end
+    end
+    
+    // Ext Clock 40Mhz -> 40M clock from external TLU 
+    // -------------------------
+    
+    always_ff @(posedge clk_ext_internal ) begin
+        if (!resn) begin
+            led_toggle_tlu40M       <= 'b0;
+            led_toggle_count_tlu40M <= 'd0;
+        end
+        else begin
+            if (led_toggle_count_tlu40M==32'd20000000) begin
+                led_toggle_tlu40M <= ! led_toggle_tlu40M;
+                led_toggle_count_tlu40M <= 'd0;
+            end
+            else begin
+                led_toggle_count_tlu40M <= led_toggle_count_tlu40M + 32'd1;
+            end
+        end
+    end
+    
+    
 
 
 
@@ -481,6 +533,8 @@ module astep24_3l_multitarget_top (
 
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
+        
+        .sysclk_40M(sysclk_40M),
 
 
         .ext_adc_spi_csn(ext_spi_adc_csn),
