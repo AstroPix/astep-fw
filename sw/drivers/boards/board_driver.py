@@ -634,10 +634,10 @@ class BoardDriver:
             # if len(chunkBytes) != 256:
             #    task = asyncio.create_task(asyncio.sleep(20))
             #    await task
-
+            currentChunk = (chunk / outputBufferSize + 1)
             logger.info(
                 "Writing Chunck %d/%d len=%d",
-                (chunk / outputBufferSize + 1),
+                currentChunk,
                 steps,
                 len(chunkBytes),
             )
@@ -646,7 +646,8 @@ class BoardDriver:
             # Wait for the current chunk to be written before sending the next one
             # If wait for Last Chunk is false and it is the last chunk, don't wait
             # This is not implemented using asyncio.timeout because it doesn't work in simulation
-            if (waitForLastChunk is True and steps == chunk) or chunk < steps:
+            if ((waitForLastChunk is True) and currentChunk == steps) or currentChunk < steps:
+                
                 startTime = time.time()
                 currentTime = time.time()
                 # Wait until bufer written out to astropix
@@ -725,7 +726,7 @@ class BoardDriver:
         use_tlu: bool,
         tlu_busy_on_t0: bool = False,
         timestamp_size: int = 1,
-        flush: bool = False,
+        flush: bool = True,
     ):
         """
         Configure the FPGA Timestamp to count from the internal match counter, the external TS input or force at each clock cycle
