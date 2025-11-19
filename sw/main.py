@@ -185,7 +185,7 @@ async def newmain(args):
 
     await arun.fpga_configure_clocks()
     await arun.fpga_configure_autoread_keepalive(4)
-    arun.load_yaml(args.yaml, args.chipsPerRow)
+    arun.load_yaml(args.yaml,1, args.chipsPerRow)
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)

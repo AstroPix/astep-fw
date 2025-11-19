@@ -64,6 +64,8 @@ class AstepRun:
         logger.info("Opened FPGA, testing...")
         await self._test_io()
         logger.info("FPGA test successful.")
+        
+        return self.boardDriver
 
     async def fpga_configure_clocks(
         self,
@@ -131,7 +133,7 @@ class AstepRun:
     # For now we just stick to Asic
 
     # Method to initalize the asic. This is taking the place of asic.py.
-    def load_yaml(self, yaml: str = None, chipsPerRow: int = 1):
+    def load_yaml(self, yaml, lanes:int = 1, chipsPerLane: int = 1):
         """
         Initalize the asic configuration. Must be called first
         Positional arguments: None
@@ -139,30 +141,33 @@ class AstepRun:
         yaml:list of str - Name of yml file(s) with configuration values (one file per bus)
         chipsPerRow:list of int - Number of arrays per SPI bus (one int per bus)
         """
+        
+        assert lanes >= 1 , "Cannot have less than one lane configured"
+        assert chipsPerLane >=1 , "Cannot have less than one chip per lane configured"
+        
         # Define YAML path variables
+        # If the provided yaml string is already a file, don't create the default path
         pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-        ymlpath = [
-            os.getcwd()
-            + pathdelim
-            + "scripts"
-            + pathdelim
-            + "config"
-            + pathdelim
-            + y
-            + ".yml"
-            for y in yaml
-        ]
+        if os.path.exists(yaml) is False:
+            ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yaml"
+            
+        else:
+            ymlpath = yaml
+        
+        
+        assert os.path.exists(ymlpath) , f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
+        
 
         # Get config values from YAML and set chip properties
         try:
-            for layer, (nchips, yml) in enumerate(zip(chipsPerRow, ymlpath)):
+            #for lane in range(lanes):
                 ## Init asic
-                self.boardDriver.setupASIC(
-                    version=self.chipversion,
-                    lane=layer,
-                    chipsPerLane=nchips,
-                    configFile=yml,
-                )
+            self.boardDriver.setupASICS(
+                version=self.chipversion,
+                lanes=lanes,
+                chipsPerLane=chipsPerLane,
+                configFile=ymlpath,
+            )
         except FileNotFoundError as e:
             logger.error(
                 f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
