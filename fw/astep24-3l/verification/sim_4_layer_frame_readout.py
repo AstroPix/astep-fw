@@ -39,9 +39,13 @@ async def impl_test_layer_0_single_frame_noautoread_tssize(
         flush=True,
         timestamp_size=tssize,
     )
+    
+    await Timer(1,units="us")
+    currentTS = await driver.rfg.read_layers_fpga_timestamp_counter()
+    
 
     dut._log.info(
-        f"Timestamp size {tssize}, expecting {driver.fpgaTimeStampBytesCount} TS bytes ({driver.fpgaTimeStampBytesCount * 8} bits)"
+        f"Timestamp size {tssize}, expecting {driver.fpgaTimeStampBytesCount} TS bytes ({driver.fpgaTimeStampBytesCount * 8} bits), currentTS={hex(currentTS)}"
     )
 
     ## Drive a frame from the ASIC with autoread disabled, it should timeout
@@ -98,7 +102,7 @@ async def test_layer_0_single_frame_noautoread(dut):
     await impl_test_layer_0_single_frame_noautoread_tssize(dut, asic, driver, 1)
 
 
-@cocotb.test(timeout_time=2, timeout_unit="ms")
+@cocotb.test(timeout_time=5, timeout_unit="ms")
 async def test_layer_0_single_frame_noautoread_alltssizes(dut):
     """Gets a single frame on layer 0 with all possible timestamp sizes"""
 

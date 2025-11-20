@@ -69,8 +69,8 @@ module tlu_client #(
       .signal_out({tlu_sync, tlu_trig})  // o, sync to out_clk
   );*/
 
-  assign t0_i = (conf_t0_mode_in && tlu_sync) || t0_inject_in;
-  assign trig_i = tlu_trig || trigger_inject_in;
+  assign t0_i =  enable_in & ((conf_t0_mode_in && tlu_sync) || t0_inject_in);
+  assign trig_i = enable_in & (tlu_trig || trigger_inject_in);
   // if conf_busy_on_t0_in == 1'b1:
   // set busy_min_duration_counter on t0, or, if t0 mode is disabled, when the module is being enabled
   assign t0_busy = conf_busy_on_t0_in && (t0_i || (!conf_t0_mode_in && enable_in && !running));
@@ -148,7 +148,7 @@ module tlu_client #(
 
   //-- Counter by itself
   wire counter_is_counting = enable_in || enable_counter_in;
-  wire timestamp_counter_reset = ( !tlu_resn_in || t0_i );
+  wire timestamp_counter_reset = ( !tlu_resn_in || (  t0_i) );
   always_ff @ (posedge tlu_clk) begin
 
     if (timestamp_counter_reset) begin
@@ -160,7 +160,7 @@ module tlu_client #(
   end
 
   //-- Counter Hold
-  wire update_hold  = (counter_is_counting && !enable_in) || trig_i ; // If counter is enabled but not TLU, always update output
+  wire update_hold  = (counter_is_counting && !enable_in) || (trig_i ); // If counter is enabled but not TLU, always update output
   always_ff @ (posedge tlu_clk) begin
 
     if (!tlu_resn_in) begin
