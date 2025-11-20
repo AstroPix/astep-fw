@@ -364,9 +364,10 @@ class Asic:
                 logger.info("Chain chip_%d config found!", chip_number)
             except KeyError:
                 logger.error("Chain chip_%d config not found!", chip_number)
-                sys.exit(1)
-
-    def getConfigBits(self, msbfirst: bool = False, targetChip: int = -1) -> BitArray:
+                raise RuntimeError(f"Chain chip_{chip_number} config not found, check the config file syntax!")
+                
+                
+    def getChipsConfigs(self, msbfirst: bool = False, targetChip: int = -1) -> BitArray:
         """
         Generate asic bitvector from digital, bias and dacconfig.
         Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
@@ -408,6 +409,31 @@ class Asic:
             chipConfigs.append(chipBitvector)
 
         return chipConfigs
+        
+    def getConfigBits(self, msbfirst: bool = False, targetChip: int = -1, limit:int|None = None ) -> BitArray:
+        """
+        Generate asic bitvector from digital, bias and dacconfig.
+        Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
+
+        This method returns all bits concatenated!
+
+        Args:
+
+            msbfirst(bool,optional): Send vector MSB first
+            targetChip(int,optional): Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
+        """
+
+        configs = self.getChipsConfigs(msbfirst=msbfirst,targetChip=targetChip)
+        bitsConcatenated = BitArray()
+        bits = []
+        for config in configs:
+            bits.extend(config)
+            bitsConcatenated.append(config)
+
+        if limit is not None:
+            bitsConcatenated = bitsConcatenated[:limit]
+            
+        return bitsConcatenated
 
     def getRoutingFrame(self, firstChipID: int = 0, paddingBytes: int = 2):
         """
@@ -452,15 +478,12 @@ class Asic:
 
         ## Generate Bit vector for config
         if config is None:
-            chipConfigs = self.getConfigBits(
-                targetChip=targetChip,
-                msbfirst=False,
-            )
-            logger.info(f"SPI Config bits, len={len(chipConfigs)}")
             config = self.getConfigBits(
                 targetChip=targetChip,
                 msbfirst=False,
-            )[0]
+            )
+            logger.info(f"SPI Config bits, len={len(config)}")
+            
 
         # Write SPI SR Command to set MUX
         if broadcast:
