@@ -63,16 +63,20 @@ LAYERS_TLU_BUSY_DURATION = 0x83
 LAYERS_CFG_NODATA_CONTINUE = 0x85
 LAYERS_SR_OUT = 0x86
 LAYERS_SR_IN = 0x87
-LAYERS_INJ_CTRL = 0x88
-LAYERS_INJ_WADDR = 0x89
-LAYERS_INJ_WDATA = 0x8a
-LAYERS_READOUT = 0x8b
-LAYERS_READOUT_READ_SIZE = 0x8c
-IO_CTRL = 0x90
-IO_LED = 0x91
-GECCO_SR_CTRL = 0x92
-HK_CONVERSION_TRIGGER_MATCH = 0x93
-LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0x97
+LAYERS_SR_RB_CTRL = 0x88
+LAYERS_SR_CRC = 0x89
+LAYERS_SR_BYTES = 0x8f
+LAYERS_SR_BYTES_READ_SIZE = 0x90
+LAYERS_INJ_CTRL = 0x94
+LAYERS_INJ_WADDR = 0x95
+LAYERS_INJ_WDATA = 0x96
+LAYERS_READOUT = 0x97
+LAYERS_READOUT_READ_SIZE = 0x98
+IO_CTRL = 0x9c
+IO_LED = 0x9d
+GECCO_SR_CTRL = 0x9e
+HK_CONVERSION_TRIGGER_MATCH = 0x9f
+LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xa3
 
 
 
@@ -135,16 +139,20 @@ class main_rfg(AbstractRFG):
         LAYERS_CFG_NODATA_CONTINUE = 0x85
         LAYERS_SR_OUT = 0x86
         LAYERS_SR_IN = 0x87
-        LAYERS_INJ_CTRL = 0x88
-        LAYERS_INJ_WADDR = 0x89
-        LAYERS_INJ_WDATA = 0x8a
-        LAYERS_READOUT = 0x8b
-        LAYERS_READOUT_READ_SIZE = 0x8c
-        IO_CTRL = 0x90
-        IO_LED = 0x91
-        GECCO_SR_CTRL = 0x92
-        HK_CONVERSION_TRIGGER_MATCH = 0x93
-        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0x97
+        LAYERS_SR_RB_CTRL = 0x88
+        LAYERS_SR_CRC = 0x89
+        LAYERS_SR_BYTES = 0x8f
+        LAYERS_SR_BYTES_READ_SIZE = 0x90
+        LAYERS_INJ_CTRL = 0x94
+        LAYERS_INJ_WADDR = 0x95
+        LAYERS_INJ_WDATA = 0x96
+        LAYERS_READOUT = 0x97
+        LAYERS_READOUT_READ_SIZE = 0x98
+        IO_CTRL = 0x9c
+        IO_LED = 0x9d
+        GECCO_SR_CTRL = 0x9e
+        HK_CONVERSION_TRIGGER_MATCH = 0x9f
+        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xa3
     
     
     
@@ -856,6 +864,52 @@ class main_rfg(AbstractRFG):
     
     async def read_layers_sr_in_raw(self, count : int = 1 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['LAYERS_SR_IN'],count = count, increment = False)
+        
+    
+    
+    
+    async def write_layers_sr_rb_ctrl(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_SR_RB_CTRL'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_sr_rb_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_SR_RB_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_sr_rb_ctrl_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_SR_RB_CTRL'],count = count, increment = False)
+        
+    
+    
+    
+    async def read_layers_sr_crc(self, count : int = 6 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_SR_CRC'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_sr_crc_raw(self, count : int = 6 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_SR_CRC'],count = count, increment = True)
+        
+    
+    
+    
+    async def read_layers_sr_bytes(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_SR_BYTES'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_sr_bytes_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_SR_BYTES'],count = count, increment = False)
+        
+    
+    
+    
+    async def read_layers_sr_bytes_read_size(self, count : int = 4 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_SR_BYTES_READ_SIZE'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_sr_bytes_read_size_raw(self, count : int = 4 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_SR_BYTES_READ_SIZE'],count = count, increment = True)
         
     
     

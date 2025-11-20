@@ -133,16 +133,37 @@ set baseRegisters {
             LD0 {-doc "Load signal for Layer 0"}
             LD1 {-doc "Load signal for Layer 1"}
             LD2 {-doc "Load signal for Layer 2"}
+            
         }
     }
     LAYERS_SR_IN {
         -doc "Shift Register Configuration Input control (Readback enable and layers inputs)"
         -bits {
-            RB    {-doc "Set to 1 to activate Shift Register Read back from layers"}
             SOUT0 {-input}
             SOUT1 {-input}
             SOUT2 {-input}
+            
         }
+    }
+    
+    LAYERS_SR_RB_CTRL {
+        -doc "Shift Register CRC and bits Readback control"
+        -bits {
+            RB    {-doc "Set to 1 to activate Shift Register Read back from layers"}
+            CRC_ENABLE  { -doc "Set to 1 to enable CRC Module"}
+            SOUT_SELECT { -size 5 -doc "Set to configure which SOUT is used - up to 32"}
+        }
+    }
+
+    LAYERS_SR_CRC {
+        -doc "CRC Output of readback module"
+        -size 48
+        -sw_read_only
+        -hw_write
+    }
+    LAYERS_SR_BYTES {
+        -doc "Readback SR bits packed as bytes"
+        -fifo_axis_slave -read_count
     }
     LAYERS_INJ_CTRL {
         -reset 8'b00000110

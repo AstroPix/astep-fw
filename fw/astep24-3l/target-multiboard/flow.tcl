@@ -74,6 +74,8 @@ proc read_design_files {} {
     add_files_no_simulation $commonSrcDir/rtl/utilities/
 
     add_files_no_simulation $commonSrcDir/rtl/trigger/
+    
+    add_files_no_simulation $commonSrcDir/rtl/config/
 }
 
 proc read_syn_ip {} {

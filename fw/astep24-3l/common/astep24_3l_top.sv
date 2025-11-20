@@ -315,7 +315,18 @@ module astep24_3l_top(
 
 
     wire layer_0_stat_wronglength_counter_enable,layer_1_stat_wronglength_counter_enable,layer_2_stat_wronglength_counter_enable;
-
+    
+    // Config Readback CRC and bits packed in bytes
+    wire [47:0] layers_sr_crc;
+    wire        layers_sr_crc_write;
+    wire [7:0]  layers_sr_bytes_s_axis_tdata;
+    wire [31:0] layers_sr_bytes_read_size;
+    
+    wire [4:0]  layers_sr_rb_ctrl_sout_select;
+    
+   
+    
+    
     main_rfg  main_rfg_I (
 
         .clk(clk_core),
@@ -514,6 +525,29 @@ module astep24_3l_top(
         .layers_sr_out_ld0(layers_sr_out_ld0),
         .layers_sr_out_ld1(layers_sr_out_ld1),
         .layers_sr_out_ld2(layers_sr_out_ld2),
+        
+        
+        .layers_sr_in(),
+        .layers_sr_in_sout0(layers_sr_in_sout0),
+        .layers_sr_in_sout1(layers_sr_in_sout1),
+        .layers_sr_in_sout2(layers_sr_in_sout2),
+        
+        
+        .layers_sr_rb_ctrl(),
+        .layers_sr_rb_ctrl_rb(layers_sr_in_rb),
+        .layers_sr_rb_ctrl_crc_enable(layers_sr_rb_ctrl_crc_enable),
+        .layers_sr_rb_ctrl_sout_select(layers_sr_rb_ctrl_sout_select),
+        
+        .layers_sr_crc(layers_sr_crc),
+        .layers_sr_crc_write(layers_sr_crc_write),
+        
+        // AXIS Slave interface to read from FIFO layers_sr_bytes,
+        // --------------------,
+        .layers_sr_bytes_s_axis_tdata(layers_sr_bytes_s_axis_tdata),
+        .layers_sr_bytes_s_axis_tvalid(layers_sr_bytes_s_axis_tvalid),
+        .layers_sr_bytes_s_axis_tready(layers_sr_bytes_s_axis_tready),
+        .layers_sr_bytes_read_size(layers_sr_bytes_read_size),
+        .layers_sr_bytes_read_size_write(1'b1),
 
         .layers_inj_ctrl(),
         .layers_inj_ctrl_reset              (injection_generator_inj_ctrl_reset),
@@ -527,11 +561,7 @@ module astep24_3l_top(
         .layers_inj_waddr                   (injection_generator_inj_waddr),
         .layers_inj_wdata                   (injection_generator_inj_wdata),
 
-        .layers_sr_in(),
-        .layers_sr_in_rb(layers_sr_in_rb),
-        .layers_sr_in_sout0(layers_sr_in_sout0),
-        .layers_sr_in_sout1(layers_sr_in_sout1),
-        .layers_sr_in_sout2(layers_sr_in_sout2),
+      
 
         .layers_readout_s_axis_tdata(layers_readout_s_axis_tdata),
         .layers_readout_s_axis_tvalid(layers_readout_s_axis_tvalid),
@@ -877,6 +907,76 @@ module astep24_3l_top(
         // Not needed for now
         .busy_in(1'b0)
       );
+      
+      
+      
+    // Readback of config Bits 
+    // -----------------------
+    
+    //- First CRC Moduel that returns Config CRC and the bits packed as bytes
+    wire [31:0] layers_sr_crc_value;
+    wire [15:0] layers_sr_crc_parities;
+    assign      layers_sr_crc = {layers_sr_crc_parities,layers_sr_crc_value};
+    
+    wire [7:0]  layers_crc_bytesout_data;
+    wire        layers_crc_bytesout_valid;
+    
+    logic crc_sout_select;
+    always_comb begin
+        if (layers_sr_rb_ctrl_sout_select==5'd0) begin 
+            crc_sout_select = layers_sr_in_sout0;
+        end
+        else if (layers_sr_rb_ctrl_sout_select==5'd1) begin 
+            crc_sout_select = layers_sr_in_sout1;
+        end
+        else if (layers_sr_rb_ctrl_sout_select==5'd2) begin 
+            crc_sout_select = layers_sr_in_sout2;
+        end
+        else  begin 
+            crc_sout_select = layers_sr_in_sout0;
+        end
+    end
+    
+    
+    sr_readback_crc sr_readback_crc (
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .enable(layers_sr_rb_ctrl_crc_enable),
 
+        .sin(crc_sout_select),
+        .clk1(layers_sr_out_ck1),
+        .clk2(layers_sr_out_ck2),
+
+        .crc(layers_sr_crc_value),
+        .parities(layers_sr_crc_parities),
+        .crc_valid(layers_sr_crc_write),
+        .bits_byte(layers_crc_bytesout_data),
+        .bits_byte_valid(layers_crc_bytesout_valid)
+
+    );
+    
+    
+    
+    //- Second the FIFO that gets the Bits packed as bytes 
+    fifo_axis_1clk_1kB  sr_readback_bytes_fifo (
+        .s_axis_aclk(clk_core),
+        .s_axis_aresetn(clk_core_resn),
+
+        // From CRC Module
+        .s_axis_tdata(layers_crc_bytesout_data),
+        .s_axis_tready(),
+        .s_axis_tvalid(layers_crc_bytesout_valid),
+        .s_axis_tlast(1'b1),
+
+        // To RFG Readout
+        .axis_rd_data_count(layers_sr_bytes_read_size),
+        .m_axis_tdata(layers_sr_bytes_s_axis_tdata),
+        .m_axis_tready(layers_sr_bytes_s_axis_tready),
+        .m_axis_tvalid(layers_sr_bytes_s_axis_tvalid),
+        .m_axis_tlast()
+    );
+     
+    
+    
 
 endmodule

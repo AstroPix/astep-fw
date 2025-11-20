@@ -6,7 +6,12 @@ import time
 import rfg.core
 import rfg.io
 from bitstring import BitArray
+from bitstring import Array
 from deprecated import deprecated
+
+ 
+
+
 
 import drivers.astep.housekeeping
 from drivers.astropix.asic import Asic
@@ -168,13 +173,8 @@ class BoardDriver:
 
         ## Generate Bit vector for config
         ## If limit is used, retain only a few bits from the resuklt
-        configs = self.getAsic(lane).getConfigBits(msbfirst=False)
-        bits = []
-        for config in configs:
-            bits.extend(config)
-
-        if limit is not None:
-            bits = bits[:limit]
+        bits = self.getAsic(lane).getConfigBits(msbfirst=False,limit=limit)
+        
 
         logger.info("Writing SR Config for row=%d,len=%d", lane, len(bits))
 
@@ -231,7 +231,113 @@ class BoardDriver:
         # Write all configs
         # Write to layer
         await self.writeSPIBytesToLane(lane, spiBytes)
+        
+        
+    async def writeSRReadback(self, lane: int = 0, ckdiv=8, limit: int | None = None):
+        """
+        This method drivers the Config SR Readback by: 
+            - setting RB to 1, then CK1/CK2 toggling once 
+            - RB back to 0, then enale the readback CRC module
+            - Write hte config with SIN always 0, no load and the number of bits left padded to a full byte
 
+            Args:
+                ckdiv(int) : Repeats the write for ck1/ck2/load ckdiv times to strech the signal. Set this value higher for faster software interface
+                limit(int) : Only write limit bits to SR - Mostly useful in simulation to limit runtime which checking the I/O are correctly driven
+
+        """
+
+        ## Generate Bit vector for config
+        ## If limit is used, retain only a few bits from the resuklt
+        bits = self.getAsic(lane).getConfigBits(msbfirst=False)
+        
+
+        logger.info("Reading SR Config for lane=%d,len=%d", lane, len(bits))
+
+        ## Save target register for the write here - this can be easily updated in case some hardware platforms have different names for registers
+        targetRegister = self.rfg.Registers["LAYERS_SR_OUT"]
+        targetInRegister = self.rfg.Registers["LAYERS_SR_IN"]
+        targetRBControlRegister = self.rfg.Registers["LAYERS_SR_RB_CTRL"]
+        
+        ## Set Readback
+        # #############
+        
+        # RB=1
+        self.rfg.addWrite(register=targetRBControlRegister, value=0x1, repeat=ckdiv )  
+        
+        # CK1
+        self.rfg.addWrite( register=targetRegister, value=0x1, repeat=ckdiv )
+        self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
+
+        # CK2
+        self.rfg.addWrite( register=targetRegister, value= 0x2, repeat=ckdiv )
+        self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
+        
+        # RB=0 and CRC enable and SOUT selection based on Lane input parameter
+        self.rfg.addWrite(register=targetRBControlRegister, value=0x2 | ((lane <<2) & 0x1F), repeat=ckdiv ) 
+        
+        await self.rfg.flush()
+        
+        ## Write Config 
+        #bitsPaddedLen = bits + [0x00] * (8- (len(bits)%8))
+        bitsPaddedLen = len(bits) +  (8- (len(bits)%8))
+        logger.info(f"Padded bits to len={bitsPaddedLen},bytes={bitsPaddedLen/8.0}")
+        
+        ## Write to SR using register
+        sinValue = 0
+        for i in range(bitsPaddedLen):
+            
+
+            # CK1
+            self.rfg.addWrite(
+                register=targetRegister, value=sinValue | 0x1, repeat=ckdiv
+            )
+            self.rfg.addWrite(register=targetRegister, value=sinValue, repeat=ckdiv)
+
+            # CK2
+            self.rfg.addWrite(
+                register=targetRegister, value=sinValue | 0x2, repeat=ckdiv
+            )
+            self.rfg.addWrite(register=targetRegister, value=sinValue, repeat=ckdiv)
+
+
+        await self.rfg.flush()
+        
+        
+        # RB=0 and CRC disable
+        self.rfg.addWrite(register=targetRBControlRegister, value=0, repeat=ckdiv ) 
+        await self.rfg.flush()
+        
+        ## Now Read CRC and number of bytes available 
+        return await self.rfg.read_layers_sr_crc()
+        
+    async def readSRReadbackBytes(self,len:int ):
+        """Returns the bytes from FIFO containing the SR config bits read back via CRC module.
+        Pass to len argument the lenght returned by writeSRReadback"""
+        
+        return await self.rfg.read_layers_sr_bytes_raw(len)
+        
+    async def readSRReadbackBits(self,lane:int, targetChip=-1):
+        """Returns the read back bits as a bit string in correct order with the number of padding bits stripped ,and the same bits as expected"""
+        
+        ## Get the bits in bytes
+        bitsAsBytes = await self.readSRReadbackBytes(await self.rfg.read_layers_sr_bytes_read_size())
+        
+        ## Get the Number of config bits
+        # 
+        expectedBits = self.getAsic(lane).getConfigBits(msbfirst=True,targetChip=targetChip) # MsbFirst here is used to get the bits in real order, not order to be send to chip
+        bitsPaddedLen =  (8- (len(expectedBits)%8))
+        
+        
+        ## Pack the read bits in bitstring array, reverse then return sliced removing the first x bits which are padding for byte
+        a = Array('uint8', bitsAsBytes)
+        a.data.reverse() 
+        
+        readBackBits = a.data[bitsPaddedLen:]
+        
+        logger.info(f"SR Readback, expectedBits={len(expectedBits)},paddingLength={bitsPaddedLen},number of bytes={len(bitsAsBytes)},result bits={len(readBackBits)}")
+        
+        return (readBackBits,expectedBits)
+        
     ## Clock and IO enablement
     # #################
     async def enableSensorClocks(self, flush: bool = False):

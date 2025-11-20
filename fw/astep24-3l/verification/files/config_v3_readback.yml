@@ -1,0 +1,27 @@
+# Example Astropix3 config
+#
+# The following yaml should comply to the structure below.
+# It is important, that the order of configbits under the config section, corresponds to the actual order in the chip
+#
+# astropix<version>:
+#   geometry:
+#       cols: <number of cols>
+#       rows: <number of rows>
+#   config:
+#       <group-name>:
+#           <configbit-name>: [<number of bits>, <value>]
+#   ...
+#
+---
+astropix3:
+    chain:
+        length: 1
+    geometry:
+        cols: 35
+        rows: 35
+    config_0:
+        digitalconfig:
+            interrupt_pushpull: [1, 0b1]
+            en_inj:             [19, 0b1101100101011010110]
+            reset:              [1, 0b0]
+            extrabits:          [14, 0b10000001000101]

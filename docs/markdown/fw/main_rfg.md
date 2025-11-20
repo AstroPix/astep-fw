@@ -57,16 +57,20 @@
 |0x85 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout |
 |0x86 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register |
 |0x87 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs) |
-|0x88 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
-|0x89 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
-|0x8a | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
-|0x8b | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
-|0x8c | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
-|0x90 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
-|0x91 | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
-|0x92 | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
-|0x93 | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
-|0x97 | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
+|0x88 | [layers_sr_rb_ctrl](#layers_sr_rb_ctrl) | 8 |  | Shift Register CRC and bits Readback control |
+|0x89 | [layers_sr_crc](#layers_sr_crc) | 48 |  | CRC Output of readback module |
+|0x8f | [layers_sr_bytes](#layers_sr_bytes) | 8 | AXIS FIFO Slave (read) | Readback SR bits packed as bytes |
+|0x90 | [layers_sr_bytes_read_size](#layers_sr_bytes_read_size) | 32 |  | Number of entries in layers_sr_bytes fifo |
+|0x94 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
+|0x95 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
+|0x96 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
+|0x97 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
+|0x98 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
+|0x9c | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
+|0x9d | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
+|0x9e | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
+|0x9f | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
+|0xa3 | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
 
 
 ## <a id='hk_firmware_id'></a>hk_firmware_id
@@ -842,14 +846,72 @@
 
 
 
-| [7:4] | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |
-| RSVD |sout2 |sout1 |sout0 |rb |
+| [7:3] | 2 | 1 | 0 |
+| --|-- |-- |-- |
+| RSVD |sout2 |sout1 |sout0 |
 
-- rb : Set to 1 to activate Shift Register Read back from layers
 - sout0 : -
 - sout1 : -
 - sout2 : -
+
+
+## <a id='layers_sr_rb_ctrl'></a>layers_sr_rb_ctrl
+
+
+> Shift Register CRC and bits Readback control
+
+
+**Address**: 0x88
+
+
+
+
+| [7:7] | [6:2] | 1 | 0 |
+| --|-- |-- |-- |
+| RSVD |sout_select |crc_enable |rb |
+
+- rb : Set to 1 to activate Shift Register Read back from layers
+- crc_enable : Set to 1 to enable CRC Module
+- sout_select : Set to configure which SOUT is used - up to 32
+
+
+## <a id='layers_sr_crc'></a>layers_sr_crc
+
+
+> CRC Output of readback module
+
+
+**Address**: 0x89
+
+
+
+
+
+
+## <a id='layers_sr_bytes'></a>layers_sr_bytes
+
+
+> Readback SR bits packed as bytes
+
+
+**Address**: 0x8f
+
+
+
+
+
+
+## <a id='layers_sr_bytes_read_size'></a>layers_sr_bytes_read_size
+
+
+> Number of entries in layers_sr_bytes fifo
+
+
+**Address**: 0x90
+
+
+
+
 
 
 ## <a id='layers_inj_ctrl'></a>layers_inj_ctrl
@@ -858,7 +920,7 @@
 > Control bits for the Injection Pattern Generator
 
 
-**Address**: 0x88
+**Address**: 0x94
 
 
 **Reset Value**: 8'b00000110
@@ -883,7 +945,7 @@
 > Address for register to write in Injection Pattern Generator
 
 
-**Address**: 0x89
+**Address**: 0x95
 
 
 
@@ -896,7 +958,7 @@
 > Data for register to write in Injection Pattern Generator
 
 
-**Address**: 0x8a
+**Address**: 0x96
 
 
 
@@ -909,7 +971,7 @@
 > Reads from the readout data fifo
 
 
-**Address**: 0x8b
+**Address**: 0x97
 
 
 
@@ -922,7 +984,7 @@
 > Number of entries in layers_readout fifo
 
 
-**Address**: 0x8c
+**Address**: 0x98
 
 
 
@@ -935,7 +997,7 @@
 > Configuration register for I/O multiplexers and gating.
 
 
-**Address**: 0x90
+**Address**: 0x9c
 
 
 **Reset Value**: 8'b00011000
@@ -959,7 +1021,7 @@
 > This register is connected to the Board's LED. See target documentation for detailed connection information.
 
 
-**Address**: 0x91
+**Address**: 0x9d
 
 
 
@@ -972,7 +1034,7 @@
 > Shift Register Control for Gecco Cards
 
 
-**Address**: 0x92
+**Address**: 0x9e
 
 
 
@@ -992,7 +1054,7 @@
 > 
 
 
-**Address**: 0x93
+**Address**: 0x9f
 
 
 **Reset Value**: 32'd10
@@ -1006,7 +1068,7 @@
 > 
 
 
-**Address**: 0x97
+**Address**: 0xa3
 
 
 **Reset Value**: 32'd4

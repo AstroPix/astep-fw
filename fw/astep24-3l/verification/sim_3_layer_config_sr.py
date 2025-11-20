@@ -17,7 +17,8 @@ vip.spi.info()
 import astep24_3l_sim
 import rfg.core
 
-
+from bitstring import BitArray
+from bitstring import Array
 
 @cocotb.test(timeout_time=3, timeout_unit="ms")
 async def test_layers_config_sr_bitgen(dut):
@@ -98,6 +99,8 @@ async def test_layer_0_config_sr_multichip(dut):
     """Configures using SR on layer 0 with a multichip chain"""
 
     # rfg.core.debug()
+    # 
+    
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
@@ -124,5 +127,53 @@ async def test_layer_0_config_sr_multichip(dut):
     #    ## After last bit to load = 4 written, we can wait for a falling edge of load
     #    FallingEdge(dut._id(f"layers_sr_out_ld0", extended=False))
     # )
+
+    await Timer(150, units="us")
+
+
+
+
+@cocotb.test(timeout_time=3, timeout_unit="ms")
+async def test_layer_0_config_sr_readout(dut):
+    """Reads back a chip config from SR using CRC Module"""
+
+    ## Create an ASIC Model to send readout bits 
+    astropix = vip.astropix3.Astropix3Model(dut, "layer_0", 0)
+
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Create ASIC config
+    driver.setupASICS(
+        version=3, lanes=1, chipsPerLane=1, configFile="./files/config_v3_readback.yml"
+    )
+    
+    cocotb.start_soon(astropix.runSRInterface(srLength = 35))
+
+    ## Write Config and wait for Load edge
+    async def wait_for_load():
+        await FallingEdge(dut._id(f"layers_sr_out_ld0", extended=False))
+
+    fallingEdgeTask = cocotb.start_soon(wait_for_load())
+    await driver.writeSRAsicConfig(lane=0, ckdiv=1 )
+    await Join(fallingEdgeTask)
+    dut._log.info("Chip Configured, now start readback")
+    
+    ## Readback from driver:
+    ## Set RB to 1 then toggle CK1 and CK2
+    ## Set RB back to 0, then write the config with SIN to 0 and no load, with bits padded to full bytes
+    crc = await driver.writeSRReadback(lane = 0 )
+    
+    dut._log.info(f"CRC={crc}")
+    #dut._log.info(f"Bits Bytes len={bytesInFifo}")
+    
+    ## Get the bits
+    (readBits,expectedBits) = await driver.readSRReadbackBits(lane=0)
+    dut._log.info(f"Readback={readBits.bin},Expected={expectedBits.bin}")
+    
+    assert readBits.bin == expectedBits.bin, "Returned bits and expected bits should be the same"
+    
 
     await Timer(150, units="us")
