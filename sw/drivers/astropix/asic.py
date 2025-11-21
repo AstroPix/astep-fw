@@ -400,7 +400,7 @@ class Asic:
                     else:
                         chipBitvector.append(self.__int2nbit(values[1], values[0]))
 
-            logger.info("Generated chip_%d config successfully!", chip)
+            logger.debug("Generated chip_%d config successfully!", chip)
 
             if not msbfirst:
                 chipBitvector.reverse()

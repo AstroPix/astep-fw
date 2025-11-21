@@ -280,7 +280,7 @@ class BoardDriver:
         ## Write Config 
         #bitsPaddedLen = bits + [0x00] * (8- (len(bits)%8))
         bitsPaddedLen = len(bits) +  (8- (len(bits)%8))
-        logger.info(f"Padded bits to len={bitsPaddedLen},bytes={bitsPaddedLen/8.0}")
+        logger.debug(f"Padded bits to len={bitsPaddedLen},bytes={bitsPaddedLen/8.0}")
         
         ## Write to SR using register
         sinValue = 0

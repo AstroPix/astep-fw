@@ -267,8 +267,7 @@ class AstepRun:
         """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
         if self.SR:
             for layer in self.boardDriver.asics.keys():
-                config = self.boardDriver.asics[layer].gen_config_vector_SR()
-                await self.boardDriver.writeSRConfig(config, layer)
+                await self.boardDriver.writeSRAsicConfig(lane=layer)
         else:
             # Set Chip ID
             await self.boardDriver.layersSelectSPI(flush=True)  # Set CS
@@ -374,8 +373,8 @@ class AstepRun:
         self,
         vcal: float = 0.989,
         vsupply: float = 2.7,
-        vthreshold: float = None,
-        dacvals: tuple[int, list[float]] = None,
+        vthreshold: float | None  = None,
+        dacvals: tuple[int, list[float]] | None = None,
     ):
         """
         Configures the voltage board
