@@ -77,8 +77,8 @@ class AstepRun:
         """
         Configure FPGA TS clock (frequency and source), SPI clock frequency
         """
-        await self.boardDriver.ioSetSampleClock(enable=True, flush=flush)
-        await self.boardDriver.ioSetTimestampClock(enable=True, flush=flush)
+        await self.boardDriver.setSampleClock(enable=True, flush=flush)
+        await self.boardDriver.setTimestampClock(enable=True, flush=flush)
         # Setup FPGA timestamps
         await self.boardDriver.layersConfigFPGATimestampFrequency(
             targetFrequencyHz=FPGATSfreq, flush=flush
