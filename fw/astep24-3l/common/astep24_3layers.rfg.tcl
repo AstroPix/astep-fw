@@ -49,6 +49,7 @@ set baseRegisters {
     HK_FIRMWARE_VERSION    {-size 32 -reset ${::RFG_FW_BUILD} -sw_read_only -hw_ignore -doc "Date based Build version: YEARMONTHDAYCOUNT"}
     CLOCK_CTRL {
         -size 8 -doc "Clock Control Register for the Firmware and Astropix"
+        -reset 8'h2
         -bits {
             ext_clk_enable             {-doc "If 1, the external clock switchover mechanism is allowed"}
             ext_clk_differential       {-doc "If 1, the external FPGA timestamp clock is differential - see target hardware to check for compatibility"}

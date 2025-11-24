@@ -439,7 +439,7 @@ module main_rfg(
             rfg_write_valid <= 'd0;
             hk_firmware_id_reg <= `RFG_FW_ID;
             hk_firmware_version_reg <= `RFG_FW_BUILD;
-            clock_ctrl_reg <= '0;
+            clock_ctrl_reg <= 8'h2;
             hk_xadc_temperature_reg <= '0;
             hk_xadc_vccint_reg <= '0;
             hk_conversion_trigger_reg <= '0;

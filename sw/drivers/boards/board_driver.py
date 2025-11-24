@@ -102,13 +102,18 @@ class BoardDriver:
         await self.setSampleClock(enable=True, flush=flush)
         await self.setTimestampClock(enable=True, flush=flush)
         
-    async def setExternalClock(self,enable:bool,waitForClockChange:bool = True ):
+    async def setExternalClock(self,enable:bool,ext_clock_is_differential:bool=True, waitForClockChange:bool = True ):
         """If enable is True, allow the external clock to be used. If the FW switches to external clock ,a reset happends, this method will warn the user"""
 
         # First Read current state
         # If external clock requested and already selected, emit a warning 
         #
         currentClockCtrl1 = await self.rfg.read_clock_ctrl()
+        if ext_clock_is_differential is True:
+            currentClockCtrl1 |= 0x2 
+        else 
+            currentClockCtrl1 &= ~(0x2)
+            
         currentClockIsExternal = (currentClockCtrl1>>2) & 0x1 == 1 
         
         if enable is True and not currentClockIsExternal:
