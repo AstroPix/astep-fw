@@ -418,6 +418,55 @@ async def test_layer_0_single_frame_autoread_stopduringread(dut):
 
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
+async def test_layer_0_readout_large_buffer(dut):
+    """Generate some data frames and make a large read in parallel to check if the data comes in full frames or with empty between"""
+    
+    ## Driver, asic, clock+reset
+    asic = vip.astropix3.Astropix3Model(dut=dut,lane = 0 ,  chipID=1)
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    forcedTSValue = [0xAD,0xBC,0xDE,0xFF,0xAC,0xEC,0xB1,0x12]
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        forced_value = True,
+        flush=True,
+    )
+    await driver.layersConfigFPGATimestampForcedValue(int.from_bytes(bytes=forcedTSValue,byteorder="big"))
+    
+    await driver.readoutConfigure(packet_mode = False)
+
+    dut._log.info(
+        "Current Readout size after untapped frame: %d",
+        await driver.readoutGetBufferSize(),
+    )
+    assert await driver.readoutGetBufferSize() == 0
+
+    ## Now Restart frame generator with a Readout in parallel
+    ## Ise autoread to make FW produce frames while we are reading out
+    generator = cocotb.start_soon(asic.generateTestFrame(length=5, framesCount=4))
+    await Timer(1, units="us")
+    await driver.setLayerConfig(
+        layer=0, reset=False, hold=False, autoread=True, chipSelect=True, flush=True
+    )
+    
+    ## Readout and print
+    bytes = await driver.readoutReadBytes(256)
+    for b in bytes:
+        print(f"B={hex(b)}")
+
+    await print_layers_stats(dut, driver)
+    
+    await generator.join()
+
+    
+    await Timer(50, units="us")
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_3_layers_single_frame(dut):
     """Send A single frame to all layers after each other"""
 
