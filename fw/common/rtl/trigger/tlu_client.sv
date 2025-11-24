@@ -136,7 +136,7 @@ module tlu_client #(
 
   always_ff @ (posedge tlu_clk) begin
     trig_delayed <= 1'b0;
-    if (trigger_delay_counter == {{(TRIGGER_DELAY_WIDTH-1){1'b0}},1'b1}) begin
+    if (trigger_delay_counter == {{(TRIGGER_DELAY_WIDTH){1'b0}},1'b1}) begin
       trig_delayed <= 1'b1;
     end
   end
@@ -147,12 +147,13 @@ module tlu_client #(
   //
 
   //-- Counter by itself
-  wire counter_is_counting =  enable_counter_in;
-  wire timestamp_counter_reset = ( !tlu_resn_in || (  t0_i) );
+  wire counter_is_counting =  enable_counter_in; 
   always_ff @ (posedge tlu_clk) begin
-
-    if (timestamp_counter_reset) begin
-      timestamp_counter <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+    if (!tlu_resn_in) begin
+        timestamp_counter <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+    end
+    else if (t0_i) begin
+        timestamp_counter <=  {TRIG_TS_WIDTH{1'b0}};
     end
     else if (counter_is_counting) begin
         timestamp_counter <= timestamp_counter +1;
@@ -164,13 +165,13 @@ module tlu_client #(
   always_ff @ (posedge tlu_clk) begin
 
     if (!tlu_resn_in) begin
-      timestamp_hold    <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+      timestamp_hold    <= {conf_t0_mode_in, {TRIG_TS_WIDTH{1'b0}}};
       trigger_counter   <= {TRIG_ID_WIDTH{1'b0}};
       triggerdata_valid <= 1'b0;
     end
     else if (t0_i) begin
 
-      timestamp_hold    <= {TRIG_TS_WIDTH-1{1'b0}};
+      timestamp_hold    <= {TRIG_TS_WIDTH{1'b0}};
       trigger_counter <= {TRIG_ID_WIDTH{1'b0}};
     end
     else begin
