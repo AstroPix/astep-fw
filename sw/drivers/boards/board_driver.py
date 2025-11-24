@@ -217,7 +217,7 @@ class BoardDriver:
         Args:
             version: int, AstroPix chip version
             lanes: int, number of lanes, default=1
-            chipsPerRow: int, number of chips per row (aka daisy chain), default=1
+            chipsPerLane: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
         assert version >= 2 and version < 4, "Only Astropix 2,3 and 4 Supported"
@@ -922,6 +922,9 @@ class BoardDriver:
                 * 1 = 32bits
                 * 2 = 48bits
                 * 3 = 64bits
+                
+            forced_value (bool,optional): Force the Timestamp to a value from layersConfigFPGATimestampForcedValue call
+            force_lsb_0 (bool,optional): Force the Least Significant bit of the TS to 0
 
             flush (bool, optional): Write the register change to the firmware now
 
@@ -970,11 +973,15 @@ class BoardDriver:
     async def layersConfigFPGATimestampDivider(
         self, divider: int, flush: bool = True
     ):
+        """Writes the Divider for the FPGA Timestamp - make sure to write a > 0 value"""
+        assert divider > 0 , "Divider cannot be 0"
         await self.rfg.write_layers_fpga_timestamp_divider_match(divider, flush)
+        
     
     async def layersConfigFPGATimestampForcedValue(
         self, forced: int, flush: bool = True
     ):
+        """Writes the Forced Timestamp value"""
         await self.rfg.write_layers_fpga_timestamp_forced(forced, flush)
         
     async def layersConfigTLUBusyTime(self, clockCycles: int, flush: bool = True):
