@@ -111,7 +111,7 @@ class BoardDriver:
         currentClockCtrl1 = await self.rfg.read_clock_ctrl()
         if ext_clock_is_differential is True:
             currentClockCtrl1 |= 0x2 
-        else 
+        else:
             currentClockCtrl1 &= ~(0x2)
             
         currentClockIsExternal = (currentClockCtrl1>>2) & 0x1 == 1 
