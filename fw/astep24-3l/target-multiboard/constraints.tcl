@@ -197,6 +197,11 @@ set_property -dict {PACKAGE_PIN V7 IOSTANDARD LVCMOS25} [get_ports ext_spi_dac_c
 set_property -dict {PACKAGE_PIN W7 IOSTANDARD LVCMOS25} [get_ports ext_spi_clk]
 set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS25} [get_ports ext_spi_mosi]
 
+set_property -dict {PACKAGE_PIN Y9 IOSTANDARD LVCMOS25} [get_ports tlu_trigger_debug]
+set_property -dict {PACKAGE_PIN Y8 IOSTANDARD LVCMOS25} [get_ports tlu_t0_debug]
+set_property -dict {PACKAGE_PIN Y7 IOSTANDARD LVCMOS25} [get_ports tlu_trigger_synced]
+
+
 
 #set_property PACKAGE_PIN V9 [get_ports debug_spi_csn]
 #set_property IOSTANDARD LVCMOS33 [get_ports debug_spi_csn]

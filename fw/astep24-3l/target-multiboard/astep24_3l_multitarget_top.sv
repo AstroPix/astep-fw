@@ -67,8 +67,12 @@ module astep24_3l_multitarget_top (
     input wire              tlu_trigger_p,
     input wire              tlu_trigger_n,
     output wire             tlu_busy_p,
-     output wire            tlu_busy_n,
-
+    output wire            tlu_busy_n,
+     
+    output wire             tlu_trigger_debug,
+    output wire             tlu_t0_debug,
+    output wire             tlu_trigger_synced,
+    
     `elsif TARGET_CMOD
 
     input  wire             ext_resn, // Resetn from pin, beagle board connector
@@ -236,7 +240,6 @@ module astep24_3l_multitarget_top (
     wire io_ctrl_timestamp_clock_enable;
     wire io_ctrl_gecco_sample_clock_se;
     wire io_ctrl_fpga_ts_clock_diff;
-    wire io_ctrl_astropix_ts_is_fpga_ext_ts;
 
     wire sample_clk_gated; // Clock for normal sample_clk
     wire sample_clk_se_gated; // Clock for se outputs
@@ -268,10 +271,6 @@ module astep24_3l_multitarget_top (
 
         BUFGMUX  clk_ext_diff_or_single_ended(.I0(clk_ext),.I1(clk_ext_diff),.O(clk_ext_internal),.S(io_ctrl_fpga_ts_clock_diff));
 
-        //assign ext_timestamp_clk_internal =  io_ctrl_fpga_ts_clock_diff ? ext_timestamp_clk_diff : ext_timestamp_clk;
-
-        //wire timestamp_clk_internal_to_out = io_ctrl_astropix_ts_is_fpga_ext_ts ? ext_timestamp_clk_internal : timestamp_clk_internal;
-        //MUXF7 timestamp_clock_ext_local_select(.I0(timestamp_clk_internal),.I1(ext_timestamp_clk_internal),.O(timestamp_clk_internal_to_out),.S(io_ctrl_astropix_ts_is_fpga_ext_ts));
         BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
 
         BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk_se_gated),.CE(io_ctrl_sample_clock_enable && sample_clk_se_selected));
@@ -302,6 +301,9 @@ module astep24_3l_multitarget_top (
         wire   tlu_busy;
         assign tlu_busy_p =  tlu_busy;
         assign tlu_busy_n =  !tlu_busy;
+        
+        assign tlu_trigger_debug =  tlu_trigger;
+        assign tlu_t0_debug = tlu_t0;
 
 
     //-- CMOD
@@ -313,30 +315,6 @@ module astep24_3l_multitarget_top (
 
             // Output buffer to enable timestamp clock to astropix
             BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
-
-//            OBUF  clk_sample_se_single( .I(sample_clk_gated), .O(sample_clk));
-
-
-
-            // Remove line below
-            //assign ext_timestamp_clk_internal = 'b0;
-
-            // External TS clock for FPGA TS is 0 or spi_clock if sourced externally
-            /*MUXF7 ext_clock_select (
-                .I0(1'b0),
-                .I1(spi_clk),
-                .O(ext_timestamp_clk_internal),
-                .S(io_ctrl_astropix_ts_is_fpga_ext_ts));
-
-            // Timestamp external clock output to astropix is local or from the external source
-            MUXF7 timestamp_clock_out_select
-                (.I0(timestamp_clk_internal),
-                .I1(ext_timestamp_clk_internal),
-                .O(timestamp_clk_internal_to_out),
-                .S(io_ctrl_astropix_ts_is_fpga_ext_ts));*/
-
-
-
 
 
     `endif
@@ -638,11 +616,11 @@ module astep24_3l_multitarget_top (
         .io_ctrl_gecco_sample_clock_se(io_ctrl_gecco_sample_clock_se),
         .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable),
         .io_ctrl_fpga_ts_clock_diff(io_ctrl_fpga_ts_clock_diff),
-        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts),
 
         // 11/25,  Richard added TLU trigger I/O
         .tlu_t0(tlu_t0),
         .tlu_trigger(tlu_trigger),
+        .tlu_trigger_synced(tlu_trigger_synced),
         .tlu_busy(tlu_busy)
 
 
