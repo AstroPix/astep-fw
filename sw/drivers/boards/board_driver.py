@@ -40,6 +40,11 @@ class BoardDriver:
         ## Opened Event -> Set/unset by close/open
         ## Useful to start or stop tasks dependent on open/close state of the driver
         self.openedEvent = asyncio.Event()
+        
+        
+    async def utilWaitSeconds(self,wait:int):
+        """This method can be override for example in simulation to wait using proper mechanism"""
+        await asyncio.sleep(wait)
 
     async def open(self):
         """Open the Register File I/O Connection to the underlying driver"""
@@ -89,6 +94,110 @@ class BoardDriver:
         """Returns the Core Clock frequency to help clock divider configuration - this method is overriden by implementation class (Gecco or Cmod)"""
         return 80000000
 
+
+    ## Clock and IO enablement
+    # #################
+    async def enableSensorClocks(self, flush: bool = False):
+        """Writes the I/O Control register to enable both Timestamp and Sample clock outputs"""
+        await self.setSampleClock(enable=True, flush=flush)
+        await self.setTimestampClock(enable=True, flush=flush)
+        
+    async def setExternalClock(self,enable:bool,waitForClockChange:bool = True ):
+        """If enable is True, allow the external clock to be used. If the FW switches to external clock ,a reset happends, this method will warn the user"""
+
+        # First Read current state
+        # If external clock requested and already selected, emit a warning 
+        #
+        currentClockCtrl1 = await self.rfg.read_clock_ctrl()
+        currentClockIsExternal = (currentClockCtrl1>>2) & 0x1 == 1 
+        
+        if enable is True and not currentClockIsExternal:
+            logger.warning("Enabling external clock - do this before any configuration, the FW will reset upon clock switching - make sure the external clock is running")
+            
+            await self.rfg.write_clock_ctrl((currentClockCtrl1 | (1)),flush=True)
+            
+            # Now wait a bit and check if the selected clock changed
+            if waitForClockChange:
+                await self.utilWaitSeconds(1)
+                
+            # Read the register again
+            currentClockCtrl2 = await self.rfg.read_clock_ctrl()
+            currentClockIsExternal = (currentClockCtrl2>>2) & 0x1 == 1 
+            
+            if (not currentClockIsExternal):
+                logger.warning("After enabling external clock, the FW didn't switch - maybe the clock is not running - disabling external clock now to avoid switch over and reset at an unpredictable time")
+                await self.rfg.write_clock_ctrl(currentClockCtrl1,flush=True)
+                return False
+            else: 
+                logger.warning("FW Switched to external clock - a reset was issued, you can now configure the system and run measurements")
+                return True 
+        elif enable is True and currentClockIsExternal:
+            logger.warning("Not Enabling External Clock, FW is already running on the external clock")
+            return False
+        else:
+            logger.warning("Disabling external clock")
+            if currentClockIsExternal:
+                logger.warning("- FW is running on the external clock, it will switch back to board clock only when the external clock is removed or a full reset is issued")
+            
+            await self.rfg.write_clock_ctrl(currentClockCtrl1 & ~(1<<2),flush=True)
+            
+            return True
+        
+        # Read the status register
+        
+    async def getIOControlRegister(self):
+        return await self.rfg.read_io_ctrl()
+
+    async def setSampleClock(self, enable: bool, flush: bool = False):
+        v = await self.rfg.read_io_ctrl()
+        if enable:
+            v |= 0x1
+        else:
+            v &= ~(0x1)
+        await self.rfg.write_io_ctrl(v, flush)
+
+    async def setTimestampClock(self, enable: bool, flush: bool = True):
+        v = await self.rfg.read_io_ctrl()
+        if enable:
+            v |= 0x2
+        else:
+            v &= ~(0x2)
+        await self.rfg.write_io_ctrl(v, flush)
+
+    async def ioSetSampleClockSingleEnded(self, enable: bool, flush: bool = True):
+        v = await self.rfg.read_io_ctrl()
+        if enable:
+            v |= 0x4
+        else:
+            v &= ~(0x4)
+        await self.rfg.write_io_ctrl(v, flush)
+
+    async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = True):
+        v = await self.rfg.read_io_ctrl()
+        if enable: v &= ~(0x8)
+        else: v |= 0x8
+        await self.rfg.write_io_ctrl(v,flush) 
+
+    async def ioSetFPGAExternalTSClockDifferential(
+        self, enable: bool, flush: bool = False
+    ):
+        """If an external clock input is used for the FPGA TS counter, it is differential or not"""
+        v = await self.rfg.read_io_ctrl()
+        if enable:
+            v |= 0x10
+        else:
+            v &= ~(0x10)
+        await self.rfg.write_io_ctrl(v, flush)
+
+    async def ioSetAstropixTSToFPGATS(self, enable: bool, flush: bool = False):
+        """The Astropix TS clock can be sourced from the external FPGA TS clock (it true) or from the internal TS clock (if false)"""
+        v = await self.rfg.read_io_ctrl()
+        if enable:
+            v |= 0x20
+        else:
+            v &= ~(0x20)
+        await self.rfg.write_io_ctrl(v, flush)
+        
     ## Loopback Model
     ################
     def getLoopbackModelForLayer(self, layer):
@@ -338,81 +447,35 @@ class BoardDriver:
         
         return (readBackBits,expectedBits)
         
-    ## Clock and IO enablement
-    # #################
-    async def enableSensorClocks(self, flush: bool = False):
-        """Writes the I/O Control register to enable both Timestamp and Sample clock outputs"""
-        await self.ioSetSampleClock(enable=True, flush=flush)
-        await self.ioSetTimestampClock(enable=True, flush=flush)
-
-    async def getIOControlRegister(self):
-        return await self.rfg.read_io_ctrl()
-
-    async def ioSetSampleClock(self, enable: bool, flush: bool = False):
-        v = await self.rfg.read_io_ctrl()
-        if enable:
-            v |= 0x1
-        else:
-            v &= ~(0x1)
-        await self.rfg.write_io_ctrl(v, flush)
-
-    async def ioSetTimestampClock(self, enable: bool, flush: bool = True):
-        v = await self.rfg.read_io_ctrl()
-        if enable:
-            v |= 0x2
-        else:
-            v &= ~(0x2)
-        await self.rfg.write_io_ctrl(v, flush)
-
-    async def ioSetSampleClockSingleEnded(self, enable: bool, flush: bool = True):
-        v = await self.rfg.read_io_ctrl()
-        if enable:
-            v |= 0x4
-        else:
-            v &= ~(0x4)
-        await self.rfg.write_io_ctrl(v, flush)
-
-    async def ioSetInjectionToChip(self,enable:bool = True,flush:bool = True):
-        v = await self.rfg.read_io_ctrl()
-        if enable: v &= ~(0x8)
-        else: v |= 0x8
-        await self.rfg.write_io_ctrl(v,flush) 
-
-    async def ioSetFPGAExternalTSClockDifferential(
-        self, enable: bool, flush: bool = False
-    ):
-        """If an external clock input is used for the FPGA TS counter, it is differential or not"""
-        v = await self.rfg.read_io_ctrl()
-        if enable:
-            v |= 0x10
-        else:
-            v &= ~(0x10)
-        await self.rfg.write_io_ctrl(v, flush)
-
-    async def ioSetAstropixTSToFPGATS(self, enable: bool, flush: bool = False):
-        """The Astropix TS clock can be sourced from the external FPGA TS clock (it true) or from the internal TS clock (if false)"""
-        v = await self.rfg.read_io_ctrl()
-        if enable:
-            v |= 0x20
-        else:
-            v &= ~(0x20)
-        await self.rfg.write_io_ctrl(v, flush)
+    
 
     ## Clock Dividers
     ####################
-    def calculateSPIDivider(self, targetFrequencyHz: int) -> int:
+    
+        
+    def calculateClockDivider(self, targetFrequencyHz: int) -> int:
         """Calculates the SPI Divider for a target frequency, valid for both Astropix Lane and Housekeeping dividers"""
         coreFrequency = self.getFPGACoreFrequency()
-        divider = int((coreFrequency / 2) / (2 * targetFrequencyHz)) - 1
-        assert divider >= 1 and divider <= 255, (
-            f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency / 2 / 255)}"
+        divider = int((coreFrequency / 2) / ( 2 * targetFrequencyHz)) -1
+        assert divider >= 0 and divider <= 255, (
+            f"Divider {divider} is not allowed, frequency {targetFrequencyHz} is wrnog, min. clock frequency: {int(coreFrequency / 2 / 255)}"
+        )
+        return divider
+        
+        
+    def calculateMatchClockDivider(self, targetFrequencyHz: int) -> int:
+        """Calculates the SPI Divider for a target frequency, valid for both Astropix Lane and Housekeeping dividers"""
+        coreFrequency = self.getFPGACoreFrequency()
+        divider = int(coreFrequency / ( targetFrequencyHz))
+        assert divider > 0 and divider <= pow(2,32)-1, (
+            f"Divider {divider} is not allowed, frequency {targetFrequencyHz} is wrnog, min. clock frequency: {int(coreFrequency / 2 / 255)}"
         )
         return divider
 
     async def configureLayerSPIFrequency(self, targetFrequencyHz: int, flush=True):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         await self.configureLayerSPIDivider(
-            self.calculateSPIDivider(targetFrequencyHz), flush
+            self.calculateClockDivider(targetFrequencyHz), flush
         )
 
     async def configureLayerSPIDivider(self, divider: int, flush=True):
@@ -421,7 +484,7 @@ class BoardDriver:
     async def configureHKSPIFrequency(self, targetFrequencyHz: int, flush=True):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         await self.configureHKSPIDivider(
-            self.calculateSPIDivider(targetFrequencyHz), flush
+            self.calculateClockDivider(targetFrequencyHz), flush
         )
 
     async def configureHKSPIDivider(self, divider: int, flush=True):
@@ -759,21 +822,23 @@ class BoardDriver:
                 
                 startTime = time.time()
                 currentTime = time.time()
+                
                 # Wait until bufer written out to astropix
+                writeSize = await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")()
                 while (
-                    await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")() > 0
+                    writeSize > 0
                     and (currentTime - startTime) <= timeout
                 ):
                     currentTime = time.time()
+                    writeSize = await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")()
                     pass
 
                 # Test if timeout condition
                 if (currentTime - startTime) > timeout:
                     raise RuntimeError(
-                        "Chunck {}/{} len={} timed out".format(
-                            int(chunk / outputBufferSize + 1), steps, len(chunkBytes)
-                        )
+                        f"Chunck {currentChunk}/{steps} len={len(chunkBytes)} timed out, write size is {writeSize}"
                     )
+                    
 
     async def getLayerMOSIBytesCount(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")()
@@ -816,6 +881,10 @@ class BoardDriver:
 
     ## Readout
     ################
+    
+    async def readoutConfigure(self,packet_mode : bool,flush:bool=True):
+        await self.rfg.write_layers_readout_ctrl(1 if packet_mode is True else 0,flush)
+        
     async def readoutGetBufferSize(self):
         """Returns the actual size of buffer"""
         return await self.rfg.read_layers_readout_read_size()
@@ -835,6 +904,8 @@ class BoardDriver:
         use_tlu: bool,
         tlu_busy_on_t0: bool = False,
         timestamp_size: int = 1,
+        forced_value : bool = False,
+        force_lsb_0 : bool = False,
         flush: bool = True,
     ):
         """
@@ -864,6 +935,8 @@ class BoardDriver:
         regVal |= 0x0 if use_tlu is False else 0x4
         regVal |= 0x0 if tlu_busy_on_t0 is False else 0x8
         regVal |= (timestamp_size & 0x3) << 4
+        regVal |= (1 if forced_value else 0) << 6
+        regVal |= (1 if force_lsb_0 else 0) << 7
 
         # Update class parameter saving the expected number of bytes for the FPGA timestamp after config
         # 0 = 16 bits, 1 = 32 bits, 2 = 48 bits, 3=64 bits
@@ -872,7 +945,7 @@ class BoardDriver:
         await self.rfg.write_layers_fpga_timestamp_ctrl(regVal, flush)
 
     async def layersConfigFPGATimestampFrequency(
-        self, targetFrequencyHz: int, flush: bool = False
+        self, targetFrequencyHz: int, flush: bool = True
     ):
         """
         Configure the FPGA Timestamp divider frequency.
@@ -888,14 +961,23 @@ class BoardDriver:
             AssertError: If the selected frequency is too low or too high, outside of the divider counter range
 
         """
-        coreFrequency = self.getFPGACoreFrequency()
-        divider = int(coreFrequency / (targetFrequencyHz))
-        assert divider >= 1 and divider < pow(2, 32), (
-            f"Target Freq is too slow, Divider {divider} is too high, min. clock frequency: {int(coreFrequency / pow(2, 32))}"
-        )
-        await self.rfg.write_layers_fpga_timestamp_divider(divider, flush)
+        
+        divider = self.calculateMatchClockDivider(targetFrequencyHz)
+        logger.info(f"Divider for frequency {targetFrequencyHz}={divider}")
+        await self.rfg.write_layers_fpga_timestamp_divider_match(divider, flush)
 
-    async def layersConfigTLUBusyTime(self, clockCycles: int, flush: bool = False):
+    
+    async def layersConfigFPGATimestampDivider(
+        self, divider: int, flush: bool = True
+    ):
+        await self.rfg.write_layers_fpga_timestamp_divider_match(divider, flush)
+    
+    async def layersConfigFPGATimestampForcedValue(
+        self, forced: int, flush: bool = True
+    ):
+        await self.rfg.write_layers_fpga_timestamp_forced(forced, flush)
+        
+    async def layersConfigTLUBusyTime(self, clockCycles: int, flush: bool = True):
         """
         Configure the Number of clock cycles during which the TLU busy output is asserted to 1 after a trigger or sync event.
         The register is 16bits wide, maximum number of clock cycles is 65535

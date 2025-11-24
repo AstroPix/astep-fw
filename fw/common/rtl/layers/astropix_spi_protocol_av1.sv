@@ -223,7 +223,12 @@ module astropix_spi_protocol_av1 #(
                         if (receive_frame_length==0) begin
                             protocol_state  <= TIMESTAMP0;
                             m_axis_tvalid   <= 1'b1;
-                            m_axis_tdata    <= forward_frozen_timestamp[7:0];
+                            m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd0 ? forward_frozen_timestamp[15:8] : 
+                                                (cfg_fpga_timestamp_size == 2'd1 ?forward_frozen_timestamp[31:24]:
+                                                    (cfg_fpga_timestamp_size == 2'd2 ?forward_frozen_timestamp[47:40]:
+                                                        forward_frozen_timestamp[63:56]
+                                                    )  
+                                                );
                             s_axis_tready   <= 1'b0;
                         end else begin
                             protocol_state  <= RECEIVE;
@@ -260,53 +265,65 @@ module astropix_spi_protocol_av1 #(
                     if (master_byte_valid) begin
                         protocol_state  <= cfg_fpga_timestamp_size == 2'd0 ? TIMESTAMP_END : TIMESTAMP1;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[15:8];
+                        m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd0 ? forward_frozen_timestamp[7:0] : 
+                                            (cfg_fpga_timestamp_size == 2'd1 ?forward_frozen_timestamp[23:16]:
+                                                (cfg_fpga_timestamp_size == 2'd2 ?forward_frozen_timestamp[39:32]:
+                                                    forward_frozen_timestamp[55:48]
+                                                )  
+                                            );
+                        m_axis_tlast    <= cfg_fpga_timestamp_size == 2'd0 ? 1'b1 : 1'b0;
                     end
                 end
                 TIMESTAMP1: begin
                     if (master_byte_valid) begin
                         protocol_state  <= TIMESTAMP2;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[23:16];
+                        m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd1 ? forward_frozen_timestamp[15:8] : 
+                                            (cfg_fpga_timestamp_size == 2'd2 ?forward_frozen_timestamp[31:24]:
+                                                forward_frozen_timestamp[47:40]  
+                                            );
                     end
                 end
                 TIMESTAMP2: begin
                     if (master_byte_valid) begin
                         protocol_state  <= cfg_fpga_timestamp_size == 2'd1 ? TIMESTAMP_END : TIMESTAMP3;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[31:24];
-                        m_axis_tlast    <= 1'b1;
+                        m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd1 ? forward_frozen_timestamp[7:0] : 
+                                            (cfg_fpga_timestamp_size == 2'd2 ?forward_frozen_timestamp[23:16]:
+                                                forward_frozen_timestamp[39:32]  
+                                            );
+                        m_axis_tlast    <= cfg_fpga_timestamp_size == 2'd1 ? 1'b1 : 1'b0;
                     end
                 end
                 TIMESTAMP3: begin
                     if (master_byte_valid) begin
                         protocol_state  <= TIMESTAMP4;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[39:32];
-                        m_axis_tlast    <= 1'b1;
+                        m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd2 ? forward_frozen_timestamp[15:8] : forward_frozen_timestamp[31:24] ;
+                        m_axis_tlast    <= 1'b0;
                     end
                 end
                 TIMESTAMP4: begin
                     if (master_byte_valid) begin
                         protocol_state  <= cfg_fpga_timestamp_size == 2'd2 ? TIMESTAMP_END : TIMESTAMP5;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[47:40];
-                        m_axis_tlast    <= 1'b1;
+                        m_axis_tdata    <= cfg_fpga_timestamp_size == 2'd2 ? forward_frozen_timestamp[7:0] : forward_frozen_timestamp[23:16] ;
+                        m_axis_tlast    <= cfg_fpga_timestamp_size == 2'd2 ? 1'b1 : 1'b0;
                     end
                 end
                 TIMESTAMP5: begin
                     if (master_byte_valid) begin
                         protocol_state  <= TIMESTAMP6;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[55:48];
-                        m_axis_tlast    <= 1'b1;
+                        m_axis_tdata    <= forward_frozen_timestamp[15:8];
+                        m_axis_tlast    <= 1'b0;
                     end
                 end
                 TIMESTAMP6: begin
                     if (master_byte_valid) begin
                         protocol_state  <= TIMESTAMP_END;
                         m_axis_tvalid   <= 1'b1;
-                        m_axis_tdata    <= forward_frozen_timestamp[63:56];
+                        m_axis_tdata    <= forward_frozen_timestamp[7:0];
                         m_axis_tlast    <= 1'b1;
                     end
                 end

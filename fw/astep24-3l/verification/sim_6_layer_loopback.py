@@ -79,8 +79,11 @@ async def test_loopback_layer0(dut):
     ## Check Size in readout buffer
     assert await driver.readoutGetBufferSize() == 9
     readoutBytes = await driver.readoutReadBytes(9)
-
-    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tagCounterBytes[0:4]
+    
+    tsBytes = tagCounterBytes[0:4]
+    tsBytes.reverse()
+    
+    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tsBytes
     await Timer(100, units="us")
 
 
@@ -132,8 +135,11 @@ async def test_loopback_layer0_autoread(dut):
     ## Check Size in readout buffer
     assert await driver.readoutGetBufferSize() == 9
     readoutBytes = await driver.readoutReadBytes(9)
-
-    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tagCounterBytes[0:4]
+    
+    tsBytes = tagCounterBytes[0:4]
+    tsBytes.reverse()
+    
+    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tsBytes
     await Timer(100, units="us")
 
 
@@ -188,9 +194,11 @@ async def test_loopback_all_layers(dut):
         readoutBytes = await driver.readoutReadBytes(9)
 
         ## Check bytes
+        tsBytes = tagCounterBytes[0:4]
+        tsBytes.reverse()
         assert (
             readoutBytes
-            == [0x08, layer + 1, 0x02, 0xAB + layer, 0xCD] + tagCounterBytes[0:4]
+            == [0x08, layer + 1, 0x02, 0xAB + layer, 0xCD] + tsBytes
         )
 
     await Timer(100, units="us")

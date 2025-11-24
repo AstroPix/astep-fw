@@ -20,7 +20,8 @@ def debug():
 class Astropix3Model:
     """This Model can be used to return some bytes"""
 
-    def __init__(self,dut,prefix,chipID):
+    def __init__(self,dut,lane,chipID):
+        prefix = f"layer_{lane}"
         self.interruptn       = dut._id(prefix+"_interruptn", extended=False)
         self.interruptn.value = 1
         self.chipID           = chipID
@@ -37,11 +38,11 @@ class Astropix3Model:
         self.spiSlave.start_monitor()
         
         ## Shift Register 
-        self.sr_sout = dut._id(f"layers_sr_in_sout{chipID}", extended=False)
+        self.sr_sout = dut._id(f"layers_sr_in_sout{lane}", extended=False)
         self.sr_sout.value = 0
         self.sr_ck1 = dut._id(f"layers_sr_out_ck1", extended=False)
         self.sr_ck2 = dut._id(f"layers_sr_out_ck2", extended=False)
-        self.sr_ld = dut._id(f"layers_sr_out_ld{chipID}", extended=False)
+        self.sr_ld = dut._id(f"layers_sr_out_ld{lane}", extended=False)
         self.sr_sin = dut._id(f"layers_sr_out_sin", extended=False)
         self.sr_rb = dut._id(f"layers_sr_in_rb", extended=False)
 

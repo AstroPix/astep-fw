@@ -88,7 +88,7 @@ async def test_layers_config_spi_chip0_checkbits(dut):
     """"""
 
     ## Set SPI Slave monitor
-    astropix = vip.astropix3.Astropix3Model(dut, "layer_0", 0)
+    astropix = vip.astropix3.Astropix3Model(dut, 0, 0)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
@@ -133,7 +133,7 @@ async def test_layers_config_spi_chips_checkbits(dut):
     # dut._log.setLevel(logging.DEBUG)
 
     ## Set SPI Slave monitor
-    astropix = vip.astropix3.Astropix3Model(dut, "layer_0", 0)
+    astropix = vip.astropix3.Astropix3Model(dut, 0, 0)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)

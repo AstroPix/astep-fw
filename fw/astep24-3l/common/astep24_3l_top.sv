@@ -98,7 +98,6 @@ module astep24_3l_top(
     output wire io_ctrl_gecco_sample_clock_se,
     output wire io_ctrl_gecco_inj_enable,
     output wire io_ctrl_fpga_ts_clock_diff,
-    output wire io_ctrl_astropix_ts_is_fpga_ext_ts,
 
     // External Clock for FPGA Timestamp clock
     //-------
@@ -108,7 +107,8 @@ module astep24_3l_top(
     // ---------------------
     input  wire tlu_t0,
     input  wire tlu_trigger,
-    output wire tlu_busy
+    output wire tlu_busy,
+    output logic tlu_trigger_synced
 );
 
     // Wires needed in multiple places below
@@ -130,14 +130,14 @@ module astep24_3l_top(
 
     assign clk_sample = clk_100;
     
-    wire layers_fpga_timestamp_ctrl_use_tlu;
+    wire layers_fpga_timestamp_ctrl_use_tlu,clock_ctrl_ext_clk_enable;
     
     astep24_3l_top_clocking  clocking_reset_I (
 
         .sysclk_in(sysclk),
         .clk_ext(clk_ext),
         .resn(resn),
-        .ext_clk_allowed(layers_fpga_timestamp_ctrl_use_tlu),
+        .ext_clk_allowed(clock_ctrl_ext_clk_enable),
         .global_resn_o(global_resn_o),
 
 
@@ -275,9 +275,9 @@ module astep24_3l_top(
     wire [7:0]  layers_cfg_nodata_continue;
 
     // Wires for FPGA TS counter
-    wire [63:0] layers_fpga_timestamp_counter,tlu_ts_out;
+    wire [63:0] layers_fpga_timestamp_counter_to_layers,tlu_ts_out,layers_fpga_timestamp_forced;
     reg         layers_fpga_timestamp_counter_clear; // Set to 1 upon external trigger negedge or always 0
-    reg  [63:0] layers_fpga_timestamp_counter_to_layers; // This register is either mirroring the counter, or updating on trigger input if feature enabled
+    
     wire [1:0]  layers_fpga_timestamp_ctrl_timestamp_size;
     wire        layers_fpga_timestamp_ctrl_enable;
     wire        layers_fpga_timestamp_ctrl_use_divider;
@@ -340,6 +340,14 @@ module astep24_3l_top(
         .rfg_read_value(sw_if_rfg_read_value),
 
         .io_led(rfg_io_led[7:0]),
+        
+        
+        .clock_ctrl(),
+        .clock_ctrl_ext_clk_enable(clock_ctrl_ext_clk_enable),
+        .clock_ctrl_ext_clk_differential(io_ctrl_fpga_ts_clock_diff),
+        .clock_ctrl_current_clk(clk_ext_selected),
+        .clock_ctrl_sample_clock_enable(io_ctrl_sample_clock_enable),
+        .clock_ctrl_timestamp_clock_enable(io_ctrl_timestamp_clock_enable),
 
         .hk_ctrl(),
         .hk_ctrl_select_adc(hk_ctrl_select_adc),
@@ -501,15 +509,16 @@ module astep24_3l_top(
         .layers_fpga_timestamp_ctrl_use_tlu(layers_fpga_timestamp_ctrl_use_tlu),
         .layers_fpga_timestamp_ctrl_tlu_busy_on_t0(layers_fpga_timestamp_ctrl_tlu_busy_on_t0),
         .layers_fpga_timestamp_ctrl_timestamp_size(layers_fpga_timestamp_ctrl_timestamp_size),
-        //.layers_fpga_timestamp_ctrl_use_trigger_reset(layers_fpga_timestamp_ctrl_use_trigger_reset),
-        //.layers_fpga_timestamp_ctrl_use_trigger_freeze(layers_fpga_timestamp_ctrl_use_trigger_freeze),
-
+        .layers_fpga_timestamp_ctrl_force_value(layers_fpga_timestamp_ctrl_force_value),
+        .layers_fpga_timestamp_ctrl_force_lsb_0(layers_fpga_timestamp_ctrl_force_lsb_0),
+        
         .layers_fpga_timestamp_divider(),
         .layers_fpga_timestamp_divider_interrupt(layers_fpga_timestamp_divider_interrupt),
         .layers_fpga_timestamp_divider_enable(layers_fpga_timestamp_ctrl_use_divider),
         .layers_fpga_timestamp_divider_match(),
 
         .layers_fpga_timestamp_counter(tlu_ts_out),
+        .layers_fpga_timestamp_forced(layers_fpga_timestamp_forced),
         //.layers_fpga_timestamp_counter_enable(layers_fpga_timestamp_ctrl_count),
         //.layers_fpga_timestamp_counter_clear(layers_fpga_timestamp_counter_clear),
         .layers_tlu_trigger_delay(layers_tlu_trigger_delay),
@@ -562,7 +571,8 @@ module astep24_3l_top(
         .layers_inj_wdata                   (injection_generator_inj_wdata),
 
       
-
+        .layers_readout_ctrl(),
+        .layers_readout_ctrl_packet_mode(layers_readout_ctrl_packet_mode),
         .layers_readout_s_axis_tdata(layers_readout_s_axis_tdata),
         .layers_readout_s_axis_tvalid(layers_readout_s_axis_tvalid),
         .layers_readout_s_axis_tready(layers_readout_s_axis_tready),
@@ -577,12 +587,12 @@ module astep24_3l_top(
 
         // I/O Control like clocks
         .io_ctrl(),
-        .io_ctrl_sample_clock_enable(io_ctrl_sample_clock_enable),
-        .io_ctrl_timestamp_clock_enable(io_ctrl_timestamp_clock_enable),
+        .io_ctrl_reserved0(),
+        .io_ctrl_reserved1(),
         .io_ctrl_gecco_sample_clock_se(io_ctrl_gecco_sample_clock_se),
         .io_ctrl_gecco_inj_enable(io_ctrl_gecco_inj_enable),
-        .io_ctrl_fpga_ts_clock_diff(io_ctrl_fpga_ts_clock_diff),
-        .io_ctrl_astropix_ts_is_fpga_ext_ts(io_ctrl_astropix_ts_is_fpga_ext_ts)
+        .io_ctrl_reserved4(),
+        .io_ctrl_reserved5()
   );
 
 
@@ -594,9 +604,8 @@ module astep24_3l_top(
     wire [1:0] layer_0_spi_miso_internal;
     wire [1:0] layer_1_spi_miso_internal;
     wire [1:0] layer_2_spi_miso_internal;
-
-
-
+    
+    
     layers_readout_switched #(.LAYER_COUNT(3)) switched_readout(
         .clk_core(clk_core),
         .clk_core_resn(clk_core_resn),
@@ -657,12 +666,13 @@ module astep24_3l_top(
 
         // Configurations
         //---------------------
+        .config_packet_mode(layers_readout_ctrl_packet_mode),
         .config_disable_autoread({
             layer_2_cfg_ctrl_disable_autoread,
             layer_1_cfg_ctrl_disable_autoread,
             layer_0_cfg_ctrl_disable_autoread
         }),
-        .config_fpga_timestamp(tlu_ts_out),
+        .config_fpga_timestamp(layers_fpga_timestamp_counter_to_layers),
         .config_fpga_timestamp_size(layers_fpga_timestamp_ctrl_timestamp_size),
         .config_nodata_continue(layers_cfg_nodata_continue),
         .config_layers_reset({
@@ -697,6 +707,8 @@ module astep24_3l_top(
             layer_0_stat_wronglength_counter_enable
         })
     );
+    
+   
 
     // Injection Generator
     //-------------------
@@ -871,7 +883,19 @@ module astep24_3l_top(
     // - If external clear and freeze are selected, clear counter on trigger "T0" input, and update the counter reg going to layer decoder upon trigger negedge pulse
     // - If external trigger features are not used, just count as configured and pass the counter to the layer decoder at each clock cycle
     //---------------------
-
+    
+    always_ff @(posedge clk_core) begin 
+        if (!clk_core_resn) begin 
+            tlu_trigger_synced <= 'b0;
+        end
+        else begin 
+            tlu_trigger_synced <=tlu_trigger;
+        end
+    end
+    
+    // MUX output of TS to layers -> either counter or forced value. Counter value LSb can be forced to 0
+    assign layers_fpga_timestamp_counter_to_layers = layers_fpga_timestamp_ctrl_force_value ? layers_fpga_timestamp_forced : (tlu_ts_out & ~(64'd0 | layers_fpga_timestamp_ctrl_force_lsb_0));
+    
     tlu_client  #(
          .TRIG_TS_WIDTH(64),
          .TRIG_ID_WIDTH(32),
@@ -882,7 +906,7 @@ module astep24_3l_top(
         .tlu_clk_in(clk_core),
         .tlu_resn_in(clk_core_resn & layers_fpga_timestamp_ctrl_enable),
         .tlu_sync_in(tlu_t0),
-        .tlu_trig_in(tlu_trigger),
+        .tlu_trig_in(tlu_trigger_synced),
         .tlu_busy_out(tlu_busy),
 
         .enable_in(layers_fpga_timestamp_ctrl_use_tlu),

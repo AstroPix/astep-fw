@@ -126,7 +126,7 @@ proc read_syn_ip {} {
     ########
 
     # Readout buffer -> 4kB
-    set_property -dict [list CONFIG.FIFO_DEPTH 4096] [get_ips fifo_axis_1clk_1kB]
+    set_property -dict [list CONFIG.FIFO_DEPTH 16384] [get_ips fifo_axis_1clk_1kB]
 
     # Layers SPI Fifo -> 1kB
     set_property -dict [list CONFIG.FIFO_DEPTH 1024] [get_ips fifo_axis_2clk_spi_layer]

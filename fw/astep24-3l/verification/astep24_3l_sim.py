@@ -14,13 +14,18 @@ from   drivers.boards.board_driver import BoardDriver
 from   drivers.gecco.voltageboard import VoltageBoard
 from   drivers.gecco.injectionboard import InjectionBoard
 
-from cocotb.triggers import Timer,RisingEdge
+from cocotb.triggers import Timer,RisingEdge 
+ 
 
 class SimBoard(BoardDriver):
 
     def __init__(self,rfg):
         BoardDriver.__init__(self,rfg)
-
+    
+    
+    async def utilWaitSeconds(self,wait:int):
+        """This method can be override for example in simulation to wait using proper mechanism"""
+        await Timer(100,units = "us")
 
     def getVoltageBoard(self,slot : int = 1):
         vb = VoltageBoard(rfg = self.rfg, slot = slot)

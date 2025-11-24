@@ -147,7 +147,7 @@ module tlu_client #(
   //
 
   //-- Counter by itself
-  wire counter_is_counting = enable_in || enable_counter_in;
+  wire counter_is_counting =  enable_counter_in;
   wire timestamp_counter_reset = ( !tlu_resn_in || (  t0_i) );
   always_ff @ (posedge tlu_clk) begin
 

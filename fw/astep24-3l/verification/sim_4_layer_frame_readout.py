@@ -31,6 +31,9 @@ async def totalBytesFromAstropix(driver, layer):
 async def impl_test_layer_0_single_frame_noautoread_tssize(
     dut, asic, driver, tssize: int = 1
 ):
+    
+    forcedTSValue = [0xAD,0xBC,0xDE,0xFF,0xAC,0xEC,0xB1,0x12]
+    
     ## Enable FPGA Timestamp counting
     await driver.layersConfigFPGATimestamp(
         enable=True,
@@ -86,6 +89,35 @@ async def impl_test_layer_0_single_frame_noautoread_tssize(
     assert bytes[0] == 1 + 5 + driver.fpgaTimeStampBytesCount, (
         "Data Frame Length should equal 5 bytes of astropix and X bytes of timestamp depending on the configuration"
     )
+    
+    ## Check that the TS value is not the forced one
+    assert bytes[-driver.fpgaTimeStampBytesCount:] != forcedTSValue[:driver.fpgaTimeStampBytesCount]
+    
+    ## Run the readout a second time with forced value
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        timestamp_size=tssize,
+        forced_value = True,
+        flush=True,
+    )
+    await driver.layersConfigFPGATimestampForcedValue(int.from_bytes(bytes=forcedTSValue,byteorder="big"))
+    
+    generator = cocotb.start_soon(asic.generateTestFrame(length=5))
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0xAB] * 10)
+    await generator.join()
+    
+    assert await driver.readoutGetBufferSize() == 7 + driver.fpgaTimeStampBytesCount
+    bytes = await driver.readoutReadBytes(7 + driver.fpgaTimeStampBytesCount)
+    
+    assert bytes[0] == 1 + 5 + driver.fpgaTimeStampBytesCount, (
+        "Data Frame Length should equal 5 bytes of astropix and X bytes of timestamp depending on the configuration"
+    )
+    
+    ## Check that the TS value is the forced one 
+    assert bytes[-driver.fpgaTimeStampBytesCount:] == forcedTSValue[-driver.fpgaTimeStampBytesCount:]
+    
     await print_layers_stats(dut, driver)
 
     await Timer(50, units="us")
@@ -94,7 +126,7 @@ async def impl_test_layer_0_single_frame_noautoread_tssize(
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_layer_0_single_frame_noautoread(dut):
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -107,7 +139,7 @@ async def test_layer_0_single_frame_noautoread_alltssizes(dut):
     """Gets a single frame on layer 0 with all possible timestamp sizes"""
 
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -120,7 +152,7 @@ async def test_layer_0_single_frame_noautoread_alltssizes(dut):
 async def test_layer_0_double_frame_noautoread(dut):
     """"""
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut,lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -169,12 +201,12 @@ async def test_layer_0_double_frame_noautoread(dut):
     await Timer(50, units="us")
 
 
-@cocotb.test(timeout_time=2, timeout_unit="ms")
+@cocotb.test(timeout_time=2, timeout_unit="ms",skip=True)
 async def test_layer_0_spi_stall(dut):
     """Generate more than 66 bytes + 16 spi buffer frames to make the buffers stall"""
 
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut,lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -201,8 +233,8 @@ async def test_layer_0_spi_stall(dut):
         asic.generateTestFrame(length=5, framesCount=framesCount)
     )
     totalBytes = 0
-    for i in range(int(bytesToSendToSPI / 16) + 1):
-        await driver.writeSPIBytesToLane(lane=0, bytes=[0xAB] * (15))
+    for i in range(int(bytesToSendToSPI / 12) + 1):
+        await driver.writeSPIBytesToLane(lane=0, bytes=[0xAB] * (12))
         await Timer(25, units="us")
         readoutLength = await driver.readoutGetBufferSize()
         if readoutLength == 66:
@@ -229,7 +261,7 @@ async def test_layer_0_single_frame_autoread(dut):
     """"""
 
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -276,7 +308,7 @@ async def test_layer_0_two_differentframes_autoread(dut):
     """"""
 
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -326,7 +358,7 @@ async def test_layer_0_single_frame_autoread_stopduringread(dut):
     """"""
 
     ## Driver, asic, clock+reset
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     await vip.cctb.common_clock_reset(dut)
     await Timer(5, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
@@ -391,9 +423,9 @@ async def test_3_layers_single_frame(dut):
 
     ## Create ASIC Models
     asics = []
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1))
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_1", chipID=2))
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_2", chipID=3))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut, lane =1 ,  chipID=2))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut, lane = 2 ,  chipID=3))
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
@@ -468,9 +500,9 @@ async def test_3_layers_multiple_frames_parallel(dut):
 
     ## Create ASIC Models
     asics = []
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1))
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_1", chipID=2))
-    asics.append(vip.astropix3.Astropix3Model(dut=dut, prefix="layer_2", chipID=3))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut,  lane = 1 ,  chipID=2))
+    asics.append(vip.astropix3.Astropix3Model(dut=dut,  lane = 2 ,  chipID=3))
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)

@@ -12,71 +12,74 @@ def load_rfg():
 
 HK_FIRMWARE_ID = 0x0
 HK_FIRMWARE_VERSION = 0x4
-HK_XADC_TEMPERATURE = 0x8
-HK_XADC_VCCINT = 0xa
-HK_CONVERSION_TRIGGER = 0xc
-HK_STAT_CONVERSIONS_COUNTER = 0x10
-HK_CTRL = 0x14
-HK_ADCDAC_MOSI_FIFO = 0x15
-HK_ADC_MISO_FIFO = 0x16
-HK_ADC_MISO_FIFO_READ_SIZE = 0x17
-SPI_LAYERS_CKDIVIDER = 0x1b
-SPI_HK_CKDIVIDER = 0x1c
-LAYER_0_CFG_CTRL = 0x1d
-LAYER_1_CFG_CTRL = 0x1e
-LAYER_2_CFG_CTRL = 0x1f
-LAYER_0_STATUS = 0x20
-LAYER_1_STATUS = 0x21
-LAYER_2_STATUS = 0x22
-LAYER_0_STAT_FRAME_COUNTER = 0x23
-LAYER_1_STAT_FRAME_COUNTER = 0x27
-LAYER_2_STAT_FRAME_COUNTER = 0x2b
-LAYER_0_STAT_IDLE_COUNTER = 0x2f
-LAYER_1_STAT_IDLE_COUNTER = 0x33
-LAYER_2_STAT_IDLE_COUNTER = 0x37
-LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3b
-LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x3f
-LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x43
-LAYER_0_MOSI = 0x47
-LAYER_0_MOSI_WRITE_SIZE = 0x48
-LAYER_1_MOSI = 0x4c
-LAYER_1_MOSI_WRITE_SIZE = 0x4d
-LAYER_2_MOSI = 0x51
-LAYER_2_MOSI_WRITE_SIZE = 0x52
-LAYER_0_LOOPBACK_MISO = 0x56
-LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x57
-LAYER_1_LOOPBACK_MISO = 0x5b
-LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5c
-LAYER_2_LOOPBACK_MISO = 0x60
-LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x61
-LAYER_0_LOOPBACK_MOSI = 0x65
-LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x66
-LAYER_1_LOOPBACK_MOSI = 0x6a
-LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
-LAYER_2_LOOPBACK_MOSI = 0x6f
-LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
-LAYERS_FPGA_TIMESTAMP_CTRL = 0x74
-LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x75
-LAYERS_FPGA_TIMESTAMP_COUNTER = 0x79
-LAYERS_TLU_TRIGGER_DELAY = 0x81
-LAYERS_TLU_BUSY_DURATION = 0x83
-LAYERS_CFG_NODATA_CONTINUE = 0x85
-LAYERS_SR_OUT = 0x86
-LAYERS_SR_IN = 0x87
-LAYERS_SR_RB_CTRL = 0x88
-LAYERS_SR_CRC = 0x89
-LAYERS_SR_BYTES = 0x8f
-LAYERS_SR_BYTES_READ_SIZE = 0x90
-LAYERS_INJ_CTRL = 0x94
-LAYERS_INJ_WADDR = 0x95
-LAYERS_INJ_WDATA = 0x96
-LAYERS_READOUT = 0x97
-LAYERS_READOUT_READ_SIZE = 0x98
-IO_CTRL = 0x9c
-IO_LED = 0x9d
-GECCO_SR_CTRL = 0x9e
-HK_CONVERSION_TRIGGER_MATCH = 0x9f
-LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xa3
+CLOCK_CTRL = 0x8
+HK_XADC_TEMPERATURE = 0x9
+HK_XADC_VCCINT = 0xb
+HK_CONVERSION_TRIGGER = 0xd
+HK_STAT_CONVERSIONS_COUNTER = 0x11
+HK_CTRL = 0x15
+HK_ADCDAC_MOSI_FIFO = 0x16
+HK_ADC_MISO_FIFO = 0x17
+HK_ADC_MISO_FIFO_READ_SIZE = 0x18
+SPI_LAYERS_CKDIVIDER = 0x1c
+SPI_HK_CKDIVIDER = 0x1d
+LAYER_0_CFG_CTRL = 0x1e
+LAYER_1_CFG_CTRL = 0x1f
+LAYER_2_CFG_CTRL = 0x20
+LAYER_0_STATUS = 0x21
+LAYER_1_STATUS = 0x22
+LAYER_2_STATUS = 0x23
+LAYER_0_STAT_FRAME_COUNTER = 0x24
+LAYER_1_STAT_FRAME_COUNTER = 0x28
+LAYER_2_STAT_FRAME_COUNTER = 0x2c
+LAYER_0_STAT_IDLE_COUNTER = 0x30
+LAYER_1_STAT_IDLE_COUNTER = 0x34
+LAYER_2_STAT_IDLE_COUNTER = 0x38
+LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3c
+LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x40
+LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x44
+LAYER_0_MOSI = 0x48
+LAYER_0_MOSI_WRITE_SIZE = 0x49
+LAYER_1_MOSI = 0x4d
+LAYER_1_MOSI_WRITE_SIZE = 0x4e
+LAYER_2_MOSI = 0x52
+LAYER_2_MOSI_WRITE_SIZE = 0x53
+LAYER_0_LOOPBACK_MISO = 0x57
+LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x58
+LAYER_1_LOOPBACK_MISO = 0x5c
+LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5d
+LAYER_2_LOOPBACK_MISO = 0x61
+LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x62
+LAYER_0_LOOPBACK_MOSI = 0x66
+LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x67
+LAYER_1_LOOPBACK_MOSI = 0x6b
+LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6c
+LAYER_2_LOOPBACK_MOSI = 0x70
+LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x71
+LAYERS_FPGA_TIMESTAMP_CTRL = 0x75
+LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x77
+LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7b
+LAYERS_FPGA_TIMESTAMP_FORCED = 0x83
+LAYERS_TLU_TRIGGER_DELAY = 0x8b
+LAYERS_TLU_BUSY_DURATION = 0x8d
+LAYERS_CFG_NODATA_CONTINUE = 0x8f
+LAYERS_SR_OUT = 0x90
+LAYERS_SR_IN = 0x91
+LAYERS_SR_RB_CTRL = 0x92
+LAYERS_SR_CRC = 0x93
+LAYERS_SR_BYTES = 0x99
+LAYERS_SR_BYTES_READ_SIZE = 0x9a
+LAYERS_INJ_CTRL = 0x9e
+LAYERS_INJ_WADDR = 0x9f
+LAYERS_INJ_WDATA = 0xa0
+LAYERS_READOUT_CTRL = 0xa1
+LAYERS_READOUT = 0xa2
+LAYERS_READOUT_READ_SIZE = 0xa3
+IO_CTRL = 0xa7
+IO_LED = 0xa8
+GECCO_SR_CTRL = 0xa9
+HK_CONVERSION_TRIGGER_MATCH = 0xaa
+LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xae
 
 
 
@@ -88,71 +91,74 @@ class main_rfg(AbstractRFG):
     class Registers(RFGRegister):
         HK_FIRMWARE_ID = 0x0
         HK_FIRMWARE_VERSION = 0x4
-        HK_XADC_TEMPERATURE = 0x8
-        HK_XADC_VCCINT = 0xa
-        HK_CONVERSION_TRIGGER = 0xc
-        HK_STAT_CONVERSIONS_COUNTER = 0x10
-        HK_CTRL = 0x14
-        HK_ADCDAC_MOSI_FIFO = 0x15
-        HK_ADC_MISO_FIFO = 0x16
-        HK_ADC_MISO_FIFO_READ_SIZE = 0x17
-        SPI_LAYERS_CKDIVIDER = 0x1b
-        SPI_HK_CKDIVIDER = 0x1c
-        LAYER_0_CFG_CTRL = 0x1d
-        LAYER_1_CFG_CTRL = 0x1e
-        LAYER_2_CFG_CTRL = 0x1f
-        LAYER_0_STATUS = 0x20
-        LAYER_1_STATUS = 0x21
-        LAYER_2_STATUS = 0x22
-        LAYER_0_STAT_FRAME_COUNTER = 0x23
-        LAYER_1_STAT_FRAME_COUNTER = 0x27
-        LAYER_2_STAT_FRAME_COUNTER = 0x2b
-        LAYER_0_STAT_IDLE_COUNTER = 0x2f
-        LAYER_1_STAT_IDLE_COUNTER = 0x33
-        LAYER_2_STAT_IDLE_COUNTER = 0x37
-        LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3b
-        LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x3f
-        LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x43
-        LAYER_0_MOSI = 0x47
-        LAYER_0_MOSI_WRITE_SIZE = 0x48
-        LAYER_1_MOSI = 0x4c
-        LAYER_1_MOSI_WRITE_SIZE = 0x4d
-        LAYER_2_MOSI = 0x51
-        LAYER_2_MOSI_WRITE_SIZE = 0x52
-        LAYER_0_LOOPBACK_MISO = 0x56
-        LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x57
-        LAYER_1_LOOPBACK_MISO = 0x5b
-        LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5c
-        LAYER_2_LOOPBACK_MISO = 0x60
-        LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x61
-        LAYER_0_LOOPBACK_MOSI = 0x65
-        LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x66
-        LAYER_1_LOOPBACK_MOSI = 0x6a
-        LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6b
-        LAYER_2_LOOPBACK_MOSI = 0x6f
-        LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x70
-        LAYERS_FPGA_TIMESTAMP_CTRL = 0x74
-        LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x75
-        LAYERS_FPGA_TIMESTAMP_COUNTER = 0x79
-        LAYERS_TLU_TRIGGER_DELAY = 0x81
-        LAYERS_TLU_BUSY_DURATION = 0x83
-        LAYERS_CFG_NODATA_CONTINUE = 0x85
-        LAYERS_SR_OUT = 0x86
-        LAYERS_SR_IN = 0x87
-        LAYERS_SR_RB_CTRL = 0x88
-        LAYERS_SR_CRC = 0x89
-        LAYERS_SR_BYTES = 0x8f
-        LAYERS_SR_BYTES_READ_SIZE = 0x90
-        LAYERS_INJ_CTRL = 0x94
-        LAYERS_INJ_WADDR = 0x95
-        LAYERS_INJ_WDATA = 0x96
-        LAYERS_READOUT = 0x97
-        LAYERS_READOUT_READ_SIZE = 0x98
-        IO_CTRL = 0x9c
-        IO_LED = 0x9d
-        GECCO_SR_CTRL = 0x9e
-        HK_CONVERSION_TRIGGER_MATCH = 0x9f
-        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xa3
+        CLOCK_CTRL = 0x8
+        HK_XADC_TEMPERATURE = 0x9
+        HK_XADC_VCCINT = 0xb
+        HK_CONVERSION_TRIGGER = 0xd
+        HK_STAT_CONVERSIONS_COUNTER = 0x11
+        HK_CTRL = 0x15
+        HK_ADCDAC_MOSI_FIFO = 0x16
+        HK_ADC_MISO_FIFO = 0x17
+        HK_ADC_MISO_FIFO_READ_SIZE = 0x18
+        SPI_LAYERS_CKDIVIDER = 0x1c
+        SPI_HK_CKDIVIDER = 0x1d
+        LAYER_0_CFG_CTRL = 0x1e
+        LAYER_1_CFG_CTRL = 0x1f
+        LAYER_2_CFG_CTRL = 0x20
+        LAYER_0_STATUS = 0x21
+        LAYER_1_STATUS = 0x22
+        LAYER_2_STATUS = 0x23
+        LAYER_0_STAT_FRAME_COUNTER = 0x24
+        LAYER_1_STAT_FRAME_COUNTER = 0x28
+        LAYER_2_STAT_FRAME_COUNTER = 0x2c
+        LAYER_0_STAT_IDLE_COUNTER = 0x30
+        LAYER_1_STAT_IDLE_COUNTER = 0x34
+        LAYER_2_STAT_IDLE_COUNTER = 0x38
+        LAYER_0_STAT_WRONGLENGTH_COUNTER = 0x3c
+        LAYER_1_STAT_WRONGLENGTH_COUNTER = 0x40
+        LAYER_2_STAT_WRONGLENGTH_COUNTER = 0x44
+        LAYER_0_MOSI = 0x48
+        LAYER_0_MOSI_WRITE_SIZE = 0x49
+        LAYER_1_MOSI = 0x4d
+        LAYER_1_MOSI_WRITE_SIZE = 0x4e
+        LAYER_2_MOSI = 0x52
+        LAYER_2_MOSI_WRITE_SIZE = 0x53
+        LAYER_0_LOOPBACK_MISO = 0x57
+        LAYER_0_LOOPBACK_MISO_WRITE_SIZE = 0x58
+        LAYER_1_LOOPBACK_MISO = 0x5c
+        LAYER_1_LOOPBACK_MISO_WRITE_SIZE = 0x5d
+        LAYER_2_LOOPBACK_MISO = 0x61
+        LAYER_2_LOOPBACK_MISO_WRITE_SIZE = 0x62
+        LAYER_0_LOOPBACK_MOSI = 0x66
+        LAYER_0_LOOPBACK_MOSI_READ_SIZE = 0x67
+        LAYER_1_LOOPBACK_MOSI = 0x6b
+        LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6c
+        LAYER_2_LOOPBACK_MOSI = 0x70
+        LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x71
+        LAYERS_FPGA_TIMESTAMP_CTRL = 0x75
+        LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x77
+        LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7b
+        LAYERS_FPGA_TIMESTAMP_FORCED = 0x83
+        LAYERS_TLU_TRIGGER_DELAY = 0x8b
+        LAYERS_TLU_BUSY_DURATION = 0x8d
+        LAYERS_CFG_NODATA_CONTINUE = 0x8f
+        LAYERS_SR_OUT = 0x90
+        LAYERS_SR_IN = 0x91
+        LAYERS_SR_RB_CTRL = 0x92
+        LAYERS_SR_CRC = 0x93
+        LAYERS_SR_BYTES = 0x99
+        LAYERS_SR_BYTES_READ_SIZE = 0x9a
+        LAYERS_INJ_CTRL = 0x9e
+        LAYERS_INJ_WADDR = 0x9f
+        LAYERS_INJ_WDATA = 0xa0
+        LAYERS_READOUT_CTRL = 0xa1
+        LAYERS_READOUT = 0xa2
+        LAYERS_READOUT_READ_SIZE = 0xa3
+        IO_CTRL = 0xa7
+        IO_LED = 0xa8
+        GECCO_SR_CTRL = 0xa9
+        HK_CONVERSION_TRIGGER_MATCH = 0xaa
+        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xae
     
     
     
@@ -181,6 +187,22 @@ class main_rfg(AbstractRFG):
     
     async def read_hk_firmware_version_raw(self, count : int = 4 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['HK_FIRMWARE_VERSION'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_clock_ctrl(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['CLOCK_CTRL'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_clock_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['CLOCK_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_clock_ctrl_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['CLOCK_CTRL'],count = count, increment = False)
         
     
     
@@ -747,17 +769,17 @@ class main_rfg(AbstractRFG):
     
     
     async def write_layers_fpga_timestamp_ctrl(self,value : int,flush = False):
-        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],value = value,increment = False,valueLength=1)
+        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],value = value,increment = True,valueLength=2)
         if flush == True:
             await self.flush()
         
     
-    async def read_layers_fpga_timestamp_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
-        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+    async def read_layers_fpga_timestamp_ctrl(self, count : int = 2 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = True , targetQueue = targetQueue), 'little') 
         
     
-    async def read_layers_fpga_timestamp_ctrl_raw(self, count : int = 1 ) -> bytes: 
-        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = False)
+    async def read_layers_fpga_timestamp_ctrl_raw(self, count : int = 2 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_CTRL'],count = count, increment = True)
         
     
     
@@ -784,6 +806,22 @@ class main_rfg(AbstractRFG):
     
     async def read_layers_fpga_timestamp_counter_raw(self, count : int = 8 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_COUNTER'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_fpga_timestamp_forced(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_FPGA_TIMESTAMP_FORCED'],value = value,increment = True,valueLength=8)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_fpga_timestamp_forced(self, count : int = 8 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_FORCED'],count = count, increment = True , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_fpga_timestamp_forced_raw(self, count : int = 8 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_FPGA_TIMESTAMP_FORCED'],count = count, increment = True)
         
     
     
@@ -958,6 +996,22 @@ class main_rfg(AbstractRFG):
     
     async def read_layers_inj_wdata_raw(self, count : int = 1 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['LAYERS_INJ_WDATA'],count = count, increment = False)
+        
+    
+    
+    
+    async def write_layers_readout_ctrl(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_READOUT_CTRL'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_readout_ctrl(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_READOUT_CTRL'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_readout_ctrl_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_READOUT_CTRL'],count = count, increment = False)
         
     
     

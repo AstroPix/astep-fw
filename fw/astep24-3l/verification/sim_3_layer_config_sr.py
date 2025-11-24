@@ -36,27 +36,31 @@ async def test_layers_config_sr_bitgen(dut):
     )
 
     ## Get Config for Target Chip 
-    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=0)
+    configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=0)
+    bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=0)
     assert 1 == len(configs)
-    assert 4 == len(configs[0])
-    assert [1,1,0,1] == configs[0]
+    assert 4 == len(bits)
+    assert [1,1,0,1] == bits
     await Timer(150, units="us")
     
-    ## Get Config for Target Chip 
-    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=1)
+    ## Get Config for Target Chip
+    configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=1)
+    bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=1)
     assert 1 == len(configs)
-    assert 4 == len(configs[0])
-    assert [0,0,0,1] == configs[0]
+    assert 4 == len(bits)
+    assert [0,0,0,1] == bits
     await Timer(150, units="us")
     
     
     ## Get Config for all Chips
-    configs = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=-1)
+    configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=-1)
+    bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=-1)
     assert 2 == len(configs)
     assert 4 == len(configs[0])
     assert 4 == len(configs[1])
     assert [0,0,0,1] == configs[0]
     assert [1,1,0,1] == configs[1]
+    assert [0,0,0,1,1,1,0,1] == bits
     await Timer(150, units="us")
 
     await Timer(150, units="us")
@@ -138,7 +142,7 @@ async def test_layer_0_config_sr_readout(dut):
     """Reads back a chip config from SR using CRC Module"""
 
     ## Create an ASIC Model to send readout bits 
-    astropix = vip.astropix3.Astropix3Model(dut, "layer_0", 0)
+    astropix = vip.astropix3.Astropix3Model(dut, lane = 0 ,  chipID= 0)
 
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
