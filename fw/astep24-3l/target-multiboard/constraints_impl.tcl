@@ -126,6 +126,7 @@ if {$::IC_BOARD=="astropix-nexys"} {
 
     set_clock_groups -physically_exclusive -group {
         ext_clk_se
+        clk_out1_clk_sys_to_40
     } -group {
         clk_100_clk_core_extorint_40
         clk_80_clk_core_extorint_40
