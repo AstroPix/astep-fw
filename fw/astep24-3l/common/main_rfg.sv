@@ -484,7 +484,7 @@ module main_rfg(
             layer_0_loopback_mosi_read_size_reg <= '0;
             layer_1_loopback_mosi_read_size_reg <= '0;
             layer_2_loopback_mosi_read_size_reg <= '0;
-            layers_fpga_timestamp_ctrl_reg <= 8'h0010;
+            layers_fpga_timestamp_ctrl_reg <= 16'h0010;
             layers_fpga_timestamp_divider_reg <= '0;
             layers_fpga_timestamp_divider_up <= 1'b1;
             layers_fpga_timestamp_forced_reg <= '0;

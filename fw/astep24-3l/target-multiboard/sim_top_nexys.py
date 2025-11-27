@@ -17,7 +17,7 @@ async def test_clocking_resets(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_read_id(dut):
-    driver = astep24_3l_sim.getUARTDriver(dut)
+    driver = await astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset_nexys(dut)
     await Timer(10, units="us")
 
@@ -26,11 +26,25 @@ async def test_read_id(dut):
     print("Version: ", version)
     await Timer(10, units="us")
 
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def test_clock_enable(dut):
+    driver = await astep24_3l_sim.getUARTDriver(dut)
+    await vip.cctb.common_clock_reset_nexys(dut)
+    await Timer(10, units="us")
+
+    ## Read Firmware Type
+    await driver.enableSensorClocks(True)
+    
+    await Timer(150, units="us")
+    
+    await driver.ioSetSampleClockSingleEnded(enable=True,flush=True)
+
+    await Timer(150, units="us")
 
 @cocotb.test(timeout_time=12, timeout_unit="ms")
 async def test_injection(dut):
     rfg.core.debug()
-    boardDriver = astep24_3l_sim.getUARTDriver(dut)
+    boardDriver = await astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset_nexys(dut)
     await Timer(10, units="us")
 
@@ -57,7 +71,7 @@ async def test_injection(dut):
 @cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_spi_1byte_out(dut):
     dut.layer_0_interruptn.value = 1
-    boardDriver = astep24_3l_sim.getUARTDriver(dut)
+    boardDriver = await astep24_3l_sim.getUARTDriver(dut)
     await vip.cctb.common_clock_reset_nexys(dut)
     await Timer(10, units="us")
 

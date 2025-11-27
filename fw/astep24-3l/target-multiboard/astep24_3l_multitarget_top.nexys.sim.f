@@ -4,6 +4,7 @@
 -define SIMULATION
 -define TARGET_NEXYS
 -define SINGLE_LAYER
+-define SCLOCK_SE_DIFF
 
 ## Xilinx
 -f ${BASE}/fw/astep24-3l/verification/xilinx_sim_libs.f

@@ -98,7 +98,7 @@ set baseRegisters {
     [rrepeat 3 {LAYER_${i}_LOOPBACK_MOSI            {-fifo_axis_slave -read_count -doc "FIFO to read bytes received by internal slave loopback"}}]
 
     LAYERS_FPGA_TIMESTAMP_CTRL {
-        -reset 8'h0010
+        -reset 16'h0010
         -size 16
         -bits {
             enable {}
