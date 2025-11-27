@@ -154,20 +154,20 @@ class BoardDriver:
         return await self.rfg.read_io_ctrl()
 
     async def setSampleClock(self, enable: bool, flush: bool = False):
-        v = await self.rfg.read_io_ctrl()
+        v = await self.rfg.read_clock_ctrl()
         if enable:
-            v |= 0x1
+            v |= 0x8
         else:
-            v &= ~(0x1)
-        await self.rfg.write_io_ctrl(v, flush)
+            v &= ~(0x8)
+        await self.rfg.write_clock_ctrl(v, flush)
 
     async def setTimestampClock(self, enable: bool, flush: bool = True):
-        v = await self.rfg.read_io_ctrl()
+        v = await self.rfg.read_clock_ctrl()
         if enable:
-            v |= 0x2
+            v |= 0x10
         else:
-            v &= ~(0x2)
-        await self.rfg.write_io_ctrl(v, flush)
+            v &= ~(0x10)
+        await self.rfg.write_clock_ctrl(v, flush)
 
     async def ioSetSampleClockSingleEnded(self, enable: bool, flush: bool = True):
         v = await self.rfg.read_io_ctrl()
