@@ -69,8 +69,8 @@ module tlu_client #(
       .signal_out({tlu_sync, tlu_trig})  // o, sync to out_clk
   );*/
 
-  assign t0_i = (conf_t0_mode_in && tlu_sync) || t0_inject_in;
-  assign trig_i = tlu_trig || trigger_inject_in;
+  assign t0_i =  enable_in & ((conf_t0_mode_in && tlu_sync) || t0_inject_in);
+  assign trig_i = enable_in & (tlu_trig || trigger_inject_in);
   // if conf_busy_on_t0_in == 1'b1:
   // set busy_min_duration_counter on t0, or, if t0 mode is disabled, when the module is being enabled
   assign t0_busy = conf_busy_on_t0_in && (t0_i || (!conf_t0_mode_in && enable_in && !running));
@@ -136,7 +136,7 @@ module tlu_client #(
 
   always_ff @ (posedge tlu_clk) begin
     trig_delayed <= 1'b0;
-    if (trigger_delay_counter == {{(TRIGGER_DELAY_WIDTH-1){1'b0}},1'b1}) begin
+    if (trigger_delay_counter == {{(TRIGGER_DELAY_WIDTH){1'b0}},1'b1}) begin
       trig_delayed <= 1'b1;
     end
   end
@@ -147,12 +147,13 @@ module tlu_client #(
   //
 
   //-- Counter by itself
-  wire counter_is_counting = enable_in || enable_counter_in;
-  wire timestamp_counter_reset = ( !tlu_resn_in || t0_i );
+  wire counter_is_counting =  enable_counter_in; 
   always_ff @ (posedge tlu_clk) begin
-
-    if (timestamp_counter_reset) begin
-      timestamp_counter <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+    if (!tlu_resn_in) begin
+        timestamp_counter <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+    end
+    else if (t0_i) begin
+        timestamp_counter <=  {TRIG_TS_WIDTH{1'b0}};
     end
     else if (counter_is_counting) begin
         timestamp_counter <= timestamp_counter +1;
@@ -160,17 +161,17 @@ module tlu_client #(
   end
 
   //-- Counter Hold
-  wire update_hold  = (counter_is_counting && !enable_in) || trig_i ; // If counter is enabled but not TLU, always update output
+  wire update_hold  = (counter_is_counting && !enable_in) || (trig_i ); // If counter is enabled but not TLU, always update output
   always_ff @ (posedge tlu_clk) begin
 
     if (!tlu_resn_in) begin
-      timestamp_hold    <= {conf_t0_mode_in, {TRIG_TS_WIDTH-1{1'b0}}};
+      timestamp_hold    <= {conf_t0_mode_in, {TRIG_TS_WIDTH{1'b0}}};
       trigger_counter   <= {TRIG_ID_WIDTH{1'b0}};
       triggerdata_valid <= 1'b0;
     end
     else if (t0_i) begin
 
-      timestamp_hold    <= {TRIG_TS_WIDTH-1{1'b0}};
+      timestamp_hold    <= {TRIG_TS_WIDTH{1'b0}};
       trigger_counter <= {TRIG_ID_WIDTH{1'b0}};
     end
     else begin

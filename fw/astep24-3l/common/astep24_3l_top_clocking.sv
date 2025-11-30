@@ -10,6 +10,8 @@ module astep24_3l_top_clocking (
     input  wire sysclk_in,
     input  wire clk_ext,
     input  wire resn,
+    
+    input wire  ext_clk_allowed,
 
     output wire global_resn_o, // Reset request to be used by reset sync outside of this module
 
@@ -56,6 +58,9 @@ module astep24_3l_top_clocking (
 
 
     );
+    
+    
+   
 
     // External Clock Input switchover
     // -----------
@@ -74,13 +79,32 @@ module astep24_3l_top_clocking (
 
 
     wire core_mmmc_resetn = sys_mmmc_locked & !mmmc_reset & !(clk_ext_switch[0]=='b1 & clk_ext_switch[2]==1'b0 ) &  !(clk_ext_locked & !core_locked);
-    wire core_mmmc_clksel = !(clk_ext_switch[0] & clk_ext_switch[1]);
+    wire core_mmmc_clksel = !(clk_ext_switch[0] & clk_ext_switch[1]); // If 0, secondary clock / external is selected
+    
+    // External Clock Enable bit
+    // When the clock switches over, the FW is reset, so we need to keep that bit sticky when there's a switch to the external clock 
+    // -------------
+    logic ext_clk_allowed_synced;
+    always_ff @(posedge sysclk_40M or negedge sys_mmmc_locked) begin 
+         if (!sys_mmmc_locked) begin
+             ext_clk_allowed_synced <= 1'b0;
+         end
+         else begin
+             
+             // Allow Ext Clock when set by Software - Keep this bit to 1 if 1, only reset on switch back to primary clock 
+             ext_clk_allowed_synced <= switch_to_primary_clock ? 1'b0 : (ext_clk_allowed_synced==1'b0) ? ext_clk_allowed : ext_clk_allowed_synced;
+             
+         end
+    end
+    
+    // Switchover Mechanism
+    // ----------------
 
-    reset_sync #(.RESET_DELAY(15))  clk_ext_detector (.clk(clk_ext),.resn_in(!mmmc_reset & !switch_to_primary_clock),.resn_out(clk_ext_running));
+    reset_sync #(.RESET_DELAY(15))  clk_ext_detector (.clk(clk_ext),.resn_in(!mmmc_reset & !switch_to_primary_clock & ext_clk_allowed_synced),.resn_out(clk_ext_running));
 
     // When external clock is detected running, we can change the core MMMC clock source but we want to prevent a global reset
-    always_ff @(posedge sysclk_40M or negedge sys_mmmc_locked) begin
-        if (!sys_mmmc_locked) begin
+    always_ff @(posedge sysclk_40M or negedge sys_mmmc_locked or negedge ext_clk_allowed_synced) begin
+        if (!sys_mmmc_locked || !ext_clk_allowed_synced) begin
             clk_ext_switch          <= 'd0;
             core_locked_temp        <= 'd0;
             clk_ext_locked          <= 'd0;
@@ -128,7 +152,7 @@ module astep24_3l_top_clocking (
 
         .clk_in1   (sysclk_40M),
         .clk_in2   (clk_ext),
-        .clk_in_sel(!(clk_ext_switch[0] & clk_ext_switch[1])),
+        .clk_in_sel(core_mmmc_clksel),
         .resetn    (core_mmmc_resetn),
 
         // Clock out ports

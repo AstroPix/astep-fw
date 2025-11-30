@@ -62,6 +62,44 @@ async def test_tlu_disabled_count_enable(dut):
 
     await Timer(50, units="us")
     pass
+    
+    
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def test_tlu_disabled_count_lsbzero(dut):
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    job = cocotb.start_soon(
+        driver.layersConfigFPGATimestamp(
+            enable=True,
+            use_divider=False,
+            use_tlu=False,
+            force_lsb_0 = True,
+            flush=True,
+        )
+    )
+
+    ## Wait for counter count and two clock cycles to cover delay of TLU starting to update
+    await RisingEdge(dut.layers_fpga_timestamp_ctrl_count)
+    await FallingEdge(dut.tlu.tlu_clk_in)
+
+    ## Check it counts then only even values
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.layers_fpga_timestamp_counter_to_layers.value & 0xFF == 0
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.layers_fpga_timestamp_counter_to_layers.value & 0xFF == 0
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.layers_fpga_timestamp_counter_to_layers.value & 0xFF == 2
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.layers_fpga_timestamp_counter_to_layers.value & 0xFF == 2
+    
+    await job
+    
+
+    await Timer(50, units="us")
+    pass
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -120,6 +158,7 @@ async def test_tlu_enabled_always_count(dut):
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
 
+
     job = cocotb.start_soon(
         driver.layersConfigFPGATimestamp(
             enable=True,
@@ -141,6 +180,7 @@ async def test_tlu_enabled_always_count(dut):
         tsval1 = dut.tlu_ts_out.value & 0xFFFFFF
         await RisingEdge(dut.tlu.tlu_clk_in)
         dut.tlu_trigger.value = 1
+        await RisingEdge(dut.tlu.tlu_clk_in)
         await RisingEdge(dut.tlu.tlu_clk_in)
         dut.tlu_trigger.value = 0
         await RisingEdge(dut.tlu.tlu_clk_in)
@@ -190,80 +230,95 @@ async def test_tlu_enabled_always_count(dut):
         assert tsval > tsval1 + 1
 
         await Timer(1, units="us")
+        
+        dut._log.info(f"Current TS: {await driver.rfg.read_layers_fpga_timestamp_counter(count=4)}")
 
     await Timer(50, units="us")
     pass
 
 
-@cocotb.test(timeout_time=10, timeout_unit="ms", skip=True)
-async def test_count_ext_clock(dut):
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def test_tlu_enabled_count_divider(dut):
     ## Clock/Reset
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
 
-    ## Start external clock
-    await Timer(43, units="ns")
-    cocotb.start_soon(Clock(dut.ext_timestamp_clk, 100, units="ns").start())
 
-    ## Enable FPGA TS and set external source
-    await Timer(10, units="us")
-    await driver.layersConfigFPGATimestamp(
-        enable=True,
-        use_divider=False,
-        use_tlu=False,
-        flush=True,
+    await driver.layersConfigFPGATimestampFrequency(40000000)
+    job = cocotb.start_soon(
+        driver.layersConfigFPGATimestamp(
+            enable=True,
+            use_divider=True,
+            use_tlu=True,
+            flush=True,
+        )
     )
 
-    ## Disable
-    await Timer(10, units="us")
-    await driver.layersConfigFPGATimestamp(
-        enable=False,
-        use_divider=False,
-        use_tlu=False,
-        flush=True,
-    )
-    await driver.rfg.write_layers_cfg_frame_tag_counter(0, flush=True)
+    ## Wait for counter counting, then for some clock cycles - TS output should stay stable until a trigger comes
+    await RisingEdge(dut.layers_fpga_timestamp_ctrl_count)
+    for i in range(10):
+        await FallingEdge(dut.tlu.tlu_clk_in)
 
-    ## Reenable
-    await Timer(10, units="us")
-    await driver.layersConfigFPGATimestamp(
-        enable=True,
-        use_divider=False,
-        use_tlu=False,
-        flush=True,
-    )
+    await job
 
+    ## Make a trigger, check the TS changed after the trigger, but not when no trigger is present
+    for i in range(5):
+        tsval1 = dut.tlu_ts_out.value & 0xFFFFFF
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        dut.tlu_trigger.value = 1
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        dut.tlu_trigger.value = 0
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+
+        ## Check TS didn't change
+        tsval = dut.tlu_ts_out.value & 0xFFFFFF
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        assert tsval == dut.tlu_ts_out.value & 0xFFFFFF
+        assert tsval != 0
+        assert tsval > tsval1 + 1
+
+        await Timer(1, units="us")
+
+    ## Now Reset with t0
     await Timer(50, units="us")
 
-
-@cocotb.test(timeout_time=10, timeout_unit="ms", skip=True)
-async def test_count_match_trigger(dut):
-    ## Clock/Reset
-    await vip.cctb.common_clock_reset(dut)
+    dut.tlu_t0.value = 1
     await Timer(10, units="us")
-    driver = await astep24_3l_sim.getDriver(dut)
+    dut.tlu_t0.value = 0
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.tlu_ts_out.value & 0xFF == 0
+    await RisingEdge(dut.tlu.tlu_clk_in)
+    await RisingEdge(dut.tlu.tlu_clk_in)
 
-    dut.ext_timestamp_clk.value = 0
+    ## Make another couple trigger to make sure it updates again
+    for i in range(5):
+        tsval1 = dut.tlu_ts_out.value & 0xFFFFFF
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        dut.tlu_trigger.value = 1
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        dut.tlu_trigger.value = 0
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+
+        ## Check TS didn't change
+        tsval = dut.tlu_ts_out.value & 0xFFFFFF
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        await RisingEdge(dut.tlu.tlu_clk_in)
+        assert tsval == dut.tlu_ts_out.value & 0xFFFFFF
+        assert tsval != 0
+        assert tsval > tsval1 + 1
+
+        await Timer(1, units="us")
+        
+        dut._log.info(f"Current TS: {await driver.rfg.read_layers_fpga_timestamp_counter(count=4)}")
 
     await Timer(50, units="us")
-
-    ## Configure
-    await driver.layersConfigFPGATimestampFrequency(
-        targetFrequencyHz=1000000, flush=True
-    )
-    await driver.layersConfigFPGATimestamp(
-        enable=True,
-        use_divider=True,
-        use_tlu=False,
-        flush=True,
-    )
-
-    await Timer(50, units="us")
-
-    ## Change match value
-    await driver.layersConfigFPGATimestampFrequency(
-        targetFrequencyHz=1500000, flush=True
-    )
-
-    await Timer(50, units="us")
+    pass

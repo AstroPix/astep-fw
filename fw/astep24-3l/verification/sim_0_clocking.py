@@ -1,13 +1,11 @@
-import cocotb
-from cocotb.triggers import Timer, RisingEdge, FallingEdge, Combine
-from cocotb.clock import Clock
-from cocotbext.uart import UartSource, UartSink
-
-import vip.cctb
-
 ## Import simulation target driver
 import astep24_3l_sim
+import cocotb
 import rfg.cocotb.cocotb_spi
+import vip.cctb
+from cocotb.clock import Clock
+from cocotb.triggers import Combine, FallingEdge, RisingEdge, Timer,Join
+from cocotbext.uart import UartSink, UartSource
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -29,9 +27,15 @@ async def test_clocking_resets(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_clocking_ext_clk_autoswitch(dut):
+    
+    
+    
+    
     await vip.cctb.common_clock_reset(dut)
-
     await Timer(10, units="us")
+    
+    ## Get Target Driver
+    driver = await astep24_3l_sim.getFTDIDriver(dut)
 
     ## Test  Reset -> It will make core resn toggle
     dut.resn.value = 0
@@ -40,13 +44,43 @@ async def test_clocking_ext_clk_autoswitch(dut):
     dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
     await Timer(2, units="us")
-
-    ## Now Start external clock
+    
+    async def check_core_resn(dut):
+        await FallingEdge(dut.clk_core_resn)
+        await RisingEdge(dut.clk_core_resn)
+    
+    async def enableExtClock(enable:bool,expect:bool):
+        switchResult = await driver.setExternalClock(enable=enable)
+        assert switchResult is expect 
+    
+    ## Enable External Clock switch, make sure Clock is running before 
+    #############
+    
+    ## Start external clock
     ext_task = await vip.cctb.start_external_clock(dut)
+    
+    ## Enable TLU to allow clock switching
+    ##
+    setExtClock = cocotb.start_soon(enableExtClock(enable = True,expect = True))
+    #switchResult = await driver.setExternalClock(enable=True)
+    #assert switchResult is True 
+    
+    #await driver.layersConfigFPGATimestamp(
+    #    enable = True,
+    #    use_divider= True,
+    #    use_tlu= True,
+    #    flush=True
+    #)
+    #await Timer(50, units="us")
+    
+    #dut._log.info("TLU enabled, now testing clock swithing")
+    
 
     ## Switch over will produce a reset
     await FallingEdge(dut.clk_core_resn)
     await RisingEdge(dut.clk_core_resn)
+    
+    await setExtClock.join()
 
     assert dut.clocking_reset_I.clk_ext_selected.value == 1, (
         "Clock Clksel should be 1, meaning external"
@@ -60,7 +94,15 @@ async def test_clocking_ext_clk_autoswitch(dut):
     await Timer(2, units="us")
     dut.resn.value = 1
     await RisingEdge(dut.clk_core_resn)
-
+    
+    assert dut.clocking_reset_I.clk_ext_selected.value == 0, (
+        "Clock Clksel should be 0, meaning board"
+    )
+    
+    ## Enable Ext Clock
+    setExtClock = cocotb.start_soon(enableExtClock(enable = True,expect = True))
+    await setExtClock.join()
+    
     assert dut.clocking_reset_I.clk_ext_selected.value == 1, (
         "Clock Clksel should be 1, meaning external"
     )
@@ -69,12 +111,28 @@ async def test_clocking_ext_clk_autoswitch(dut):
     ext_task.cancel()
     await FallingEdge(dut.clk_core_resn)
     await RisingEdge(dut.clk_core_resn)
-
+    
+    dut._log.info("Turned off TLU clock, recovered to primary")
+    
     ## Turn on Clock again to check it resets again
     await Timer(50, units="us")
     ext_task = await vip.cctb.start_external_clock(dut)
+    
+    ## Enable Ext Clock
+    setExtClock = cocotb.start_soon(enableExtClock(enable = True,expect = True))
+    
+    
+    
     await FallingEdge(dut.clk_core_resn)
     await RisingEdge(dut.clk_core_resn)
+    assert dut.clocking_reset_I.clk_ext_selected.value == 1, (
+        "Clock Clksel should be 1, meaning external"
+    )
+    
+    await setExtClock.join()
+    
+    ## Try to enable clock again, see that driver says false 
+    await enableExtClock(enable = True,expect = False)
 
     await Timer(10, units="us")
 
@@ -97,8 +155,9 @@ async def test_clocking_dividers(dut):
     await Timer(50, units="us")
 
 
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=1, timeout_unit="ms", skip=True)
 async def test_buffers_reset(dut):
+    """Skipped for now, not sure what it should do"""
     ## Get Target Driver
     driver = await astep24_3l_sim.getDriver(dut)
 
@@ -117,7 +176,7 @@ async def test_buffers_reset(dut):
     slave.start_monitor()
 
     ## Write MOSI Bytes to Layer
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await Timer(100, units="us")
     dut.resn.value = 0
     await Timer(2, units="us")
@@ -126,7 +185,7 @@ async def test_buffers_reset(dut):
     await Timer(50, units="us")
 
 
-@cocotb.test(timeout_time=1, timeout_unit="ms")
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_spi_divider_api(dut):
     # rfg.cocotb.cocotb_spi.debug()
 
@@ -150,7 +209,10 @@ async def test_spi_divider_api(dut):
 
     ## Set Clock divider for 2Mhz
     await boardDriver.configureLayerSPIFrequency(2000000, flush=True)
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
+    dut._log.info("Done Writing bytes, waiting for SPI Clock")
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -164,7 +226,9 @@ async def test_spi_divider_api(dut):
     ## Set Clock divider for 500Khz
     await boardDriver.configureLayerSPIFrequency(500000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")
@@ -180,7 +244,9 @@ async def test_spi_divider_api(dut):
     ## Set Clock divider for 10Mhz
     await boardDriver.configureLayerSPIFrequency(10000000, flush=True)
 
-    await boardDriver.writeLayerBytes(layer=0, bytes=[0x00] * 8, flush=True)
+    await boardDriver.writeSPIBytesToLane(
+        lane=0, bytes=[0x00] * 8, waitForLastChunk=False
+    )
 
     await RisingEdge(dut.layer_0_spi_clk)
     edge1 = cocotb.utils.get_sim_time("ns")

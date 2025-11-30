@@ -64,3 +64,6 @@ verification/.generated/rtl/astep24_3l_top_sim.f: verification/gen_verilog.tcl
 verification/.icflow/sim/design.txt: verification/files/design.txt
 	@mkdir -p verification/.icflow/sim/
 	@cp verification/files/design.txt verification/.icflow/sim/
+
+simvision:
+	@simvision verification/.icflow/sim/waves.shm

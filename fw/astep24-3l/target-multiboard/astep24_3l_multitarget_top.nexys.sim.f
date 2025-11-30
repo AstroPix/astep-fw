@@ -1,15 +1,16 @@
--sv 
+-sv
 -64bit
 -access +rw
 -define SIMULATION
 -define TARGET_NEXYS
 -define SINGLE_LAYER
+-define SCLOCK_SE_DIFF
 
 ## Xilinx
 -f ${BASE}/fw/astep24-3l/verification/xilinx_sim_libs.f
 
-## Top 
-${BASE}/fw/astep24-3l/target-multiboard/astep24_3l_multitarget_top.v
+## Top
+${BASE}/fw/astep24-3l/target-multiboard/astep24_3l_multitarget_top.sv
 
 ## Common
 +define+RFG_FW_ID=32'h0000ff00
@@ -17,4 +18,3 @@ ${BASE}/fw/astep24-3l/target-multiboard/astep24_3l_multitarget_top.v
 
 ## Main Verilog
 -f ${BASE}/fw/astep24-3l/common/astep24_3l_top.f
-

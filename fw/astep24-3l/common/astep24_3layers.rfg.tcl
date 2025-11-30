@@ -47,6 +47,18 @@ set ::RFG_FW_BUILD `RFG_FW_BUILD
 set baseRegisters {
     HK_FIRMWARE_ID         {-size 32 -reset ${::RFG_FW_ID}    -sw_read_only -hw_ignore -doc "ID to identify the Firmware"}
     HK_FIRMWARE_VERSION    {-size 32 -reset ${::RFG_FW_BUILD} -sw_read_only -hw_ignore -doc "Date based Build version: YEARMONTHDAYCOUNT"}
+    CLOCK_CTRL {
+        -size 8 -doc "Clock Control Register for the Firmware and Astropix"
+        -reset 8'h2
+        -bits {
+            ext_clk_enable             {-doc "If 1, the external clock switchover mechanism is allowed"}
+            ext_clk_differential       {-doc "If 1, the external FPGA timestamp clock is differential - see target hardware to check for compatibility"}
+            current_clk                {-input  -doc "If 1, the external clock is used for clocking. If this is 1 and ext_clk_enable is 0, it means a correct clock switching happened"}
+            sample_clock_enable        {-doc "Sample clock output enable. Sample clock output is 0 if this bit is set to 0"}
+            timestamp_clock_enable     {-doc "Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0"}
+            
+        }   
+    }
     HK_XADC_TEMPERATURE    {-size 16 -sw_read_only -hw_write -doc "XADC FPGA temperature (automatically updated by firmware)"}
     HK_XADC_VCCINT         {-size 16 -sw_read_only -hw_write -doc "XADC FPGA VCCINT (automatically updated by firmware)"}
     HK_CONVERSION_TRIGGER  { -counter -interrupt -size 32 -match_reset 32'd10 -updown -doc "This register is a counter that generates regular interrupts to fetch new XADC values"}
@@ -86,14 +98,16 @@ set baseRegisters {
     [rrepeat 3 {LAYER_${i}_LOOPBACK_MOSI            {-fifo_axis_slave -read_count -doc "FIFO to read bytes received by internal slave loopback"}}]
 
     LAYERS_FPGA_TIMESTAMP_CTRL {
-        -reset 8'hA
-        -size 8
+        -reset 16'h0010
+        -size 16
         -bits {
             enable {}
             use_divider          { -doc "If 1, the FGPA Timestamp will increment after the matching counter reached its match value, otherwise will increment on each core clock cycle"}
             use_tlu              { -doc "If 1, the TLU module will be used"}
             tlu_busy_on_t0       { -doc "If 1, the busy signal out of TLU will be asserted after t0 initial"}
             timestamp_size       { -size 2 -doc "16/32/48/64 bits Timestamp width"}
+            force_value {-doc "If set to 1, the Timestamp will be forced to the value of the LAYERS_FPGA_TIMESTAMP_FORCED register"}
+            force_lsb_0 {-doc "If set to 1, the Timestamp lsb will be forced to 1, effectively dividing counting by 2 and preventing the last byte of Timestamp to be 0xFF if in MSB first"}
         }  -doc "Register to control the FPGA Timestamp Behavior"
     }
     LAYERS_FPGA_TIMESTAMP_DIVIDER {
@@ -111,6 +125,10 @@ set baseRegisters {
         -sw_read_only
         -hw_write
         -doc "FPGA Timestamp Counter added to data frames - reads the counter output of the TLU"
+    }
+    LAYERS_FPGA_TIMESTAMP_FORCED       {
+        -size 64
+        -doc "FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS"
     }
     LAYERS_TLU_TRIGGER_DELAY       {
         -reset 16'd2
@@ -133,16 +151,37 @@ set baseRegisters {
             LD0 {-doc "Load signal for Layer 0"}
             LD1 {-doc "Load signal for Layer 1"}
             LD2 {-doc "Load signal for Layer 2"}
+            
         }
     }
     LAYERS_SR_IN {
         -doc "Shift Register Configuration Input control (Readback enable and layers inputs)"
         -bits {
-            RB    {-doc "Set to 1 to activate Shift Register Read back from layers"}
             SOUT0 {-input}
             SOUT1 {-input}
             SOUT2 {-input}
+            
         }
+    }
+    
+    LAYERS_SR_RB_CTRL {
+        -doc "Shift Register CRC and bits Readback control"
+        -bits {
+            RB    {-doc "Set to 1 to activate Shift Register Read back from layers"}
+            CRC_ENABLE  { -doc "Set to 1 to enable CRC Module"}
+            SOUT_SELECT { -size 5 -doc "Set to configure which SOUT is used - up to 32"}
+        }
+    }
+
+    LAYERS_SR_CRC {
+        -doc "CRC Output of readback module"
+        -size 48
+        -sw_read_only
+        -hw_write
+    }
+    LAYERS_SR_BYTES {
+        -doc "Readback SR bits packed as bytes"
+        -fifo_axis_slave -read_count
     }
     LAYERS_INJ_CTRL {
         -reset 8'b00000110
@@ -159,17 +198,23 @@ set baseRegisters {
     }
     LAYERS_INJ_WADDR {-size 4 -doc "Address for register to write in Injection Pattern Generator"  }
     LAYERS_INJ_WDATA {-doc "Data for register to write in Injection Pattern Generator" }
+    LAYERS_READOUT_CTRL {
+        -reset 8'h01
+        -bits {
+            packet_mode {-doc "If 1, the Readout FIFO data will be filled only with full data frames"}
+        }
+    }
     LAYERS_READOUT   {-fifo_axis_slave -read_count -doc "Reads from the readout data fifo"}
     IO_CTRL {
         -doc "Configuration register for I/O multiplexers and gating."
         -reset 8'b00011000
         -bits {
-            sample_clock_enable        {-doc "Sample clock output enable. Sample clock output is 0 if this bit is set to 0"}
-            timestamp_clock_enable     {-doc "Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0"}
+            reserved0        {-doc "Sample clock output enable. Sample clock output is 0 if this bit is set to 0"}
+            reserved1     {-doc "Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0"}
             gecco_sample_clock_se      {-doc "Selects the Single Ended output for the sample clock on Gecco." }
             gecco_inj_enable           {-doc "Selects the Gecco Injection to Injection Card output for the injection patterns. Set to 0 to route the injection pattern directly to the chip carrier"}
-            fpga_ts_clock_diff         {-doc "If 1, the external FPGA timestamp clock is differential"}
-            astropix_ts_is_fpga_ext_ts {-doc "If 1, the astropix ts clock is sourced from the fpga external ts"}
+            reserved4         { }
+            reserved5 { }
         }
     }
     IO_LED          {

@@ -1,25 +1,33 @@
 import asyncio
-import sys
 import signal
+import sys
+
+import rfg.asyncio
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QLayout,
+    QMainWindow,
+    QMenuBar,
+    QSizePolicy,
+    QStackedLayout,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 # Driver or RFG
 import drivers.boards
-import rfg.asyncio
 
-from PySide6 import  QtCore, QtGui, QtWidgets
-
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import (QApplication, QLabel, QLayout, QMainWindow,
-    QMenuBar, QSizePolicy, QStatusBar, QVBoxLayout, QStackedLayout,
-    QWidget)
 
 class UILayerStats(QWidget):
-
     ## Custom Signals
     ##############
     requestUpdateStats = QtCore.Signal(int)
 
-    def __init__(self,layerID, *args, **kwargs):
+    def __init__(self, layerID, *args, **kwargs):
         super().__init__(*args, **kwargs)
         loader = QUiLoader()
         layout = QStackedLayout()
@@ -34,8 +42,6 @@ class UILayerStats(QWidget):
         ## Customize
         self.widgetContent.topBox.setTitle(f"Layer {layerID}")
 
-        
-
         ## Signals connections
         #############
 
@@ -45,71 +51,78 @@ class UILayerStats(QWidget):
 
         self.widgetContent.resetCountersButton.clicked.connect(self.evtResetCounters)
 
-        self.widgetContent.writeDummyBytesButton.clicked.connect(self.evtWriteDummyBytes)
-        #self.widgetContent.resetBox.stateChanged.connect(self.evtReset)
-
-        
+        self.widgetContent.writeDummyBytesButton.clicked.connect(
+            self.evtWriteDummyBytes
+        )
+        # self.widgetContent.resetBox.stateChanged.connect(self.evtReset)
 
     ## Events
     ############
-    def evtReset(self,state):
-        v =  True if state is QtCore.Qt.Checked.value else False
-        asyncio.run(self.boardDriver.setLayerReset(self.layerID,reset = v, modify = True, flush = True))
+    def evtReset(self, state):
+        v = True if state is QtCore.Qt.Checked.value else False
+        asyncio.run(
+            self.boardDriver.setLayerReset(
+                self.layerID, reset=v, modify=True, flush=True
+            )
+        )
 
-    def evtHold(self,state):
-        v =  True if state is QtCore.Qt.Checked.value else False
-        asyncio.run(self.boardDriver.holdLayer(self.layerID,hold = v, flush = True))
+    def evtHold(self, state):
+        v = True if state is QtCore.Qt.Checked.value else False
+        asyncio.run(self.boardDriver.holdLayer(self.layerID, hold=v, flush=True))
 
-    def evtChipSelect(self,state):
-        v =  True if state is QtCore.Qt.Checked.value else False
-        asyncio.run(self.boardDriver.layersSetSPICSN(cs = v, flush = True))
-            
+    def evtChipSelect(self, state):
+        v = True if state is QtCore.Qt.Checked.value else False
+        asyncio.run(self.boardDriver.layersSetSPICSN(cs=v, flush=True))
+
     def evtResetCounters(self):
         asyncio.run(self.boardDriver.resetLayerStatCounters(self.layerID))
         self.requestUpdateStats.emit(0)
 
     def evtWriteDummyBytes(self):
         print(f"Write {self.widgetContent.dummyBytesCount.value()}")
-        asyncio.run(self.boardDriver.writeLayerBytes(self.layerID,[0x00]*self.widgetContent.dummyBytesCount.value(),True))
+        asyncio.run(
+            self.boardDriver.writeSPIBytesToLane(
+                self.layerID, [0x00] * self.widgetContent.dummyBytesCount.value()
+            )
+        )
         self.requestUpdateStats.emit(0)
 
     ## UI Updates
     #################
-    def setReset(self,v:bool) -> None:
+    def setReset(self, v: bool) -> None:
         self.widgetContent.resetBox.blockSignals(True)
         self.widgetContent.resetBox.setChecked(v)
         self.widgetContent.resetBox.blockSignals(False)
-    def setHold(self,v:bool) -> None:
+
+    def setHold(self, v: bool) -> None:
         self.widgetContent.holdBox.blockSignals(True)
         self.widgetContent.holdBox.setChecked(v)
         self.widgetContent.holdBox.blockSignals(False)
 
-    def setAutoread(self,v:bool) -> None:
+    def setAutoread(self, v: bool) -> None:
         self.widgetContent.autoReadBox.blockSignals(True)
         self.widgetContent.autoReadBox.setChecked(v)
         self.widgetContent.autoReadBox.blockSignals(False)
 
-    def setIDLECounter(self,v:int) ->None:
+    def setIDLECounter(self, v: int) -> None:
         self.widgetContent.idleCounterText.blockSignals(True)
         self.widgetContent.idleCounterText.setText(f"{v}")
         self.widgetContent.idleCounterText.blockSignals(False)
 
-    def setFRAMECounter(self,v:int) ->None:
+    def setFRAMECounter(self, v: int) -> None:
         self.widgetContent.frameCounterText.blockSignals(True)
         self.widgetContent.frameCounterText.setText(f"{v}")
         self.widgetContent.frameCounterText.blockSignals(False)
 
-    def setStatusInterrupt(self,v:bool) ->None:
+    def setStatusInterrupt(self, v: bool) -> None:
         self.widgetContent.interruptBox.blockSignals(True)
         self.widgetContent.interruptBox.setChecked(v)
         self.widgetContent.interruptBox.blockSignals(False)
 
-    def setStatusDecoding(self,v:bool) ->None:
+    def setStatusDecoding(self, v: bool) -> None:
         self.widgetContent.decodingBox.blockSignals(True)
         self.widgetContent.decodingBox.setChecked(v)
         self.widgetContent.decodingBox.blockSignals(False)
 
-    def setMISOBytesCount(self,v:int) -> None:
+    def setMISOBytesCount(self, v: int) -> None:
         self.widgetContent.misoBytesCount.setText(f"{v}")
-
-

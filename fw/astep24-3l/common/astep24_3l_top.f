@@ -36,6 +36,10 @@ ${BASE}/fw/common/rtl/trigger/tlu_client.sv
 ## Layer Loopback
 ${BASE}/fw/common/rtl/asic_model/loopback_spi_if.sv
 
+## Config Readback
+${BASE}/fw/common/rtl/config/crc_calc.sv
+${BASE}/fw/common/rtl/config/sr_readback_crc.sv
+
 
 ## Housekeeping
 -f ${BASE}/fw/common/rtl/housekeeping/housekeeping_main.f

@@ -36,13 +36,14 @@ module layers_readout_switched #(
 
     // MISO Merged readout
     //-------------
-    output wire [31:0]		            readout_frames_data_count,
-    output wire [7:0]		            readout_frames_m_axis_tdata,
+    output logic [31:0]		            readout_frames_data_count,
+    output wire  [7:0]		            readout_frames_m_axis_tdata,
     input  wire				            readout_frames_m_axis_tready,
     output wire				            readout_frames_m_axis_tvalid,
 
     // Configurations
     //---------------------
+    input wire                          config_packet_mode,
     input wire  [LAYER_COUNT-1:0]       config_disable_autoread,
     input wire  [TS_WIDTH-1:0]          config_fpga_timestamp,
     input wire  [1:0]                   config_fpga_timestamp_size,
@@ -148,6 +149,8 @@ module layers_readout_switched #(
 
     // Data FIFO
     //-----------------
+    wire [31:0] readout_frames_data_count_from_buffer;
+    wire buffer_in_last = switch_m_axis_tlast | (!config_packet_mode);
     fifo_axis_1clk_1kB  frames_buffer(
         .s_axis_aclk(clk_core),
         .s_axis_aresetn(clk_core_resn),
@@ -156,14 +159,92 @@ module layers_readout_switched #(
         .s_axis_tdata(switch_m_axis_tdata),
         .s_axis_tready(switch_m_axis_tready),
         .s_axis_tvalid(switch_m_axis_tvalid),
-        .s_axis_tlast(switch_m_axis_tlast),
+        .s_axis_tlast(buffer_in_last),
 
         // To RFG Readout
-        .axis_rd_data_count(readout_frames_data_count),
+        .axis_rd_data_count(readout_frames_data_count_from_buffer),
         .m_axis_tdata(readout_frames_m_axis_tdata),
         .m_axis_tready(readout_frames_m_axis_tready),
         .m_axis_tvalid(readout_frames_m_axis_tvalid),
         .m_axis_tlast()
     );
+    
+    //-- Size of Data Frame Buffer reported to RFG:
+    //-- In packet mode, the size can only be reported if the FIFO is showing valid. Otherwise the size might not be 0, but reading will produce empty bytes, hence falsing readout 
+    //-- The solution is to report a 0 size if the FIFO is not showing valid, otherwise we can show the size, which will reflect only full frames 
+    //-- If packet mode is not used, we can report the size fully 
+    logic [31:0] readout_frames_data_count_temp;
+    wire write_in_buffer = switch_m_axis_tready & switch_m_axis_tvalid;
+    wire read_in_buffer = readout_frames_m_axis_tready & readout_frames_m_axis_tvalid;
+    always_ff @(posedge clk_core) begin
+        if (!clk_core_resn) begin
+            readout_frames_data_count <= 32'd0;
+            readout_frames_data_count_temp <= 'd0; 
+        end
+        else begin 
+            
+            if (config_packet_mode) begin 
+                
+            
+            
+                // If Write on slave, increment temp count 
+                // If Last on slave, add temp count to output 
+                if (write_in_buffer && !read_in_buffer) begin
+                    readout_frames_data_count_temp <= readout_frames_data_count_temp + 'd1;
+                end
+                else if (read_in_buffer && !write_in_buffer) begin 
+                    readout_frames_data_count_temp <= readout_frames_data_count_temp - 'd1;
+                end
+                
+                if (write_in_buffer && buffer_in_last ) begin 
+                    readout_frames_data_count <= (readout_frames_data_count_temp + 'd1) - (read_in_buffer ? 'd1:'d0);
+                end
+                else if (read_in_buffer) begin 
+                    readout_frames_data_count <= readout_frames_data_count_temp - 'd1;
+                end
+            
+            end
+            else begin 
+                readout_frames_data_count <= readout_frames_data_count_from_buffer;
+            end
+            
+            
+            
+            
+        end
+    end
+    
+    /*wire readout_frames_m_axis_tvalid_posedge;
+    reg [1:0] buffer_in_last_del;
+    
+    edge_detect readout_frames_m_axis_tvali_detect(
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .in(readout_frames_m_axis_tvalid),
+        .rising_edge(readout_frames_m_axis_tvalid_posedge),
+        .falling_edge()
+        );
+    
+    always_ff @(posedge clk_core) begin
+        if (!clk_core_resn) begin
+            readout_frames_data_count <= 32'd0;
+            buffer_in_last_del <= 'd0;
+        end
+        else begin 
+            
+            buffer_in_last_del <= {buffer_in_last_del[0],buffer_in_last};
+            
+            if (config_packet_mode & buffer_in_last_del[1]) begin 
+                readout_frames_data_count <= readout_frames_data_count_from_buffer;
+            end
+            else if (config_packet_mode & !readout_frames_m_axis_tvalid) begin 
+                readout_frames_data_count <= 32'd0;
+            end
+            else begin 
+                readout_frames_data_count <= readout_frames_data_count_from_buffer;
+            end
+            
+        end
+        end*/
 
 endmodule

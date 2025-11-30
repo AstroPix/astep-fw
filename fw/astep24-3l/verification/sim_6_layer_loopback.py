@@ -1,18 +1,16 @@
-import sys
+import logging
 import os
 import os.path
-import logging
 import random
-import cocotb
-from cocotb.triggers import Timer, RisingEdge, Join, Combine, with_timeout
-from cocotb.clock import Clock
-
-import vip.cctb
-import vip.astropix3
-
+import sys
 
 ## Import simulation target driver
 import astep24_3l_sim
+import cocotb
+import vip.astropix3
+import vip.cctb
+from cocotb.clock import Clock
+from cocotb.triggers import Combine, Join, RisingEdge, Timer, with_timeout
 
 
 async def freeze_fpga_timestamp(dut, driver):
@@ -70,19 +68,22 @@ async def test_loopback_layer0(dut):
         flush=True,
     )
 
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await Timer(50, units="us")
 
     # Now we can write to the loopback
     await lpModel.writeMISOBytes([0x02, 0xAB, 0xCD])
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await Timer(50, units="us")
 
     ## Check Size in readout buffer
     assert await driver.readoutGetBufferSize() == 9
     readoutBytes = await driver.readoutReadBytes(9)
-
-    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tagCounterBytes[0:4]
+    
+    tsBytes = tagCounterBytes[0:4]
+    tsBytes.reverse()
+    
+    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tsBytes
     await Timer(100, units="us")
 
 
@@ -123,19 +124,22 @@ async def test_loopback_layer0_autoread(dut):
         disableMISO=False,
         flush=True,
     )
-    await driver.writeLayerBytes(layer=0, bytes=[0x00] * 16, flush=True)
+    await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 16)
     await Timer(50, units="us")
 
     # Now we can write to the loopback
     await lpModel.writeMISOBytes([0x02, 0xAB, 0xCD])
-    # await driver.writeLayerBytes(layer = 0, bytes = [0x00] * 16, flush=True)
+    # await driver.writeSPIBytesToLane(lane = 0, bytes = [0x00] * 16, flush=True)
     await Timer(50, units="us")
 
     ## Check Size in readout buffer
     assert await driver.readoutGetBufferSize() == 9
     readoutBytes = await driver.readoutReadBytes(9)
-
-    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tagCounterBytes[0:4]
+    
+    tsBytes = tagCounterBytes[0:4]
+    tsBytes.reverse()
+    
+    assert readoutBytes == [0x08, 0x01, 0x02, 0xAB, 0xCD] + tsBytes
     await Timer(100, units="us")
 
 
@@ -175,14 +179,14 @@ async def test_loopback_all_layers(dut):
             disableMISO=False,
             flush=True,
         )
-        await driver.writeLayerBytes(layer=layer, bytes=[0x00] * 16, flush=True)
+        await driver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 16)
         await Timer(50, units="us")
 
         ## Enable and prepare some bytes in MISO
         ## The bytes should minimally conform to astropix frame, otherwise the frame decoder might kick in wrong
 
         await lpModel.writeMISOBytes([0x02, 0xAB + layer, 0xCD])
-        await driver.writeLayerBytes(layer=layer, bytes=[0x00] * 16, flush=True)
+        await driver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 16)
         await Timer(50, units="us")
 
         ## Check Size in readout buffer
@@ -190,9 +194,11 @@ async def test_loopback_all_layers(dut):
         readoutBytes = await driver.readoutReadBytes(9)
 
         ## Check bytes
+        tsBytes = tagCounterBytes[0:4]
+        tsBytes.reverse()
         assert (
             readoutBytes
-            == [0x08, layer + 1, 0x02, 0xAB + layer, 0xCD] + tagCounterBytes[0:4]
+            == [0x08, layer + 1, 0x02, 0xAB + layer, 0xCD] + tsBytes
         )
 
     await Timer(100, units="us")

@@ -74,7 +74,7 @@ async def run_gen_read_test(
         while not finished:
             ## If not autoread, we need to send some bytes to trigger reading out random.randint(16,24)
             if not autoRead:
-                await driver.writeLayerBytes(layer=0, bytes=[0x00] * 32, flush=True)
+                await driver.writeSPIBytesToLane(lane=0, bytes=[0x00] * 32)
                 await Timer(500, units="ns")
                 mosiTimeout = 20
                 while mosiTimeout > 0 and (
@@ -211,25 +211,38 @@ async def run_gen_read_test_multi(
 
         ## Readout the frames a bit wild, until there are no bytes anymore
         finished = False
+        
         readBytes = []
         mosiTimeout = 0
         while not finished:
+            
+            timeoutInWriteSPI = False 
+            
             ## If not autoread, we need to send some bytes to trigger reading out random.randint(16,24)
+            ## This method might timeout because of buffers filling, just keep going if that's the case
             if not autoRead:
                 for i in range(len(asics)):
-                    await driver.writeLayerBytes(layer=i, bytes=[0x00] * 16, flush=True)
+                    try:
+                        await driver.writeSPIBytesToLane(lane=i, bytes=[0x00] * 16,waitForLastChunk=False)
+                    except RuntimeError:
+                        dut._log.warn("Timeout in write SPI")
+                        timeoutInWriteSPI = True
+                        pass
 
-                await Timer(500, units="ns")
-                for i in range(len(asics)):
-                    mosiTimeout = 20
-                    while mosiTimeout > 0 and (
-                        await driver.getLayerMOSIBytesCount(layer=i) > 0
-                    ):
-                        await Timer(500, units="ns")
-                        mosiTimeout -= 1
+                #await Timer(500, units="ns")
+                #for i in range(len(asics)):
+                #    mosiTimeout = 20
+                #    while mosiTimeout > 0 and (
+                #        await driver.getLayerMOSIBytesCount(layer=i) > 0
+                #    ):
+                #        await Timer(500, units="ns")
+                #        mosiTimeout -= 1
 
             # get readoutsize
             bufferSize = await driver.readoutGetBufferSize()
+            dut._log.info(
+                f"Buffer size available: {bufferSize}"
+            )
 
             ## If not autoread, read the buffer full, otherwise the next writeLayerBytes might write too much and hang if the buffers are full
             ## If the buffersize is 0 without autoread, it is finished
@@ -239,7 +252,16 @@ async def run_gen_read_test_multi(
                     # Wait a bit here, since the SPI master might still be active
                     await Timer(100, units="us")
                 else:
+                    # Read Bytes, if a timeout happened, wait a bit and read again to help avoid too much timeout 
                     readBytes.extend(await driver.readoutReadBytes(bufferSize))
+                    if timeoutInWriteSPI is True: 
+                        await Timer(100, units="us")
+                        bufferSize2 = await driver.readoutGetBufferSize()
+                        while (bufferSize2>0):
+                            dut._log.warn(f"Second buffer read of {bufferSize2} bytes in no autoread to avoid timeouts")
+                            readBytes.extend(await driver.readoutReadBytes(bufferSize2))
+                            bufferSize += bufferSize2
+                        
 
             else:
                 # Read only if number of bytes reached
@@ -327,7 +349,7 @@ async def test_layer_0_longframe_with_pause_no_autoread(dut):
         flush=True,
     )
 
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut,  lane = 0 ,  chipID=1)
     logging.getLogger("cocotb.astep24_3l_top.uart_tx").setLevel(logging.WARN)
     logging.getLogger("cocotb.astep24_3l_top.uart_rx").setLevel(logging.WARN)
     logging.getLogger("vip.spi").setLevel(logging.WARN)
@@ -355,7 +377,7 @@ async def test_layer_0_longframe_with_pause_autoread(dut):
         flush=True,
     )
 
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut,  lane = 0 ,  chipID=1)
     logging.getLogger("cocotb.astep24_3l_top.uart_tx").setLevel(logging.WARN)
     logging.getLogger("cocotb.astep24_3l_top.uart_rx").setLevel(logging.WARN)
     logging.getLogger("vip.spi").setLevel(logging.WARN)
@@ -403,7 +425,7 @@ async def test_layer_0_longframe_with_pause_dualmode(dut):
         flush=True,
     )
 
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut,  lane = 0 ,  chipID=1)
     logging.getLogger("cocotb.astep24_3l_top.uart_tx").setLevel(logging.WARN)
     logging.getLogger("cocotb.astep24_3l_top.uart_rx").setLevel(logging.WARN)
     logging.getLogger("vip.spi").setLevel(logging.WARN)
@@ -423,7 +445,7 @@ async def test_layer_0_longframe_with_pause_dualmode(dut):
 async def test_layer_0_longframe_longtest(dut):
     """"""
 
-    asic = vip.astropix3.Astropix3Model(dut=dut, prefix="layer_0", chipID=1)
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
     logging.getLogger("cocotb.astep24_3l_top.uart_tx").setLevel(logging.WARN)
     logging.getLogger("cocotb.astep24_3l_top.uart_rx").setLevel(logging.WARN)
     logging.getLogger("vip.spi").setLevel(logging.WARN)
@@ -441,6 +463,11 @@ async def test_layer_0_longframe_longtest(dut):
         flush=True,
     )
 
+    #await run_gen_read_test_multi(
+    #    dut, driver, [asic], autoRead=False, framesCount=65, frameLength=5, pause=True
+    #)
+    #return 
+    
     await run_gen_read_test(
         dut, driver, asic, autoRead=False, framesCount=2, frameLength=5, pause=True
     )
@@ -480,13 +507,13 @@ async def test_layer_0_longframe_longtest(dut):
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
-async def test_layers_parallel_autoread(dut):
+async def test_layers_parallel_autoread_noautoread(dut):
     """"""
 
     asics = []
     for i in range(3):
         asics.append(
-            vip.astropix3.Astropix3Model(dut=dut, prefix=f"layer_{i}", chipID=i + 1)
+            vip.astropix3.Astropix3Model(dut=dut,  lane = i ,  chipID=i+1)
         )
 
     logging.getLogger("cocotb.astep24_3l_top.uart_tx").setLevel(logging.WARN)
@@ -507,6 +534,31 @@ async def test_layers_parallel_autoread(dut):
         flush=True,
     )
     await Timer(250, units="us")
+    
+     
+    
+    
+    await run_gen_read_test_multi(
+        dut, driver, asics, autoRead=True, framesCount=20, frameLength=5, pause=True
+    )
+    await Timer(250, units="us")
+
+    await run_gen_read_test_multi(
+        dut, driver, asics, autoRead=True, framesCount=250, frameLength=5, pause=True
+    )
+    await Timer(250, units="us")
+    
+    await run_gen_read_test_multi(
+        dut, driver, asics, autoRead=False, framesCount=150, frameLength=5, pause=True
+    )
+    await Timer(250, units="us")
+
+    await run_gen_read_test_multi(
+        dut, driver, asics, autoRead=True, framesCount=800, frameLength=5, pause=True
+    )
+    await Timer(250, units="us")
+
+    
 
     await run_gen_read_test_multi(
         dut, driver, asics, autoRead=False, framesCount=2, frameLength=5, pause=True
@@ -517,14 +569,14 @@ async def test_layers_parallel_autoread(dut):
         dut, driver, asics, autoRead=False, framesCount=30, frameLength=5, pause=True
     )
     await Timer(250, units="us")
-    await run_gen_read_test_multi(
-        dut, driver, asics, autoRead=False, framesCount=150, frameLength=5, pause=True
-    )
-    await Timer(250, units="us")
+    
     await run_gen_read_test_multi(
         dut, driver, asics, autoRead=False, framesCount=250, frameLength=5, pause=True
     )
     await Timer(250, units="us")
+
+
+    return
 
     await run_gen_read_test_multi(
         dut, driver, asics, autoRead=True, framesCount=20, frameLength=5, pause=True

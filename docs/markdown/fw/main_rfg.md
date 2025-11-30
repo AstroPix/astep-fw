@@ -6,67 +6,74 @@
 |---------|------|------|-------|-------------|
 |0x0 | [hk_firmware_id](#hk_firmware_id) | 32 |  | ID to identify the Firmware |
 |0x4 | [hk_firmware_version](#hk_firmware_version) | 32 |  | Date based Build version: YEARMONTHDAYCOUNT |
-|0x8 | [hk_xadc_temperature](#hk_xadc_temperature) | 16 |  | XADC FPGA temperature (automatically updated by firmware) |
-|0xa | [hk_xadc_vccint](#hk_xadc_vccint) | 16 |  | XADC FPGA VCCINT (automatically updated by firmware) |
-|0xc | [hk_conversion_trigger](#hk_conversion_trigger) | 32 | Counter w/ Interrupt | This register is a counter that generates regular interrupts to fetch new XADC values |
-|0x10 | [hk_stat_conversions_counter](#hk_stat_conversions_counter) | 32 | Counter w/o Interrupt | Counter increased after each XADC conversion (for information)  |
-|0x14 | [hk_ctrl](#hk_ctrl) | 8 |  | Controls for HK modules |
-|0x15 | [hk_adcdac_mosi_fifo](#hk_adcdac_mosi_fifo) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to ADC or DAC |
-|0x16 | [hk_adc_miso_fifo](#hk_adc_miso_fifo) | 8 | AXIS FIFO Slave (read) | FIFO with read bytes from ADC |
-|0x17 | [hk_adc_miso_fifo_read_size](#hk_adc_miso_fifo_read_size) | 32 |  | Number of entries in hk_adc_miso_fifo fifo |
-|0x1b | [spi_layers_ckdivider](#spi_layers_ckdivider) | 8 |  | This clock divider provides the clock for the Layer SPI interfaces |
-|0x1c | [spi_hk_ckdivider](#spi_hk_ckdivider) | 8 |  | This clock divider provides the clock for the Housekeeping ADC/DAC SPI interfaces |
-|0x1d | [layer_0_cfg_ctrl](#layer_0_cfg_ctrl) | 8 |  | Layer 0 control bits |
-|0x1e | [layer_1_cfg_ctrl](#layer_1_cfg_ctrl) | 8 |  | Layer 1 control bits |
-|0x1f | [layer_2_cfg_ctrl](#layer_2_cfg_ctrl) | 8 |  | Layer 2 control bits |
-|0x20 | [layer_0_status](#layer_0_status) | 8 |  | Layer 0 status bits |
-|0x21 | [layer_1_status](#layer_1_status) | 8 |  | Layer 1 status bits |
-|0x22 | [layer_2_status](#layer_2_status) | 8 |  | Layer 2 status bits |
-|0x23 | [layer_0_stat_frame_counter](#layer_0_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
-|0x27 | [layer_1_stat_frame_counter](#layer_1_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
-|0x2b | [layer_2_stat_frame_counter](#layer_2_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
-|0x2f | [layer_0_stat_idle_counter](#layer_0_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
-|0x33 | [layer_1_stat_idle_counter](#layer_1_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
-|0x37 | [layer_2_stat_idle_counter](#layer_2_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
-|0x3b | [layer_0_stat_wronglength_counter](#layer_0_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
-|0x3f | [layer_1_stat_wronglength_counter](#layer_1_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
-|0x43 | [layer_2_stat_wronglength_counter](#layer_2_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
-|0x47 | [layer_0_mosi](#layer_0_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix |
-|0x48 | [layer_0_mosi_write_size](#layer_0_mosi_write_size) | 32 |  | Number of entries in layer_0_mosi fifo |
-|0x4c | [layer_1_mosi](#layer_1_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix |
-|0x4d | [layer_1_mosi_write_size](#layer_1_mosi_write_size) | 32 |  | Number of entries in layer_1_mosi fifo |
-|0x51 | [layer_2_mosi](#layer_2_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix |
-|0x52 | [layer_2_mosi_write_size](#layer_2_mosi_write_size) | 32 |  | Number of entries in layer_2_mosi fifo |
-|0x56 | [layer_0_loopback_miso](#layer_0_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix throug internal slave loopback |
-|0x57 | [layer_0_loopback_miso_write_size](#layer_0_loopback_miso_write_size) | 32 |  | Number of entries in layer_0_loopback_miso fifo |
-|0x5b | [layer_1_loopback_miso](#layer_1_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix throug internal slave loopback |
-|0x5c | [layer_1_loopback_miso_write_size](#layer_1_loopback_miso_write_size) | 32 |  | Number of entries in layer_1_loopback_miso fifo |
-|0x60 | [layer_2_loopback_miso](#layer_2_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix throug internal slave loopback |
-|0x61 | [layer_2_loopback_miso_write_size](#layer_2_loopback_miso_write_size) | 32 |  | Number of entries in layer_2_loopback_miso fifo |
-|0x65 | [layer_0_loopback_mosi](#layer_0_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
-|0x66 | [layer_0_loopback_mosi_read_size](#layer_0_loopback_mosi_read_size) | 32 |  | Number of entries in layer_0_loopback_mosi fifo |
-|0x6a | [layer_1_loopback_mosi](#layer_1_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
-|0x6b | [layer_1_loopback_mosi_read_size](#layer_1_loopback_mosi_read_size) | 32 |  | Number of entries in layer_1_loopback_mosi fifo |
-|0x6f | [layer_2_loopback_mosi](#layer_2_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
-|0x70 | [layer_2_loopback_mosi_read_size](#layer_2_loopback_mosi_read_size) | 32 |  | Number of entries in layer_2_loopback_mosi fifo |
-|0x74 | [layers_fpga_timestamp_ctrl](#layers_fpga_timestamp_ctrl) | 8 |  | Register to control the FPGA Timestamp Behavior |
-|0x75 | [layers_fpga_timestamp_divider](#layers_fpga_timestamp_divider) | 32 | Counter w/ Interrupt | This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock) |
-|0x79 | [layers_fpga_timestamp_counter](#layers_fpga_timestamp_counter) | 64 |  | FPGA Timestamp Counter added to data frames - reads the counter output of the TLU |
-|0x81 | [layers_tlu_trigger_delay](#layers_tlu_trigger_delay) | 16 |  | Delay to freeze counter after Trigger  |
-|0x83 | [layers_tlu_busy_duration](#layers_tlu_busy_duration) | 16 |  | Number of clock cycle busy is active when a trigger comes in |
-|0x85 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout |
-|0x86 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register |
-|0x87 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs) |
-|0x88 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
-|0x89 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
-|0x8a | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
-|0x8b | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
-|0x8c | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
-|0x90 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
-|0x91 | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
-|0x92 | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
-|0x93 | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
-|0x97 | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
+|0x8 | [clock_ctrl](#clock_ctrl) | 8 |  | Clock Control Register for the Firmware and Astropix |
+|0x9 | [hk_xadc_temperature](#hk_xadc_temperature) | 16 |  | XADC FPGA temperature (automatically updated by firmware) |
+|0xb | [hk_xadc_vccint](#hk_xadc_vccint) | 16 |  | XADC FPGA VCCINT (automatically updated by firmware) |
+|0xd | [hk_conversion_trigger](#hk_conversion_trigger) | 32 | Counter w/ Interrupt | This register is a counter that generates regular interrupts to fetch new XADC values |
+|0x11 | [hk_stat_conversions_counter](#hk_stat_conversions_counter) | 32 | Counter w/o Interrupt | Counter increased after each XADC conversion (for information)  |
+|0x15 | [hk_ctrl](#hk_ctrl) | 8 |  | Controls for HK modules |
+|0x16 | [hk_adcdac_mosi_fifo](#hk_adcdac_mosi_fifo) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to ADC or DAC |
+|0x17 | [hk_adc_miso_fifo](#hk_adc_miso_fifo) | 8 | AXIS FIFO Slave (read) | FIFO with read bytes from ADC |
+|0x18 | [hk_adc_miso_fifo_read_size](#hk_adc_miso_fifo_read_size) | 32 |  | Number of entries in hk_adc_miso_fifo fifo |
+|0x1c | [spi_layers_ckdivider](#spi_layers_ckdivider) | 8 |  | This clock divider provides the clock for the Layer SPI interfaces |
+|0x1d | [spi_hk_ckdivider](#spi_hk_ckdivider) | 8 |  | This clock divider provides the clock for the Housekeeping ADC/DAC SPI interfaces |
+|0x1e | [layer_0_cfg_ctrl](#layer_0_cfg_ctrl) | 8 |  | Layer 0 control bits |
+|0x1f | [layer_1_cfg_ctrl](#layer_1_cfg_ctrl) | 8 |  | Layer 1 control bits |
+|0x20 | [layer_2_cfg_ctrl](#layer_2_cfg_ctrl) | 8 |  | Layer 2 control bits |
+|0x21 | [layer_0_status](#layer_0_status) | 8 |  | Layer 0 status bits |
+|0x22 | [layer_1_status](#layer_1_status) | 8 |  | Layer 1 status bits |
+|0x23 | [layer_2_status](#layer_2_status) | 8 |  | Layer 2 status bits |
+|0x24 | [layer_0_stat_frame_counter](#layer_0_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
+|0x28 | [layer_1_stat_frame_counter](#layer_1_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
+|0x2c | [layer_2_stat_frame_counter](#layer_2_stat_frame_counter) | 32 | Counter w/o Interrupt | Counts the number of data frames |
+|0x30 | [layer_0_stat_idle_counter](#layer_0_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
+|0x34 | [layer_1_stat_idle_counter](#layer_1_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
+|0x38 | [layer_2_stat_idle_counter](#layer_2_stat_idle_counter) | 32 | Counter w/o Interrupt | Counts the number of Idle bytes |
+|0x3c | [layer_0_stat_wronglength_counter](#layer_0_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
+|0x40 | [layer_1_stat_wronglength_counter](#layer_1_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
+|0x44 | [layer_2_stat_wronglength_counter](#layer_2_stat_wronglength_counter) | 32 | Counter w/o Interrupt | Counts the number of Astropix frames that have a length different than 4 (bytes) |
+|0x48 | [layer_0_mosi](#layer_0_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix |
+|0x49 | [layer_0_mosi_write_size](#layer_0_mosi_write_size) | 32 |  | Number of entries in layer_0_mosi fifo |
+|0x4d | [layer_1_mosi](#layer_1_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix |
+|0x4e | [layer_1_mosi_write_size](#layer_1_mosi_write_size) | 32 |  | Number of entries in layer_1_mosi fifo |
+|0x52 | [layer_2_mosi](#layer_2_mosi) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix |
+|0x53 | [layer_2_mosi_write_size](#layer_2_mosi_write_size) | 32 |  | Number of entries in layer_2_mosi fifo |
+|0x57 | [layer_0_loopback_miso](#layer_0_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 0 Astropix throug internal slave loopback |
+|0x58 | [layer_0_loopback_miso_write_size](#layer_0_loopback_miso_write_size) | 32 |  | Number of entries in layer_0_loopback_miso fifo |
+|0x5c | [layer_1_loopback_miso](#layer_1_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 1 Astropix throug internal slave loopback |
+|0x5d | [layer_1_loopback_miso_write_size](#layer_1_loopback_miso_write_size) | 32 |  | Number of entries in layer_1_loopback_miso fifo |
+|0x61 | [layer_2_loopback_miso](#layer_2_loopback_miso) | 8 | AXIS FIFO Master (write) | FIFO to send bytes to Layer 2 Astropix throug internal slave loopback |
+|0x62 | [layer_2_loopback_miso_write_size](#layer_2_loopback_miso_write_size) | 32 |  | Number of entries in layer_2_loopback_miso fifo |
+|0x66 | [layer_0_loopback_mosi](#layer_0_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
+|0x67 | [layer_0_loopback_mosi_read_size](#layer_0_loopback_mosi_read_size) | 32 |  | Number of entries in layer_0_loopback_mosi fifo |
+|0x6b | [layer_1_loopback_mosi](#layer_1_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
+|0x6c | [layer_1_loopback_mosi_read_size](#layer_1_loopback_mosi_read_size) | 32 |  | Number of entries in layer_1_loopback_mosi fifo |
+|0x70 | [layer_2_loopback_mosi](#layer_2_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
+|0x71 | [layer_2_loopback_mosi_read_size](#layer_2_loopback_mosi_read_size) | 32 |  | Number of entries in layer_2_loopback_mosi fifo |
+|0x75 | [layers_fpga_timestamp_ctrl](#layers_fpga_timestamp_ctrl) | 16 |  | Register to control the FPGA Timestamp Behavior |
+|0x77 | [layers_fpga_timestamp_divider](#layers_fpga_timestamp_divider) | 32 | Counter w/ Interrupt | This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock) |
+|0x7b | [layers_fpga_timestamp_counter](#layers_fpga_timestamp_counter) | 64 |  | FPGA Timestamp Counter added to data frames - reads the counter output of the TLU |
+|0x83 | [layers_fpga_timestamp_forced](#layers_fpga_timestamp_forced) | 64 |  | FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS |
+|0x8b | [layers_tlu_trigger_delay](#layers_tlu_trigger_delay) | 16 |  | Delay to freeze counter after Trigger  |
+|0x8d | [layers_tlu_busy_duration](#layers_tlu_busy_duration) | 16 |  | Number of clock cycle busy is active when a trigger comes in |
+|0x8f | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout |
+|0x90 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register |
+|0x91 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs) |
+|0x92 | [layers_sr_rb_ctrl](#layers_sr_rb_ctrl) | 8 |  | Shift Register CRC and bits Readback control |
+|0x93 | [layers_sr_crc](#layers_sr_crc) | 48 |  | CRC Output of readback module |
+|0x99 | [layers_sr_bytes](#layers_sr_bytes) | 8 | AXIS FIFO Slave (read) | Readback SR bits packed as bytes |
+|0x9a | [layers_sr_bytes_read_size](#layers_sr_bytes_read_size) | 32 |  | Number of entries in layers_sr_bytes fifo |
+|0x9e | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
+|0x9f | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
+|0xa0 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
+|0xa1 | [layers_readout_ctrl](#layers_readout_ctrl) | 8 |  |  |
+|0xa2 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
+|0xa3 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
+|0xa7 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
+|0xa8 | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
+|0xa9 | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
+|0xaa | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
+|0xae | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
 
 
 ## <a id='hk_firmware_id'></a>hk_firmware_id
@@ -97,13 +104,36 @@
 
 
 
+## <a id='clock_ctrl'></a>clock_ctrl
+
+
+> Clock Control Register for the Firmware and Astropix
+
+
+**Address**: 0x8
+
+
+**Reset Value**: 8'h2
+
+
+| [7:5] | 4 | 3 | 2 | 1 | 0 |
+| --|-- |-- |-- |-- |-- |
+| RSVD |timestamp_clock_enable |sample_clock_enable |current_clk |ext_clk_differential |ext_clk_enable |
+
+- ext_clk_enable : If 1, the external clock switchover mechanism is allowed
+- ext_clk_differential : If 1, the external FPGA timestamp clock is differential - see target hardware to check for compatibility
+- current_clk : If 1, the external clock is used for clocking. If this is 1 and ext_clk_enable is 0, it means a correct clock switching happened
+- sample_clock_enable : Sample clock output enable. Sample clock output is 0 if this bit is set to 0
+- timestamp_clock_enable : Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0
+
+
 ## <a id='hk_xadc_temperature'></a>hk_xadc_temperature
 
 
 > XADC FPGA temperature (automatically updated by firmware)
 
 
-**Address**: 0x8
+**Address**: 0x9
 
 
 
@@ -116,7 +146,7 @@
 > XADC FPGA VCCINT (automatically updated by firmware)
 
 
-**Address**: 0xa
+**Address**: 0xb
 
 
 
@@ -129,7 +159,7 @@
 > This register is a counter that generates regular interrupts to fetch new XADC values
 
 
-**Address**: 0xc
+**Address**: 0xd
 
 
 
@@ -142,7 +172,7 @@
 > Counter increased after each XADC conversion (for information) 
 
 
-**Address**: 0x10
+**Address**: 0x11
 
 
 
@@ -155,7 +185,7 @@
 > Controls for HK modules
 
 
-**Address**: 0x14
+**Address**: 0x15
 
 
 
@@ -176,7 +206,7 @@
 > FIFO to send bytes to ADC or DAC
 
 
-**Address**: 0x15
+**Address**: 0x16
 
 
 
@@ -189,7 +219,7 @@
 > FIFO with read bytes from ADC
 
 
-**Address**: 0x16
+**Address**: 0x17
 
 
 
@@ -202,7 +232,7 @@
 > Number of entries in hk_adc_miso_fifo fifo
 
 
-**Address**: 0x17
+**Address**: 0x18
 
 
 
@@ -215,7 +245,7 @@
 > This clock divider provides the clock for the Layer SPI interfaces
 
 
-**Address**: 0x1b
+**Address**: 0x1c
 
 
 **Reset Value**: 8'h4
@@ -229,7 +259,7 @@
 > This clock divider provides the clock for the Housekeeping ADC/DAC SPI interfaces
 
 
-**Address**: 0x1c
+**Address**: 0x1d
 
 
 **Reset Value**: 8'h4
@@ -243,7 +273,7 @@
 > Layer 0 control bits
 
 
-**Address**: 0x1d
+**Address**: 0x1e
 
 
 **Reset Value**: 8'b00000111
@@ -267,7 +297,7 @@
 > Layer 1 control bits
 
 
-**Address**: 0x1e
+**Address**: 0x1f
 
 
 **Reset Value**: 8'b00000111
@@ -291,7 +321,7 @@
 > Layer 2 control bits
 
 
-**Address**: 0x1f
+**Address**: 0x20
 
 
 **Reset Value**: 8'b00000111
@@ -315,7 +345,7 @@
 > Layer 0 status bits
 
 
-**Address**: 0x20
+**Address**: 0x21
 
 
 
@@ -334,7 +364,7 @@
 > Layer 1 status bits
 
 
-**Address**: 0x21
+**Address**: 0x22
 
 
 
@@ -353,7 +383,7 @@
 > Layer 2 status bits
 
 
-**Address**: 0x22
+**Address**: 0x23
 
 
 
@@ -372,7 +402,7 @@
 > Counts the number of data frames
 
 
-**Address**: 0x23
+**Address**: 0x24
 
 
 
@@ -385,7 +415,7 @@
 > Counts the number of data frames
 
 
-**Address**: 0x27
+**Address**: 0x28
 
 
 
@@ -398,7 +428,7 @@
 > Counts the number of data frames
 
 
-**Address**: 0x2b
+**Address**: 0x2c
 
 
 
@@ -411,7 +441,7 @@
 > Counts the number of Idle bytes
 
 
-**Address**: 0x2f
+**Address**: 0x30
 
 
 
@@ -424,7 +454,7 @@
 > Counts the number of Idle bytes
 
 
-**Address**: 0x33
+**Address**: 0x34
 
 
 
@@ -437,7 +467,7 @@
 > Counts the number of Idle bytes
 
 
-**Address**: 0x37
+**Address**: 0x38
 
 
 
@@ -450,7 +480,7 @@
 > Counts the number of Astropix frames that have a length different than 4 (bytes)
 
 
-**Address**: 0x3b
+**Address**: 0x3c
 
 
 
@@ -463,7 +493,7 @@
 > Counts the number of Astropix frames that have a length different than 4 (bytes)
 
 
-**Address**: 0x3f
+**Address**: 0x40
 
 
 
@@ -476,7 +506,7 @@
 > Counts the number of Astropix frames that have a length different than 4 (bytes)
 
 
-**Address**: 0x43
+**Address**: 0x44
 
 
 
@@ -489,7 +519,7 @@
 > FIFO to send bytes to Layer 0 Astropix
 
 
-**Address**: 0x47
+**Address**: 0x48
 
 
 
@@ -502,7 +532,7 @@
 > Number of entries in layer_0_mosi fifo
 
 
-**Address**: 0x48
+**Address**: 0x49
 
 
 
@@ -515,7 +545,7 @@
 > FIFO to send bytes to Layer 1 Astropix
 
 
-**Address**: 0x4c
+**Address**: 0x4d
 
 
 
@@ -528,7 +558,7 @@
 > Number of entries in layer_1_mosi fifo
 
 
-**Address**: 0x4d
+**Address**: 0x4e
 
 
 
@@ -541,7 +571,7 @@
 > FIFO to send bytes to Layer 2 Astropix
 
 
-**Address**: 0x51
+**Address**: 0x52
 
 
 
@@ -554,7 +584,7 @@
 > Number of entries in layer_2_mosi fifo
 
 
-**Address**: 0x52
+**Address**: 0x53
 
 
 
@@ -567,7 +597,7 @@
 > FIFO to send bytes to Layer 0 Astropix throug internal slave loopback
 
 
-**Address**: 0x56
+**Address**: 0x57
 
 
 
@@ -580,7 +610,7 @@
 > Number of entries in layer_0_loopback_miso fifo
 
 
-**Address**: 0x57
+**Address**: 0x58
 
 
 
@@ -593,7 +623,7 @@
 > FIFO to send bytes to Layer 1 Astropix throug internal slave loopback
 
 
-**Address**: 0x5b
+**Address**: 0x5c
 
 
 
@@ -606,7 +636,7 @@
 > Number of entries in layer_1_loopback_miso fifo
 
 
-**Address**: 0x5c
+**Address**: 0x5d
 
 
 
@@ -619,7 +649,7 @@
 > FIFO to send bytes to Layer 2 Astropix throug internal slave loopback
 
 
-**Address**: 0x60
+**Address**: 0x61
 
 
 
@@ -632,7 +662,7 @@
 > Number of entries in layer_2_loopback_miso fifo
 
 
-**Address**: 0x61
+**Address**: 0x62
 
 
 
@@ -645,7 +675,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x65
+**Address**: 0x66
 
 
 
@@ -658,7 +688,7 @@
 > Number of entries in layer_0_loopback_mosi fifo
 
 
-**Address**: 0x66
+**Address**: 0x67
 
 
 
@@ -671,7 +701,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x6a
+**Address**: 0x6b
 
 
 
@@ -684,7 +714,7 @@
 > Number of entries in layer_1_loopback_mosi fifo
 
 
-**Address**: 0x6b
+**Address**: 0x6c
 
 
 
@@ -697,7 +727,7 @@
 > FIFO to read bytes received by internal slave loopback
 
 
-**Address**: 0x6f
+**Address**: 0x70
 
 
 
@@ -710,7 +740,7 @@
 > Number of entries in layer_2_loopback_mosi fifo
 
 
-**Address**: 0x70
+**Address**: 0x71
 
 
 
@@ -723,21 +753,23 @@
 > Register to control the FPGA Timestamp Behavior
 
 
-**Address**: 0x74
+**Address**: 0x75
 
 
-**Reset Value**: 8'hA
+**Reset Value**: 16'h0010
 
 
-| [7:6] | [5:4] | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |-- |
-| RSVD |timestamp_size |tlu_busy_on_t0 |use_tlu |use_divider |enable |
+| [15:8] | 7 | 6 | [5:4] | 3 | 2 | 1 | 0 |
+| --|-- |-- |-- |-- |-- |-- |-- |
+| RSVD |force_lsb_0 |force_value |timestamp_size |tlu_busy_on_t0 |use_tlu |use_divider |enable |
 
 - enable : -
 - use_divider : If 1, the FGPA Timestamp will increment after the matching counter reached its match value, otherwise will increment on each core clock cycle
 - use_tlu : If 1, the TLU module will be used
 - tlu_busy_on_t0 : If 1, the busy signal out of TLU will be asserted after t0 initial
 - timestamp_size : 16/32/48/64 bits Timestamp width
+- force_value : If set to 1, the Timestamp will be forced to the value of the LAYERS_FPGA_TIMESTAMP_FORCED register
+- force_lsb_0 : If set to 1, the Timestamp lsb will be forced to 1, effectively dividing counting by 2 and preventing the last byte of Timestamp to be 0xFF if in MSB first
 
 
 ## <a id='layers_fpga_timestamp_divider'></a>layers_fpga_timestamp_divider
@@ -746,7 +778,7 @@
 > This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock)
 
 
-**Address**: 0x75
+**Address**: 0x77
 
 
 
@@ -759,7 +791,20 @@
 > FPGA Timestamp Counter added to data frames - reads the counter output of the TLU
 
 
-**Address**: 0x79
+**Address**: 0x7b
+
+
+
+
+
+
+## <a id='layers_fpga_timestamp_forced'></a>layers_fpga_timestamp_forced
+
+
+> FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS
+
+
+**Address**: 0x83
 
 
 
@@ -772,7 +817,7 @@
 > Delay to freeze counter after Trigger 
 
 
-**Address**: 0x81
+**Address**: 0x8b
 
 
 **Reset Value**: 16'd2
@@ -786,7 +831,7 @@
 > Number of clock cycle busy is active when a trigger comes in
 
 
-**Address**: 0x83
+**Address**: 0x8d
 
 
 **Reset Value**: 16'd16
@@ -800,7 +845,7 @@
 > Number of IDLE Bytes until stopping readout
 
 
-**Address**: 0x85
+**Address**: 0x8f
 
 
 **Reset Value**: 8'd5
@@ -814,7 +859,7 @@
 > Shift Register Configuration I/O Control register
 
 
-**Address**: 0x86
+**Address**: 0x90
 
 
 
@@ -837,19 +882,77 @@
 > Shift Register Configuration Input control (Readback enable and layers inputs)
 
 
-**Address**: 0x87
+**Address**: 0x91
 
 
 
 
-| [7:4] | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |
-| RSVD |sout2 |sout1 |sout0 |rb |
+| [7:3] | 2 | 1 | 0 |
+| --|-- |-- |-- |
+| RSVD |sout2 |sout1 |sout0 |
 
-- rb : Set to 1 to activate Shift Register Read back from layers
 - sout0 : -
 - sout1 : -
 - sout2 : -
+
+
+## <a id='layers_sr_rb_ctrl'></a>layers_sr_rb_ctrl
+
+
+> Shift Register CRC and bits Readback control
+
+
+**Address**: 0x92
+
+
+
+
+| [7:7] | [6:2] | 1 | 0 |
+| --|-- |-- |-- |
+| RSVD |sout_select |crc_enable |rb |
+
+- rb : Set to 1 to activate Shift Register Read back from layers
+- crc_enable : Set to 1 to enable CRC Module
+- sout_select : Set to configure which SOUT is used - up to 32
+
+
+## <a id='layers_sr_crc'></a>layers_sr_crc
+
+
+> CRC Output of readback module
+
+
+**Address**: 0x93
+
+
+
+
+
+
+## <a id='layers_sr_bytes'></a>layers_sr_bytes
+
+
+> Readback SR bits packed as bytes
+
+
+**Address**: 0x99
+
+
+
+
+
+
+## <a id='layers_sr_bytes_read_size'></a>layers_sr_bytes_read_size
+
+
+> Number of entries in layers_sr_bytes fifo
+
+
+**Address**: 0x9a
+
+
+
+
 
 
 ## <a id='layers_inj_ctrl'></a>layers_inj_ctrl
@@ -858,7 +961,7 @@
 > Control bits for the Injection Pattern Generator
 
 
-**Address**: 0x88
+**Address**: 0x9e
 
 
 **Reset Value**: 8'b00000110
@@ -883,7 +986,7 @@
 > Address for register to write in Injection Pattern Generator
 
 
-**Address**: 0x89
+**Address**: 0x9f
 
 
 
@@ -896,11 +999,30 @@
 > Data for register to write in Injection Pattern Generator
 
 
-**Address**: 0x8a
+**Address**: 0xa0
 
 
 
 
+
+
+## <a id='layers_readout_ctrl'></a>layers_readout_ctrl
+
+
+> 
+
+
+**Address**: 0xa1
+
+
+**Reset Value**: 8'h01
+
+
+| [7:1] | 0 |
+| --|-- |
+| RSVD |packet_mode |
+
+- packet_mode : If 1, the Readout FIFO data will be filled only with full data frames
 
 
 ## <a id='layers_readout'></a>layers_readout
@@ -909,7 +1031,7 @@
 > Reads from the readout data fifo
 
 
-**Address**: 0x8b
+**Address**: 0xa2
 
 
 
@@ -922,7 +1044,7 @@
 > Number of entries in layers_readout fifo
 
 
-**Address**: 0x8c
+**Address**: 0xa3
 
 
 
@@ -935,7 +1057,7 @@
 > Configuration register for I/O multiplexers and gating.
 
 
-**Address**: 0x90
+**Address**: 0xa7
 
 
 **Reset Value**: 8'b00011000
@@ -943,14 +1065,14 @@
 
 | [7:6] | 5 | 4 | 3 | 2 | 1 | 0 |
 | --|-- |-- |-- |-- |-- |-- |
-| RSVD |astropix_ts_is_fpga_ext_ts |fpga_ts_clock_diff |gecco_inj_enable |gecco_sample_clock_se |timestamp_clock_enable |sample_clock_enable |
+| RSVD |reserved5 |reserved4 |gecco_inj_enable |gecco_sample_clock_se |reserved1 |reserved0 |
 
-- sample_clock_enable : Sample clock output enable. Sample clock output is 0 if this bit is set to 0
-- timestamp_clock_enable : Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0
+- reserved0 : Sample clock output enable. Sample clock output is 0 if this bit is set to 0
+- reserved1 : Timestamp clock output enable. Timestamp clock output is 0 if this bit is set to 0
 - gecco_sample_clock_se : Selects the Single Ended output for the sample clock on Gecco.
 - gecco_inj_enable : Selects the Gecco Injection to Injection Card output for the injection patterns. Set to 0 to route the injection pattern directly to the chip carrier
-- fpga_ts_clock_diff : If 1, the external FPGA timestamp clock is differential
-- astropix_ts_is_fpga_ext_ts : If 1, the astropix ts clock is sourced from the fpga external ts
+- reserved4 : -
+- reserved5 : -
 
 
 ## <a id='io_led'></a>io_led
@@ -959,7 +1081,7 @@
 > This register is connected to the Board's LED. See target documentation for detailed connection information.
 
 
-**Address**: 0x91
+**Address**: 0xa8
 
 
 
@@ -972,7 +1094,7 @@
 > Shift Register Control for Gecco Cards
 
 
-**Address**: 0x92
+**Address**: 0xa9
 
 
 
@@ -992,7 +1114,7 @@
 > 
 
 
-**Address**: 0x93
+**Address**: 0xaa
 
 
 **Reset Value**: 32'd10
@@ -1006,7 +1128,7 @@
 > 
 
 
-**Address**: 0x97
+**Address**: 0xae
 
 
 **Reset Value**: 32'd4
