@@ -11,9 +11,9 @@ import pandas as pd
 import time
 import os, sys, binascii
 
-import drivers.boards
-import drivers.astep.serial
-import drivers.astropix.decode
+from .drivers import boards
+from .drivers import astep.serial
+from .drivers import astropix.decode
 
 # Logging stuff
 import logging
@@ -53,14 +53,14 @@ class astepRun:
     async def open_fpga(self, cmod:bool, uart:bool): 
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
         if cmod and uart:
-            #self.boardDriver = drivers.boards.getCMODUartDriver(drivers.astep.serial.getFirstCOMPort())
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
+            #self.boardDriver = boards.getCMODUartDriver(astep.serial.getFirstCOMPort())
+            self.boardDriver = boards.getCMODUartDriver("COM6")
         elif cmod and not uart:
-            self.boardDriver = drivers.boards.getCMODDriver()
+            self.boardDriver = boards.getCMODDriver()
         elif not cmod and uart:
-            self.boardDriver = drivers.boards.getGeccoUARTDriver(drivers.astep.serial.getFirstCOMPort())
+            self.boardDriver = boards.getGeccoUARTDriver(astep.serial.getFirstCOMPort())
         elif not cmod and not uart:
-            self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+            self.boardDriver = boards.getGeccoFTDIDriver()
 
         self._geccoBoard = True if not cmod else False
 
@@ -590,7 +590,7 @@ class astepRun:
 ############################ Decoder ##############################
     #Send data for decoding from raw
     def decode_readout(self, readout:bytearray, i:int, printer: bool = True):
-        return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+        return astropix.decode.decode_readout(self, logger, readout, i, printer)
 
 
 ################## Housekeeping ############################

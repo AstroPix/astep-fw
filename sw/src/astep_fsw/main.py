@@ -11,9 +11,8 @@ import time, os, sys, binascii, math
 from tqdm import tqdm
 import argparse
 
-import drivers.boards
-import drivers.astep.serial
-import drivers.astropix.decode
+from .drivers import boards
+from .drivers import astropix.decode
 
 # Logging stuff
 import logging
@@ -118,7 +117,7 @@ def bin2csv(fprefix):
         datalst = []
         i = 0
         while (data := ofile.read(4096)):
-            datalst.append( drivers.astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
+            datalst.append( astropix.decode.decode_readout(myhack(), logger, data, i=i, printer=False) )
             # logger.info(binascii.hexlify(data))
             i += 1
     if len(datalst) > 0:
@@ -137,7 +136,7 @@ async def main(args):
     print(args) # Soon to be removed
     logger.debug("Start main()")
     # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
+    boardDriver = boards.getCMODUartDriver("COM6")
     logger.debug(f"boardDriver instanciated: {boardDriver}")
     await boardDriver.open()
     logger.info("Opened FPGA, testing...")
@@ -279,7 +278,7 @@ async def main(args):
     if args.inject:
         print(len(bufferLength_lst), max(bufferLength_lst))
         dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=False)
+        df = astropix.decode.decode_readout(myhack(), logger, dataStream, i=0, printer=False)
         if len(df) > 0:
             csvframe = ['readout', 'layer', 'chipID', 'payload', 'location', 'isCol', 'timestamp', 'tot_msb', 'tot_lsb', 'tot_total', 'tot_us', 'fpga_ts']
             df.columns = csvframe
