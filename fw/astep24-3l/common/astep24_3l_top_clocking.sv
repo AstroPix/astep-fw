@@ -21,8 +21,12 @@ module astep24_3l_top_clocking (
     output wire clk_100_resn,
     output wire clk_80,
     output wire clk_80_resn,
+    output wire clk_20,
+    output wire clk_20_resn,
     output wire clk_10,
     output wire clk_10_resn,
+    output wire clk_2_5,
+    output wire clk_2_5_resn,
 
     output wire sysclk_40M
 );
@@ -159,10 +163,29 @@ module astep24_3l_top_clocking (
         .clk_100(clk_100),
         .clk_80 (clk_80),
         .clk_10 (clk_10),
+        .clk_20 (clk_20),
 
         .locked(core_locked)
 
 
+    );
+
+    // BUFGCE based /4 clock divider -  needs generated_clock constraint
+
+    logic [1:0] cnt4;
+    always_ff @(posedge clk_20) begin
+        if(!clk_20_resn) begin
+            cnt4 <= '0;
+        end
+        else begin
+            cnt4 <= cnt4 + 1'b1;
+        end
+    end
+
+    BUFGCE clk_2_5_buffer (
+        .O(clk_2_5),
+        .CE(cnt4 == '1),
+        .I(clk_20)
     );
 
     // Module Instance
@@ -181,12 +204,12 @@ module astep24_3l_top_clocking (
 
 
     resets_synchronizer #(
-        .CLOCKS(3),
+        .CLOCKS(5),
         .RESET_DELAY(15)
     ) resets (
         .async_resn_in(reset_condition),
-        .input_clocks({clk_100, clk_80, clk_10}),
-        .output_resn({clk_100_resn, clk_80_resn, clk_10_resn}),
+        .input_clocks({clk_100, clk_80, clk_20, clk_10, clk_2_5}),
+        .output_resn({clk_100_resn, clk_80_resn, clk_20_resn, clk_10_resn, clk_2_5_resn}),
         .master_all_reset( )
     );
 

@@ -35,6 +35,7 @@ SPI_SR_BROADCAST = 0x7E
 SPI_SR_BIT0 = 0x00
 SPI_SR_BIT1 = 0x01
 SPI_SR_LOAD = 0x03
+SPI_SR_TDAC_LOAD = 0x06
 SPI_EMPTY_BYTE = 0x00
 
 # Daisychain 3bit Header + 5bit ID
@@ -57,6 +58,7 @@ class Asic:
         self._num_cols = 35
 
         self.asic_config = {}
+        self.asic_tdac_config = {}
 
     @property
     def chipname(self):
@@ -119,6 +121,27 @@ class Asic:
     @num_chips.setter
     def num_chips(self, chips):
         self._num_chips = chips
+
+
+    @property
+    def internal_vdac(self, chip: int, dac: str) -> None:
+        return self.asic_config[f"config_{chip}"]['vdacs'][dac]
+
+    @num_chips.setter
+    def internal_vdac(self, chip: int, dac: str, voltage: float, vdda: float = 1.8, nbits: int = 10) -> None:
+        """Set integrated VDAC voltage
+
+        :param dac: Name of dac
+        :param voltage: Voltage from 0 to 1.8
+        :param vdd: Supply voltage VDDA
+        :param nbits: VDAC resolution
+        """
+        if dac in self.asic_config[f"config_{chip}"]['vdacs'] and 0 <= voltage <= 1.8:
+            dacval = voltage * vdda / 2**nbits
+            self.asic_config[f"config_{chip}"]['vdacs'][dac] = dacval
+            logger.debug('Set internal vdac: %s to %d V (dacval: %d)', dac, voltage, dacval)
+        else:
+            logger.warning('Can not set internal vdac: %s to %d V!', dac, voltage)
 
     def interrupt_pushpull(self, chip: int, enable: bool):
         self.asic_config[f"config_{chip}"]["digitalconfig"]["interrupt_pushpull"][1] = (
@@ -365,8 +388,17 @@ class Asic:
             except KeyError:
                 logger.error("Chain chip_%d config not found!", chip_number)
                 raise RuntimeError(f"Chain chip_{chip_number} config not found, check the config file syntax!")
-                
-                
+        
+        # Get chip TDAC configs
+        if self.chipversion == 4:
+            for chip_number in range(self.num_chips):
+                try:
+                    self.asic_tdac_config[f'tdac_config_{chip_number}'] = dict_from_yml.get(self.chip)[f'tdac_config_{chip_number}']
+                    logger.info("Chain chip_%d TDAC config found!", chip_number)
+                except KeyError:
+                    logger.error("Telescope chip_%d tdac config not found!", chip_number)
+                    raise RuntimeError(f"Chain chip_{chip_number} TDAC config not found, check the config file syntax!")
+
     def getChipsConfigs(self, msbfirst: bool = False, targetChip: int = -1) -> BitArray:
         """
         Generate asic bitvector from digital, bias and dacconfig.
@@ -409,8 +441,42 @@ class Asic:
             chipConfigs.append(chipBitvector)
 
         return chipConfigs
+    
+    def getChipsTDACConfigs(self, row: int = 0, msbfirst: bool = False, targetChip: int = -1) -> BitArray:
+        """
+        Generate asic bitvector from digital, bias and dacconfig.
+        Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
+
+        This method returns an array of bitvector, each for a chip in the daisychain, in reverse order!
+        It means if you have 2 chips, you will get first the bits of chip_1, then chip_0
         
-    def getConfigBits(self, msbfirst: bool = False, targetChip: int = -1, limit:int|None = None ) -> BitArray:
+        If the targetChip parameter is used, the array contains one bitvector for the target chip.
+
+        Args:
+
+            msbfirst(bool,optional): Send vector MSB first
+            targetChip(int,optional): Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
+        """
+
+        chipTDACConfigs = []
+
+        rangeStart = self._num_chips - 1 if targetChip == -1 else targetChip
+        rangeStop = -1 if targetChip == -1 else targetChip - 1
+        for chip in range(rangeStart, rangeStop, -1):
+            chipBitvector = BitArray()
+            chipBitvector.append(self.__int2nbit(self.asic_tdac_config[f"tdac_config_{chip}"][f"row{row}"][1], self.asic_tdac_config[f"tdac_config_{chip}"][f"row{row}"][0]))
+
+            logger.debug("Generated chip_%d TDAC row %d config successfully!", chip, row)
+
+            if not msbfirst:
+                chipBitvector.reverse()
+
+            # Add chip config to result
+            chipTDACConfigs.append(chipBitvector)
+
+        return chipTDACConfigs
+        
+    def getConfigBits(self, msbfirst: bool = False, targetChip: int = -1, limit:int|None = None, tdac: bool = False ) -> BitArray:
         """
         Generate asic bitvector from digital, bias and dacconfig.
         Use this method to get the List of Shift Register Config bits for one or multiple astropix in a daisychain
@@ -422,8 +488,11 @@ class Asic:
             msbfirst(bool,optional): Send vector MSB first
             targetChip(int,optional): Returns only the bits for the selected Astropix - if set to -1, returns for all the Astropix - no effect if the configuration is not multichip
         """
+        if tdac:
+            configs = self.getChipsTDACConfigs(msbfirst=msbfirst,targetChip=targetChip)
+        else:
+            configs = self.getChipsConfigs(msbfirst=msbfirst,targetChip=targetChip)
 
-        configs = self.getChipsConfigs(msbfirst=msbfirst,targetChip=targetChip)
         bitsConcatenated = BitArray()
         bits = []
         for config in configs:
@@ -432,7 +501,7 @@ class Asic:
 
         if limit is not None:
             bitsConcatenated = bitsConcatenated[:limit]
-            
+
         return bitsConcatenated
 
     def getRoutingFrame(self, firstChipID: int = 0, paddingBytes: int = 2):
@@ -457,6 +526,7 @@ class Asic:
         broadcast: bool = False,
         targetChip: int = 0,
         config: BitArray | None = None,
+        tdac: bool = False
     ) -> bytearray:
         """
         Converts the ASIC Config bits to the SPI Bytes to write to Astropix
@@ -481,9 +551,9 @@ class Asic:
             config = self.getConfigBits(
                 targetChip=targetChip,
                 msbfirst=False,
+                tdac=tdac,
             )
-            logger.info(f"SPI Config bits, len={len(config)}")
-            
+            logger.info("SPI Config bits, tdac %s, len=%d", tdac, len(config))
 
         # Write SPI SR Command to set MUX
         if broadcast:
@@ -498,7 +568,10 @@ class Asic:
 
         # Append Load signal and empty bytes
         if load:
-            data.extend([SPI_SR_LOAD] * n_load)
+            if tdac:
+                data.extend([SPI_SR_TDAC_LOAD] * n_load)
+            else:
+                data.extend([SPI_SR_LOAD] * n_load)
 
         # Append 2 Empty bytes per chip in the chip, to ensure the config frame is pushed completely through the chain
         data.extend([SPI_EMPTY_BYTE] * ((self._num_chips - 1) * 2))

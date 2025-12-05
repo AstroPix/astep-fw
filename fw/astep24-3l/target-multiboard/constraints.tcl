@@ -471,6 +471,9 @@ set_property -dict {PACKAGE_PIN G17 IOSTANDARD LVCMOS25} [get_ports layers_inj]
 }
 set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS25} [get_ports layers_sr_rb]
 set_property -dict {PACKAGE_PIN B17 IOSTANDARD LVCMOS25} [get_ports layers_sr_sout0]
+
+set_property -dict {PACKAGE_PIN A19 IOSTANDARD LVCMOS25} [get_ports layers_sr_ldtdac0]
+
 #set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS25 } [get_ports { sample_clk_n }]; #IO_L12N_T1_MRCC_16 Sch=fmc_la18_cc_n
 #set_property -dict { PACKAGE_PIN D17   IOSTANDARD LVCMOS25 } [get_ports { sample_clk_p }]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
 #set_property -dict { PACKAGE_PIN A19   IOSTANDARD LVCMOS25 } [get_ports { trigro_reset_n }]; #IO_L17N_T2_16 Sch=fmc_la_n[19]
@@ -513,7 +516,7 @@ set_property -dict {PACKAGE_PIN F20 IOSTANDARD LVCMOS25} [get_ports timestamp_cl
 
 # Reverse hold <-> interrupt switch from V2
 # Reverse hold <-> interrupt switch from V2
-if {${chipversion} == 3} {
+if {${chipversion} == 3 || $chipversion == 4} {
     set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports layers_hold]; #IO_L18P_T2_16 Sch=fmc_la_p[20]
     set_property -dict {PACKAGE_PIN D17 IOSTANDARD LVCMOS25} [get_ports layer_0_interruptn]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
 } elseif {${chipversion} == 2} {

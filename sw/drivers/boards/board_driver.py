@@ -18,7 +18,7 @@ from drivers.astropix.asic import Asic
 from drivers.astropix.loopback_model import Astropix3LBModel
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 
 def debug():
@@ -225,7 +225,7 @@ class BoardDriver:
             chipsPerLane: int, number of chips per row (aka daisy chain), default=1
             configFile: srt, path to yaml config file, defaults to None (no configuration applied?)
         """
-        assert version >= 2 and version < 4, "Only Astropix 2,3 and 4 Supported"
+        assert version >= 2 and version <= 4, "Only Astropix 2,3 and 4 Supported"
 
         # OLD -> init of gecco voltage board for v2 -> this is one somewhere else here
         # if version == 2:
@@ -260,6 +260,7 @@ class BoardDriver:
         asic.num_chips = chipsPerLane
 
         if configFile is not None:
+            print(configFile)
             asic.load_conf_from_yaml(configFile)
 
     def getAsic(self, lane=0):
@@ -274,7 +275,7 @@ class BoardDriver:
 
         await self.writeSPIBytesToLane(lane=lane, bytes=spiBytes)
 
-    async def writeSRAsicConfig(self, lane: int = 0, ckdiv=8, limit: int | None = None):
+    async def writeSRAsicConfig(self, lane: int = 0, ckdiv=8, limit: int | None = None, tdac: bool = False):
         """
         Write ASIC Config via Shift Register - This method must write configuration for at least all the chips until the target chip
         In this first new version, it will always write configuration for all the Chips.
@@ -287,10 +288,9 @@ class BoardDriver:
 
         ## Generate Bit vector for config
         ## If limit is used, retain only a few bits from the resuklt
-        bits = self.getAsic(lane).getConfigBits(msbfirst=False,limit=limit)
-        
+        bits = self.getAsic(lane).getConfigBits(msbfirst=False,limit=limit,tdac=tdac)
 
-        logger.info("Writing SR Config for row=%d,len=%d", lane, len(bits))
+        logger.info("Writing SR Config for row=%d,len=%d,tdac=%s", lane, len(bits), tdac)
 
         ## Save target register for the write here - this can be easily updated in case some hardware platforms have different names for registers
         targetRegister = self.rfg.Registers["LAYERS_SR_OUT"]
@@ -317,8 +317,12 @@ class BoardDriver:
             self.rfg.addWrite(register=targetRegister, value=sinValue, repeat=ckdiv)
 
         ## Set Load (loads start bit 4) for the correct lane
+        if tdac:
+            loadbit = lane + 6
+        else:
+            loadbit = lane + 3
         self.rfg.addWrite(
-            register=targetRegister, value=sinValue | (0x1 << (lane + 3)), repeat=ckdiv
+            register=targetRegister, value=sinValue | (0x1 << loadbit), repeat=ckdiv
         )
         self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
 

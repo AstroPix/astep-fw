@@ -57,6 +57,7 @@ if {$::IC_BOARD=="astropix-nexys"} {
     set_clock_groups -physically_exclusive -group {ext_clk_diff} -group {ext_clk_se}
 }
 
+create_generated_clock -name clkts_apix4 -divide_by 8 -source [get_pins astep24_3l_top_I/clocking_reset_I/intern_or_ext_to_internal/clk_20] [get_pins astep24_3l_top_I/clocking_reset_I/clk_2_5_buffer/O]
 
 
 ## Layers SPI Clocks

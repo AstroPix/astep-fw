@@ -50,6 +50,7 @@ module layers_readout_switched #(
     input wire  [7:0]                   config_nodata_continue,
     input wire  [LAYER_COUNT-1:0]       config_layers_reset,
     input wire  [LAYER_COUNT-1:0]       config_layers_disable_miso,
+    input wire  [7:0]                   config_payload_length,
 
     // Status
     //---------------------
@@ -114,7 +115,8 @@ module layers_readout_switched #(
                 .status_frame_decoding(layers_status_frame_decoding[li]),
                 .stat_frame_detected(layers_stat_count_frame[li]),
                 .stat_idle_detected(layers_stat_count_idle[li]),
-                .stat_wronglength_detected(layers_stat_wronglength[li])
+                .stat_wronglength_detected(layers_stat_wronglength[li]),
+                .cfg_payload_length(config_payload_length)
             );
 
 
