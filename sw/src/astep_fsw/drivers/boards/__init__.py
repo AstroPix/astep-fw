@@ -1,9 +1,9 @@
-""" 
-Boards Module 
+"""
+Boards Module
 
 This Module contains the Board Driver class which is the entry point to drive the Firmware functionalities.
 
-This module init script contains factory methods to create a Board Driver instance based on the target configuration. 
+This module init script contains factory methods to create a Board Driver instance based on the target configuration.
 
 For Example:
 
@@ -13,9 +13,10 @@ For Example:
 """
 import sys
 import os
-import rfg.io
-import rfg.core
-import rfg.discovery
+
+from typing import Optional
+
+from ... import rfg
 
 ## Firmware Support Register File Definition will be loaded by the discovery method
 ## This is one way to do things, we could also make a release from firmware with the RFG Python part and copy it locally as a module
@@ -48,20 +49,19 @@ def getCMODDriver():
     import drivers.cmod
     firmwareRF  = rfg.discovery.loadOneFSPRFGOrFail()
     boardDriver = drivers.cmod.CMODBoard(firmwareRF)
-    
+
     return boardDriver
 
 def getGeccoNODriver():
     return getGeccoDriver()
 
-def getGeccoUARTDriver(portPath : str | None = None):
+def getGeccoUARTDriver(portPath : Optional[str] = None):
     return getGeccoDriver().selectUARTIO(portPath)
 
 def getGeccoFTDIDriver():
     return getGeccoDriver().selectFTDIFifoIO()
 
-
-def getCMODUartDriver(portPath : str | None = None):
+def getCMODUartDriver(portPath : Optional[str] = None):
     return getCMODDriver().selectUARTIO(portPath)
 
 def getCMODSPIDriver():

@@ -1,5 +1,5 @@
 
-import serial 
+import serial
 import serial.tools.list_ports_linux
 import serial.tools.list_ports
 

@@ -9,7 +9,8 @@ import serial
 from serial.tools import list_ports
 from serial.tools.list_ports_common import ListPortInfo
 
-import rfg.core
+from ..core import RFGIO
+from .. import rfg
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ def debug():
 
 
 ## Main UART Class
-class UARTIO(rfg.core.RFGIO):
+class UARTIO(RFGIO):
     """"""
 
     serialPort : serial.Serial | None = None

@@ -5,4 +5,4 @@
 #sys.path.append(os.environ["BASE"]+"/fw_astep_mt1/top-hktest")
 
 ## Load RFG Modules to trigger initialisation
-import rfg.io
+from ... import rfg.io

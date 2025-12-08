@@ -1,9 +1,9 @@
-import rfg.core
-import rfg.discovery
-import rfg.io
 
-import drivers.astep.housekeeping
-from drivers.boards.board_driver import BoardDriver
+## rfg not directly used, is the following necessary:
+from ... import rfg
+
+import ..astep import housekeeping
+from ..boards.board_driver import BoardDriver
 
 from .injector import Injector
 
@@ -11,7 +11,7 @@ from .injector import Injector
 class CMODBoard(BoardDriver):
     def __init__(self, rfg):
         BoardDriver.__init__(self, rfg)
-        self.houseKeeping = drivers.astep.housekeeping.Housekeeping(
+        self.houseKeeping = housekeeping.Housekeeping(
             self, rfg
         )  # Refactor to remove pointer to rfg and to BoardDriver
         self.injector = None

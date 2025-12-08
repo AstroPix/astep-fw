@@ -1,9 +1,5 @@
-import rfg.core
-import rfg.discovery
-import rfg.io
-
-from drivers.boards.board_driver import BoardDriver
-
+from ...rfg.io import ftdi
+from ..boards.board_driver import BoardDriver
 from .injectionboard import InjectionBoard
 from .voltageboard import VoltageBoard
 
@@ -32,9 +28,8 @@ class GeccoCarrierBoard(BoardDriver):
             return vb
 
     def selectFTDIFifoIO(self):
-        import rfg.io.ftdi
 
-        self.rfg.withFTDIIO("Device A", rfg.io.ftdi.FLAG_LIST_DESCRIPTOR)
+        self.rfg.withFTDIIO("Device A", ftdi.FLAG_LIST_DESCRIPTOR)
         return self
 
     def geccoGetVoltageBoard(self):

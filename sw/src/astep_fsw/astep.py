@@ -19,11 +19,10 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
-import drivers.astep.serial
-import drivers.astropix.decode
-import drivers.boards
-from drivers.cmod import CMODBoard
-from drivers.gecco import GeccoCarrierBoard
+from .drivers import astep.serial, astropix.decode, boards
+from .drivers.cmod import CMODBoard
+from .drivers.gecco import GeccoCarrierBoard
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -49,16 +48,16 @@ class AstepRun:
     async def open_fpga(self, cmod: bool, uart: bool):
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
         if cmod and uart:
-            # self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
+            # self.boardDriver = boards.getCMODUartDriver() # Automatically find the correct port - TBC
+            self.boardDriver = boards.getCMODUartDriver("COM6")
         elif cmod and not uart:
-            self.boardDriver = drivers.boards.getCMODDriver()
+            self.boardDriver = boards.getCMODDriver()
         elif not cmod and uart:
-            self.boardDriver = drivers.boards.getGeccoUARTDriver(
-                drivers.astep.serial.getFirstCOMPort()
+            self.boardDriver = boards.getGeccoUARTDriver(
+                astep.serial.getFirstCOMPort()
             )
         elif not cmod and not uart:
-            self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+            self.boardDriver = boards.getGeccoFTDIDriver()
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -701,7 +700,7 @@ class AstepRun:
     ############################ Decoder ##############################
     # Send data for decoding from raw
     def decode_readout(self, readout: bytearray, i: int, printer: bool = True):
-        return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+        return astropix.decode.decode_readout(self, logger, readout, i, printer)
 
     ################## Housekeeping ############################
 

@@ -12,8 +12,7 @@ Slightly cleaned Model of a Card
 """
 from .card import GeccoCard
 from bitstring import BitArray
-import copy 
-
+import copy
 
 
 class VoltageBoard(GeccoCard):

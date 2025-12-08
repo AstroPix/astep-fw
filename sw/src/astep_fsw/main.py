@@ -20,9 +20,7 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
-import drivers.astep.serial
-import drivers.astropix.decode
-import drivers.boards
+from .drivers import astropix, boards
 
 
 async def buffer_flush(boardDriver, layerlst=range(3)):
@@ -136,7 +134,7 @@ def bin2csv(fprefix):
         i = 0
         while data := ofile.read(4096):
             datalst.append(
-                drivers.astropix.decode.decode_readout(
+                astropix.decode.decode_readout(
                     myhack(), logger, data, i=i, printer=False
                 )
             )
@@ -170,19 +168,51 @@ def bin2csv(fprefix):
 #################### MAIN FUNCTION ####################
 
 
+async def newmain(args):
+    from astep import AstepRun as Run  # Name TBC
+
+    arun = Run(chipversion=3)
+
+    logger.info("Opening FPGA")
+
+    # Open Board, Gecco or CMOD UART
+    # await arun.open_fpga(cmod=True, uart=True) #CMOD
+    await arun.open_fpga(cmod=False, uart=False)  # Gecco
+
+    logger.info("FPGA Opened")
+
+    await arun.fpga_configure_clocks()
+    await arun.fpga_configure_autoread_keepalive(4)
+    arun.load_yaml(args.yaml,1, args.chipsPerRow)
+    if args.inject:
+        arun.cfg_enable_pixel(*args.inject)
+        arun.cfg_enable_injection(*args.inject)
+    if args.analog:
+        arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
+    await arun.chips_reset_configure()
+    await arun.buffer_flush()
+    await arun.chips_enable_readout(autoread=False)
+    # Main loop here
+    await arun.chips_disable_readout()
+    await arun.fpga_close_connection()
+
+
 async def main(args):
     # Welcome to the main (and only) function of this script!
     print(args)  # Soon to be removed
+    logger.debug("Start main()")
     # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
+    boardDriver = boards.getCMODUartDriver("COM6")
+    logger.debug(f"boardDriver instanciated: {boardDriver}")
     await boardDriver.open()
     logger.info("Opened FPGA, testing...")
     try:
         fwid = await boardDriver.readFirmwareID()
-        logger.info(f"FW ID: {fwid}")
+        logger.debug(f"FW ID: {fwid}")
     except Exception:
         raise RuntimeError("Could not read or write from astropix!")
     logger.info("FPGA test successful.")
+    logger.debug("Set sensor clocks.")
     await boardDriver.enableSensorClocks(flush=True)
     # Setup FPGA timestamps
     await boardDriver.layersConfigFPGATimestampFrequency(
@@ -196,10 +226,10 @@ async def main(args):
         flush=True,
     )
 
-    spiDivider = 3
-    await boardDriver.configureLayerSPIDivider(spiDivider, flush=True)
-    logger.info("SPI divider set to {}".format(spiDivider))
-    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)
+    logger.debug("Configure SPI readout")
+    await boardDriver.configureLayerSPIDivider(20, flush=True)
+    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)  # 8
+    logger.debug("Instanciate ASIC drivers ...")
     # Configure chips in memory
     pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
     ymlpath = [
@@ -223,30 +253,64 @@ async def main(args):
             f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
         )
         raise e
-    logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
 
-    # Set general fw config and reset
+    # Set multi-pix injection chip
+    if args.confOverride:
+        boardDriver.asics[1].asic_config["config_3"] = boardDriver.asics[1].asic_config[
+            "config_4"
+        ]
+
+    logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
+    # Setup / configure injection
+    if args.inject:
+        logger.debug("Enable injection pixel")
+        try:
+            boardDriver.asics[args.inject[0]].enable_inj_col(
+                args.inject[1], args.inject[3], inplace=False
+            )
+            boardDriver.asics[args.inject[0]].enable_inj_row(
+                args.inject[1], args.inject[2], inplace=False
+            )
+            boardDriver.asics[args.inject[0]].enable_pixel(
+                chip=args.inject[1],
+                col=args.inject[3],
+                row=args.inject[2],
+                inplace=False,
+            )
+            logger.debug("Set injection voltage")
+            # Priority to command line, defaults to yaml - already in vdac units
+            if args.vinj is not None:
+                boardDriver.asics[args.inject[0]].asic_config[
+                    f"config_{args.inject[1]}"
+                ]["vdacs"]["vinj"][1] = int(
+                    args.vinj / 1000 * 1024 / 1.8
+                )  # 1.8 V coded on 10 bits
+            injector = boardDriver.getInjector()
+            injector.setPattern(100, 300, 100, 0, 1)  # Default set of parameters
+            await boardDriver.ioSetInjectionToChip(
+                enable=True, flush=True
+            )  # Routes injection pattern to on-chip injector
+        except (KeyError, IndexError):
+            logger.error(
+                f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection."
+            )
+            args.inject = None
+    # Setup / configure analog
+    if args.analog:
+        logger.debug("enable analog")
+        boardDriver.asics[args.analog[0]].enable_ampout_col(
+            args.analog[1], args.analog[2], inplace=False
+        )
+
+    await printStatus(boardDriver)
     for layer in range(3):
         await boardDriver.zeroLayerWrongLength(layer, flush=True)
+
     layerlst = range(len(args.yaml))
     await boardDriver.disableLayersReadout(
         flush=True
     )  # Hold, disableMISO, disableAutoread, CS=inactive
     await boardDriver.resetLayersFull()  # Toggle RST
-    # Setup injector
-    injector = boardDriver.getInjectionBoard(
-        slot=3
-    )  # ShortHand to configure on-chip injector
-    (
-        injector.period,
-        injector.clkdiv,
-        injector.initdelay,
-        injector.cycle,
-        injector.pulsesperset,
-    ) = 100, 300, 100, 0, 1  # Default set of parameters
-    await boardDriver.ioSetInjectionToGeccoInjBoard(
-        enable=False, flush=True
-    )  # ShortHand for writing the correct registers on-chip, ignore reference to Gecco
 
     # Set chip IDs
     await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
@@ -254,187 +318,16 @@ async def main(args):
         await boardDriver.asics[layer].writeSPIRoutingFrame(0)
     await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
 
-    # Set first chip config - all pixels Off
-    chipConfig = boardDriver.asics[0].gen_config_vector_SPI(
-        msbfirst=False, targetChip=0
-    )  # All disabled
-    for layer in layerlst:
-        for chip in range(args.chipsPerRow[layer]):
-            payload = boardDriver.asics[layer].createSPIConfigFrame(
-                load=True, n_load=10, broadcast=False, targetChip=chip, value=chipConfig
-            )
-            await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-            await boardDriver.asics[layer].writeSPI(payload)
-            await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-    await buffer_flush(
-        boardDriver, layerlst
-    )  # Exit with hold active and manages chipselect itself
-
-    # Manually run SPI
-    logger.info("Manually run SPI interface - all pixels OFF")
-    await boardDriver.enableLayersReadout(layerlst, autoread=True, flush=True)
-    for layer in layerlst:
-        await boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 255)
-    task = asyncio.create_task(get_readout(boardDriver, 4096))
-    await task
-    buff, readout = task.result()
-    logger.info(buff)
-    logger.info(binascii.hexlify(readout))
-    await boardDriver.disableLayersReadout(flush=True)
-    for layer in range(3):
-        logger.info(
-            "Errors on layer {}: {}".format(
-                layer, await boardDriver.getLayerWrongLength(layer)
-            )
-        )
-        await boardDriver.zeroLayerWrongLength(layer, flush=True)
-
-    # Injection in one pixel
-    chipConfigInject = boardDriver.asics[0].gen_config_vector_SPI(
-        msbfirst=False, targetChip=5
-    )  # Inject in pix 17,17
-    for layer in layerlst:
-        for chip in range(args.chipsPerRow[layer]):
-            # Reconfigure 1 chip
-            logger.info(f"Injection in one pixel layer={layer} chip={chip}")
-            payload = boardDriver.asics[layer].createSPIConfigFrame(
-                load=True,
-                n_load=10,
-                broadcast=False,
-                targetChip=chip,
-                value=chipConfigInject,
-            )
-            await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-            await boardDriver.asics[layer].writeSPI(payload)
-            await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-            await injector.start()
-            # Read data
-            logger.info("Injection in one pixel for 6 seconds")
-            await boardDriver.enableLayersReadout(layerlst, autoread=True, flush=True)
-            endTime = time.time() + 6
-            while time.time() < endTime:
-                task = asyncio.create_task(getBuffer(boardDriver))
-                await task
-                buff, readout = task.result()
-                logger.info(buff)
-                if buff > 0:
-                    logger.info(binascii.hexlify(readout))
-            await boardDriver.disableLayersReadout(flush=True)
-            await injector.stop()
-            logger.info(
-                "Errors on layer {}: {}".format(
-                    layer, await boardDriver.getLayerWrongLength(layer)
+    for i in range(args.chipsPerRow[layer]):
+        await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
+        for layer in layerlst:
+            if i < args.chipsPerRow[layer]:
+                value = boardDriver.asics[0].gen_config_vector_SPI(targetChip=i)
+                payload = boardDriver.asics[layer].createSPIConfigFrame(
+                    load=True, n_load=10, broadcast=False, targetChip=i, value=value
                 )
-            )
-            await boardDriver.zeroLayerWrongLength(layer, flush=True)
-            payload = boardDriver.asics[layer].createSPIConfigFrame(
-                load=True, n_load=10, broadcast=False, targetChip=chip, value=chipConfig
-            )
-            await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-            await boardDriver.asics[layer].writeSPI(payload)
-            await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-
-    # Injection in 15 pixels
-    chipConfigInject = boardDriver.asics[0].gen_config_vector_SPI(
-        msbfirst=False, targetChip=4
-    )
-    for layer in layerlst:
-        for chip in range(args.chipsPerRow[layer]):
-            # Reconfigure 1 chip
-            logger.info(f"Injection in one pixel layer={layer} chip={chip}")
-            payload = boardDriver.asics[layer].createSPIConfigFrame(
-                load=True,
-                n_load=10,
-                broadcast=False,
-                targetChip=chip,
-                value=chipConfigInject,
-            )
-            await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-            await boardDriver.asics[layer].writeSPI(payload)
-            await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-            await injector.start()
-            # Read data
-            logger.info("Injection in one pixel for 6 seconds")
-            await boardDriver.enableLayersReadout(layerlst, autoread=True, flush=True)
-            endTime = time.time() + 6
-            while time.time() < endTime:
-                task = asyncio.create_task(getBuffer(boardDriver))
-                await task
-                buff, readout = task.result()
-                logger.info(buff)
-                if buff > 0:
-                    logger.info(binascii.hexlify(readout))
-            await boardDriver.disableLayersReadout(flush=True)
-            await injector.stop()
-            logger.info(
-                "Errors on layer {}: {}".format(
-                    layer, await boardDriver.getLayerWrongLength(layer)
-                )
-            )
-            await boardDriver.zeroLayerWrongLength(layer, flush=True)
-            payload = boardDriver.asics[layer].createSPIConfigFrame(
-                load=True, n_load=10, broadcast=False, targetChip=chip, value=chipConfig
-            )
-            await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-            await boardDriver.asics[layer].writeSPI(payload)
-            await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-
-    return
-
-    for layer in layerlst:
-        for chip in range(args.chipsPerRow[layer]):
-            logger.info(f"Injection in one pixel layer={layer} chip={chip}")
-
-    # Start injector
-    injector = boardDriver.getInjectionBoard(
-        slot=3
-    )  # ShortHand to configure on-chip injector
-    (
-        injector.period,
-        injector.clkdiv,
-        injector.initdelay,
-        injector.cycle,
-        injector.pulsesperset,
-    ) = 100, 300, 100, 0, 1  # Default set of parameters
-    await boardDriver.ioSetInjectionToGeccoInjBoard(
-        enable=False, flush=True
-    )  # ShortHand for writing the correct registers on-chip, ignore reference to Gecco
-
-    # Set multi-pix injection chip
-    # if args.confOverride:
-    #     boardDriver.asics[1].asic_config["config_3"] = boardDriver.asics[1].asic_config["config_4"]
-
-    # Setup / configure injection
-    # if args.inject:
-    #     logger.debug("Enable injection pixel")
-    #     boardDriver.asics[args.inject[0]].enable_inj_col(args.inject[1], args.inject[3], inplace=False)
-    #     boardDriver.asics[args.inject[0]].enable_inj_row(args.inject[1], args.inject[2], inplace=False)
-    #     boardDriver.asics[args.inject[0]].enable_pixel(chip=args.inject[1], col=args.inject[3], row=args.inject[2], inplace=False)
-    #     logger.debug("Set injection voltage")
-    #     # Priority to command line, defaults to yaml - already in vdac units
-    #     try:
-    #         if args.vinj is not None:
-    #             boardDriver.asics[args.inject[0]].asic_config[f"config_{args.inject[1]}"]["vdacs"]["vinj"][1] = int(args.vinj/1000*1024/1.8)#1.8 V coded on 10 bits
-    #         injector = boardDriver.getInjectionBoard(slot = 3)#ShortHand to configure on-chip injector
-    #         injector.period, injector.clkdiv, injector.initdelay, injector.cycle, injector.pulsesperset = 100, 300, 100, 0, 1#Default set of parameters
-    #         await boardDriver.ioSetInjectionToGeccoInjBoard(enable = False, flush = True)#ShortHand for writing the correct registers on-chip, ignore reference to Gecco
-    #     except (KeyError, IndexError):
-    #         logger.error(f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection.")
-    #         args.inject = None
-    # # Setup / configure analog
-    # if args.analog:
-    #     logger.debug("enable analog")
-    #     boardDriver.asics[args.analog[0]].enable_ampout_col(args.analog[1], args.analog[2], inplace=False)
-
-    # await printStatus(boardDriver)
-
-    # for i in range(args.chipsPerRow[layer]):
-    #     await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    #     for layer in layerlst:
-    #         if i < args.chipsPerRow[layer]:
-    #             payload = boardDriver.asics[layer].createSPIConfigFrame(load=True, n_load=10, broadcast=False, targetChip=i)
-    #             await boardDriver.asics[layer].writeSPI(payload)
-    #     await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
+                await boardDriver.asics[layer].writeSPI(payload)
+        await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
     # Flush old data
     # await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
     await buffer_flush(
@@ -465,8 +358,8 @@ async def main(args):
         try:
             if args.noAutoread:
                 for layer in layerlst:
-                    await boardDriver.writeLayerBytes(
-                        layer=layer, bytes=[0x00] * 255, flush=True
+                    await boardDriver.writeSPIBytesToLane(
+                        lane=layer, bytes=[0x00] * 255
                     )
             # Read data
             if args.readout is None:
@@ -509,7 +402,7 @@ async def main(args):
     if args.inject:
         print(len(bufferLength_lst), max(bufferLength_lst))
         dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(
+        df = astropix.decode.decode_readout(
             myhack(), logger, dataStream, i=0, printer=False
         )
         if len(df) > 0:
@@ -661,7 +554,19 @@ if __name__ == "__main__":
         help="Specify injection voltage (in mV). DEFAULT: value in config ",
     )
 
+    ## Options for testing code
+    parser.add_argument(
+        "--exit",
+        action="store_true",
+        help="Exit immediately. Useful for testing code imports ok, before attempting to run anything",
+    )
+
     args = parser.parse_args()
+
+    if args.exit:
+        print("--exit flag set, so exiting. Code imported ok")
+        sys.exit(0)
+
 
     # Define the loglevel
     ll = args.loglevel
@@ -679,6 +584,9 @@ if __name__ == "__main__":
     formatter = logging.Formatter(
         "%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s"
     )
+
+    # Richard 17/11/25 Create Loggin File Handle, make sure containing folder exists
+    os.makedirs(os.path.dirname(os.path.abspath(logname)), exist_ok=True)
     fh = logging.FileHandler(logname)
     fh.setFormatter(formatter)
     sh = logging.StreamHandler()
@@ -738,4 +646,12 @@ if __name__ == "__main__":
     elif args.readout < 0 or args.readout > 4098:
         args.readout = 4096
 
-    asyncio.run(main(args))
+    try:
+        asyncio.run(newmain(args))
+        logger.info("Finished Main")
+
+    except KeyboardInterrupt:
+        logger.info("Stopping due to CTRL-C")
+        sys.exit(-1)
+    except Exception as e:
+        logger.error(f"Error during main: {e}")
