@@ -1,9 +1,11 @@
 from decimal import Decimal, ROUND_HALF_EVEN
 
-import rfg.io
-import rfg.core
 import asyncio
 from deprecated import deprecated
+
+## These aren't explicitly used... does importing do something???
+from ... import rfg.io
+from ... import rfg.core
 
 
 class Housekeeping():

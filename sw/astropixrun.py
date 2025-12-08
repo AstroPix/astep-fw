@@ -20,11 +20,10 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from tqdm import tqdm
 
-import drivers.astep.serial
-import drivers.astropix.decode
-import drivers.boards
-from drivers.cmod import CMODBoard
-from drivers.gecco import GeccoCarrierBoard
+from .drivers import astep.serial, astropix.decode, boards
+from .drivers.cmod import CMODBoard
+from .drivers.gecco import GeccoCarrierBoard
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -45,6 +44,7 @@ class AstropixRun:
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
+<<<<<<<< HEAD:sw/astropixrun.py
         if cmod or self.config.find("fpga").attrib["value"] == "cmod":
             if uart or self.config.find("protocol").attrib["value"] == "uart":
                 self.boardDriver = drivers.boards.getCMODUartDriver(self.config.find("port").attrib["value"])
@@ -67,6 +67,31 @@ class AstropixRun:
                                   {self.config.find("protocol").attrib["value"]} \
                                   or FPGA board \
                                   {self.config.find("fpga").attrib["value"]}.""")
+|||||||| parent of eb2240a (Setup astep_fsw python package):sw/astep.py
+        if cmod and uart:
+            # self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC
+            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
+        elif cmod and not uart:
+            self.boardDriver = drivers.boards.getCMODDriver()
+        elif not cmod and uart:
+            self.boardDriver = drivers.boards.getGeccoUARTDriver(
+                drivers.astep.serial.getFirstCOMPort()
+            )
+        elif not cmod and not uart:
+            self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+========
+        if cmod and uart:
+            # self.boardDriver = boards.getCMODUartDriver() # Automatically find the correct port - TBC
+            self.boardDriver = boards.getCMODUartDriver("COM6")
+        elif cmod and not uart:
+            self.boardDriver = boards.getCMODDriver()
+        elif not cmod and uart:
+            self.boardDriver = boards.getGeccoUARTDriver(
+                astep.serial.getFirstCOMPort()
+            )
+        elif not cmod and not uart:
+            self.boardDriver = boards.getGeccoFTDIDriver()
+>>>>>>>> eb2240a (Setup astep_fsw python package):sw/src/astep_fsw/astep.py
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -710,10 +735,16 @@ class AstropixRun:
     ############################ Decoder ##############################
     # Send data for decoding from raw
     def decode_readout(self, readout: bytearray, i: int, printer: bool = True):
+<<<<<<<< HEAD:sw/astropixrun.py
         if self.chipversion==4:
             return drivers.astropix.decode.Decode().decode_readout_v4(logger, readout, i, printer)
         else:
             return drivers.astropix.decode.Decode().decode_readout(logger, readout, i, printer)
+|||||||| parent of eb2240a (Setup astep_fsw python package):sw/astep.py
+        return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+========
+        return astropix.decode.decode_readout(self, logger, readout, i, printer)
+>>>>>>>> eb2240a (Setup astep_fsw python package):sw/src/astep_fsw/astep.py
 
     ################## Housekeeping ############################
 

@@ -13,9 +13,9 @@ import logging
 
 PG_CTRL_NONE        = 0
 PG_CTRL_RESET        = 1
-PG_CTRL_SUSPEND     = 1 << 1 
+PG_CTRL_SUSPEND     = 1 << 1
 PG_CTRL_SYNCED      = 1 << 2
-PG_CTRL_TRIGGER     = 1 << 3 
+PG_CTRL_TRIGGER     = 1 << 3
 PG_CTRL_WRITE       = 1 << 4
 
 

@@ -20,9 +20,8 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
-import drivers.astep.serial
-import drivers.astropix.decode
-import drivers.boards
+
+from .drivers import astropix.decode, boards
 
 
 async def buffer_flush(boardDriver, layerlst=range(3)):
@@ -136,7 +135,7 @@ def bin2csv(fprefix):
         i = 0
         while data := ofile.read(4096):
             datalst.append(
-                drivers.astropix.decode.decode_readout(
+                astropix.decode.decode_readout(
                     myhack(), logger, data, i=i, printer=False
                 )
             )
@@ -174,7 +173,7 @@ async def main(args):
     # Welcome to the main (and only) function of this script!
     print(args)  # Soon to be removed
     # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
+    boardDriver = boards.getCMODUartDriver("COM6")
     await boardDriver.open()
     logger.info("Opened FPGA, testing...")
     try:
@@ -509,7 +508,7 @@ async def main(args):
     if args.inject:
         print(len(bufferLength_lst), max(bufferLength_lst))
         dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(
+        df = astropix.decode.decode_readout(
             myhack(), logger, dataStream, i=0, printer=False
         )
         if len(df) > 0:

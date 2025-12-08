@@ -15,66 +15,10 @@ import time
 import logging
 
 # AstroPix drivers
-from astropixrun import AstropixRun
-
-#import drivers.astep.serial
-#import drivers.astropix.decode
-#import drivers.boards
-
-
-async def callHK(boardDriver, lsbFirst=False):
-    """
-    Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
-    Input is two bytes:
-    First 2 bits: ignored
-    Next 3 bits: Set Channel #
-    Last 11 bits: ignored
-
-    Shift register input style requires bytes to be read in left to right. May be changed in future versions
-    """
-    ## Configure Housekeeping SPI Frequency.
-    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz.
-    ## DAC Datasheet claims < 30 MHz works
-    await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
-    await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
-    
-    ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
-    await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-
-    ## Loop over ADC Settings
-    for chan in range(8):
-        bits = format(chan<<3,'08b')
-        if lsbFirst == True:
-            byte1 = int(bits[::-1],2)
-        else:
-            byte1 = int(bits,2)
-
-        print('CHANNEL ', chan)
-
-        #read same channel a few extra times to confirm value comes through
-        for _ in range(3):
-
-            await boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-            adcBytesCount = await boardDriver.houseKeeping.getADCBytesCount()
-            adcBytes = await boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-            adcBits = BitArray(bytes=adcBytes)
-            
-
-            #reverse bit order and swap bytes if needed
-            if lsbFirst == True:
-                adcBits.reverse()
-                adcBits.byteswap()
-
-            print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
-
-    await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-
-
-
+from .drivers import astropix, boards
 
 #######################################################
 #################### MAIN FUNCTION ####################
-
 
 async def main(args):
     arun = AstropixRun(args.fpgaxml)
@@ -118,9 +62,6 @@ async def main(args):
     if args.inject: await arun.stop_injection()
     await arun.fpga_close_connection()
     ofile.close()
-
-
-
 #######################################################
 #################### TOP LEVEL ########################
 
@@ -241,12 +182,23 @@ if __name__ == "__main__":
         help="Specify injection voltage (in mV). DEFAULT: value in config ",
     )
 
+    ## Options for testing code
+    parser.add_argument(
+        "--exit",
+        action="store_true",
+        help="Exit immediately. Useful for testing code imports ok, before attempting to run anything",
+    )
+
     args = parser.parse_args()
 
     if args.outputPrefix==f"{os.getcwd()}{os.path.sep}data{os.path.sep}":
         args.outputPrefix=args.outputPrefix+start_time
     else:
         args.outputPrefix=f"{args.outputPrefix}_{start_time}"
+
+    if args.exit:
+        print("--exit flag set, so exiting. Code imported ok")
+        sys.exit(0)
 
     # Define the loglevel
     ll = args.loglevel

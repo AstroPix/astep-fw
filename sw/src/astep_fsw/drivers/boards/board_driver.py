@@ -3,19 +3,18 @@ import logging
 import math
 import time
 
-import rfg.core
-import rfg.io
 from bitstring import BitArray
 from bitstring import Array
 from deprecated import deprecated
 
- 
+## Does this need to be imported?
+## It looks like `rfg` is passed as arg to `BoardDriver`
+## can `self.debug_full` use `self.rfg`?
+from ... import rfg
 
-
-
-import drivers.astep.housekeeping
-from drivers.astropix.asic import Asic
-from drivers.astropix.loopback_model import Astropix3LBModel
+from ..astep import housekeeping
+from ..astropix.asic import Asic
+from ..astropix.loopback_model import Astropix3LBModel
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -29,7 +28,7 @@ class BoardDriver:
     
     def __init__(self, rfg):
         self.rfg = rfg
-        self.houseKeeping = drivers.astep.housekeeping.Housekeeping(self, rfg)
+        self.houseKeeping = housekeeping.Housekeeping(self, rfg)
         self.asics = {}
 
         ## By default the FW is reset with 32 bits
@@ -41,7 +40,7 @@ class BoardDriver:
         ## Opened Event -> Set/unset by close/open
         ## Useful to start or stop tasks dependent on open/close state of the driver
         self.openedEvent = asyncio.Event()
-    
+
     def selectUARTIO(self, portPath: str | None = None, baud : int | None = None):
         """This method is common to all targets now, because all targets have a USB-UART Converter available"""
         if portPath is None:
@@ -114,41 +113,41 @@ class BoardDriver:
         """Writes the I/O Control register to enable both Timestamp and Sample clock outputs"""
         await self.setSampleClock(enable=True, flush=flush)
         await self.setTimestampClock(enable=True, flush=flush)
-        
+
     async def setExternalClock(self,enable:bool,ext_clock_is_differential:bool=True, waitForClockChange:bool = True ):
         """If enable is True, allow the external clock to be used. If the FW switches to external clock ,a reset happends, this method will warn the user"""
 
         # First Read current state
-        # If external clock requested and already selected, emit a warning 
+        # If external clock requested and already selected, emit a warning
         #
         currentClockCtrl1 = await self.rfg.read_clock_ctrl()
         if ext_clock_is_differential is True:
-            currentClockCtrl1 |= 0x2 
+            currentClockCtrl1 |= 0x2
         else:
             currentClockCtrl1 &= ~(0x2)
-            
-        currentClockIsExternal = (currentClockCtrl1>>2) & 0x1 == 1 
-        
+
+        currentClockIsExternal = (currentClockCtrl1>>2) & 0x1 == 1
+
         if enable is True and not currentClockIsExternal:
             logger.warning("Enabling external clock - do this before any configuration, the FW will reset upon clock switching - make sure the external clock is running")
-            
+
             await self.rfg.write_clock_ctrl((currentClockCtrl1 | (1)),flush=True)
-            
+
             # Now wait a bit and check if the selected clock changed
             if waitForClockChange:
                 await self.utilWaitSeconds(1)
-                
+
             # Read the register again
             currentClockCtrl2 = await self.rfg.read_clock_ctrl()
-            currentClockIsExternal = (currentClockCtrl2>>2) & 0x1 == 1 
-            
+            currentClockIsExternal = (currentClockCtrl2>>2) & 0x1 == 1
+
             if (not currentClockIsExternal):
                 logger.warning("After enabling external clock, the FW didn't switch - maybe the clock is not running - disabling external clock now to avoid switch over and reset at an unpredictable time")
                 await self.rfg.write_clock_ctrl(currentClockCtrl1,flush=True)
                 return False
-            else: 
+            else:
                 logger.warning("FW Switched to external clock - a reset was issued, you can now configure the system and run measurements")
-                return True 
+                return True
         elif enable is True and currentClockIsExternal:
             logger.warning("Not Enabling External Clock, FW is already running on the external clock")
             return False
@@ -156,13 +155,13 @@ class BoardDriver:
             logger.warning("Disabling external clock")
             if currentClockIsExternal:
                 logger.warning("- FW is running on the external clock, it will switch back to board clock only when the external clock is removed or a full reset is issued")
-            
+
             await self.rfg.write_clock_ctrl(currentClockCtrl1 & ~(1<<2),flush=True)
-            
+
             return True
-        
+
         # Read the status register
-        
+
     async def getIOControlRegister(self):
         return await self.rfg.read_io_ctrl()
 
@@ -194,7 +193,7 @@ class BoardDriver:
         v = await self.rfg.read_io_ctrl()
         if enable: v &= ~(0x8)
         else: v |= 0x8
-        await self.rfg.write_io_ctrl(v,flush) 
+        await self.rfg.write_io_ctrl(v,flush)
 
     async def ioSetFPGAExternalTSClockDifferential(
         self, enable: bool, flush: bool = False
@@ -215,7 +214,7 @@ class BoardDriver:
         else:
             v &= ~(0x20)
         await self.rfg.write_io_ctrl(v, flush)
-        
+
     ## Loopback Model
     ################
     def getLoopbackModelForLayer(self, layer):
@@ -274,7 +273,6 @@ class BoardDriver:
         asic.num_chips = chipsPerLane
 
         if configFile is not None:
-            print(configFile)
             asic.load_conf_from_yaml(configFile)
 
     def getAsic(self, lane=0):
@@ -363,12 +361,12 @@ class BoardDriver:
         # Write all configs
         # Write to layer
         await self.writeSPIBytesToLane(lane, spiBytes)
-        
-        
+
+
     async def writeSRReadback(self, lane: int = 0, ckdiv=8, limit: int | None = None):
         """
-        This method drivers the Config SR Readback by: 
-            - setting RB to 1, then CK1/CK2 toggling once 
+        This method drivers the Config SR Readback by:
+            - setting RB to 1, then CK1/CK2 toggling once
             - RB back to 0, then enale the readback CRC module
             - Write hte config with SIN always 0, no load and the number of bits left padded to a full byte
 
@@ -381,7 +379,7 @@ class BoardDriver:
         ## Generate Bit vector for config
         ## If limit is used, retain only a few bits from the resuklt
         bits = self.getAsic(lane).getConfigBits(msbfirst=False)
-        
+
 
         logger.info("Reading SR Config for lane=%d,len=%d", lane, len(bits))
 
@@ -389,13 +387,13 @@ class BoardDriver:
         targetRegister = self.rfg.Registers["LAYERS_SR_OUT"]
         targetInRegister = self.rfg.Registers["LAYERS_SR_IN"]
         targetRBControlRegister = self.rfg.Registers["LAYERS_SR_RB_CTRL"]
-        
+
         ## Set Readback
         # #############
-        
+
         # RB=1
-        self.rfg.addWrite(register=targetRBControlRegister, value=0x1, repeat=ckdiv )  
-        
+        self.rfg.addWrite(register=targetRBControlRegister, value=0x1, repeat=ckdiv )
+
         # CK1
         self.rfg.addWrite( register=targetRegister, value=0x1, repeat=ckdiv )
         self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
@@ -403,21 +401,21 @@ class BoardDriver:
         # CK2
         self.rfg.addWrite( register=targetRegister, value= 0x2, repeat=ckdiv )
         self.rfg.addWrite(register=targetRegister, value=0, repeat=ckdiv)
-        
+
         # RB=0 and CRC enable and SOUT selection based on Lane input parameter
-        self.rfg.addWrite(register=targetRBControlRegister, value=0x2 | ((lane <<2) & 0x1F), repeat=ckdiv ) 
-        
+        self.rfg.addWrite(register=targetRBControlRegister, value=0x2 | ((lane <<2) & 0x1F), repeat=ckdiv )
+
         await self.rfg.flush()
-        
-        ## Write Config 
+
+        ## Write Config
         #bitsPaddedLen = bits + [0x00] * (8- (len(bits)%8))
         bitsPaddedLen = len(bits) +  (8- (len(bits)%8))
         logger.debug(f"Padded bits to len={bitsPaddedLen},bytes={bitsPaddedLen/8.0}")
-        
+
         ## Write to SR using register
         sinValue = 0
         for i in range(bitsPaddedLen):
-            
+
 
             # CK1
             self.rfg.addWrite(
@@ -433,49 +431,49 @@ class BoardDriver:
 
 
         await self.rfg.flush()
-        
-        
+
+
         # RB=0 and CRC disable
-        self.rfg.addWrite(register=targetRBControlRegister, value=0, repeat=ckdiv ) 
+        self.rfg.addWrite(register=targetRBControlRegister, value=0, repeat=ckdiv )
         await self.rfg.flush()
-        
-        ## Now Read CRC and number of bytes available 
+
+        ## Now Read CRC and number of bytes available
         return await self.rfg.read_layers_sr_crc()
-        
+
     async def readSRReadbackBytes(self,len:int ):
         """Returns the bytes from FIFO containing the SR config bits read back via CRC module.
         Pass to len argument the lenght returned by writeSRReadback"""
-        
+
         return await self.rfg.read_layers_sr_bytes_raw(len)
-        
+
     async def readSRReadbackBits(self,lane:int, targetChip=-1):
         """Returns the read back bits as a bit string in correct order with the number of padding bits stripped ,and the same bits as expected"""
-        
+
         ## Get the bits in bytes
         bitsAsBytes = await self.readSRReadbackBytes(await self.rfg.read_layers_sr_bytes_read_size())
-        
+
         ## Get the Number of config bits
-        # 
+        #
         expectedBits = self.getAsic(lane).getConfigBits(msbfirst=True,targetChip=targetChip) # MsbFirst here is used to get the bits in real order, not order to be send to chip
         bitsPaddedLen =  (8- (len(expectedBits)%8))
-        
-        
+
+
         ## Pack the read bits in bitstring array, reverse then return sliced removing the first x bits which are padding for byte
         a = Array('uint8', bitsAsBytes)
-        a.data.reverse() 
-        
+        a.data.reverse()
+
         readBackBits = a.data[bitsPaddedLen:]
-        
+
         logger.info(f"SR Readback, expectedBits={len(expectedBits)},paddingLength={bitsPaddedLen},number of bytes={len(bitsAsBytes)},result bits={len(readBackBits)}")
-        
+
         return (readBackBits,expectedBits)
-        
-    
+
+
 
     ## Clock Dividers
     ####################
-    
-        
+
+
     def calculateClockDivider(self, targetFrequencyHz: int) -> int:
         """Calculates the SPI Divider for a target frequency, valid for both Astropix Lane and Housekeeping dividers"""
         coreFrequency = self.getFPGACoreFrequency()
@@ -484,8 +482,8 @@ class BoardDriver:
             f"Divider {divider} is not allowed, frequency {targetFrequencyHz} is wrnog, min. clock frequency: {int(coreFrequency / 2 / 255)}"
         )
         return divider
-        
-        
+
+
     def calculateMatchClockDivider(self, targetFrequencyHz: int) -> int:
         """Calculates the SPI Divider for a target frequency, valid for both Astropix Lane and Housekeeping dividers"""
         coreFrequency = self.getFPGACoreFrequency()
@@ -842,10 +840,10 @@ class BoardDriver:
             # If wait for Last Chunk is false and it is the last chunk, don't wait
             # This is not implemented using asyncio.timeout because it doesn't work in simulation
             if ((waitForLastChunk is True) and currentChunk == steps) or currentChunk < steps:
-                
+
                 startTime = time.time()
                 currentTime = time.time()
-                
+
                 # Wait until bufer written out to astropix
                 writeSize = await getattr(self.rfg, f"read_layer_{lane}_mosi_write_size")()
                 while (
@@ -861,7 +859,7 @@ class BoardDriver:
                     raise RuntimeError(
                         f"Chunck {currentChunk}/{steps} len={len(chunkBytes)} timed out, write size is {writeSize}"
                     )
-                    
+
 
     async def getLayerMOSIBytesCount(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_mosi_write_size")()
@@ -904,10 +902,10 @@ class BoardDriver:
 
     ## Readout
     ################
-    
+
     async def readoutConfigure(self,packet_mode : bool,flush:bool=True):
         await self.rfg.write_layers_readout_ctrl(1 if packet_mode is True else 0,flush)
-        
+
     async def readoutGetBufferSize(self):
         """Returns the actual size of buffer"""
         return await self.rfg.read_layers_readout_read_size()
@@ -945,7 +943,7 @@ class BoardDriver:
                 * 1 = 32bits
                 * 2 = 48bits
                 * 3 = 64bits
-                
+
             forced_value (bool,optional): Force the Timestamp to a value from layersConfigFPGATimestampForcedValue call
             force_lsb_0 (bool,optional): Force the Least Significant bit of the TS to 0
 
@@ -987,26 +985,26 @@ class BoardDriver:
             AssertError: If the selected frequency is too low or too high, outside of the divider counter range
 
         """
-        
+
         divider = self.calculateMatchClockDivider(targetFrequencyHz)
         logger.info(f"Divider for frequency {targetFrequencyHz}={divider}")
         await self.rfg.write_layers_fpga_timestamp_divider_match(divider, flush)
 
-    
+
     async def layersConfigFPGATimestampDivider(
         self, divider: int, flush: bool = True
     ):
         """Writes the Divider for the FPGA Timestamp - make sure to write a > 0 value"""
         assert divider > 0 , "Divider cannot be 0"
         await self.rfg.write_layers_fpga_timestamp_divider_match(divider, flush)
-        
-    
+
+
     async def layersConfigFPGATimestampForcedValue(
         self, forced: int, flush: bool = True
     ):
         """Writes the Forced Timestamp value"""
         await self.rfg.write_layers_fpga_timestamp_forced(forced, flush)
-        
+
     async def layersConfigTLUBusyTime(self, clockCycles: int, flush: bool = True):
         """
         Configure the Number of clock cycles during which the TLU busy output is asserted to 1 after a trigger or sync event.

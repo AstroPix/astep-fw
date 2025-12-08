@@ -4,6 +4,8 @@ import math
 import threading
 from enum import Enum
 
+from typing import Optional
+
 ## Lock to avoid concurrent tasks accessing registers
 readLock = asyncio.Lock()
 writeLock = asyncio.Lock()
@@ -55,7 +57,7 @@ class RFGIOCommand:
     register: RFGRegister
     length: int = 1
     values: list[int] = []
-    targetQueue: str | None = None
+    targetQueue: Optional[str] = None
 
     def __init__(self):
         self.write = False
@@ -75,11 +77,11 @@ class AbstractRFG:
     A conversion to byte level protocol is done before sending to the IO class
     """
 
-    currentRegister: RFGRegister | None = None
+    currentRegister: Optional[RFGRegister] = None
 
     commands: list[RFGIOCommand] = []
 
-    io: RFGIO | None = None
+    io: Optional[RFGIO] = None
 
     readout_queues = dict()
 
@@ -198,7 +200,7 @@ class AbstractRFG:
         register: RFGRegister,
         count: int,
         increment: bool = False,
-        targetQueue: str | None = None,
+        targetQueue: Optional[str] = None,
     ):
         self.currentRegister = register
         newRead = RFGIOCommand()
@@ -215,7 +217,7 @@ class AbstractRFG:
         register: RFGRegister,
         count: int,
         increment: bool = False,
-        targetQueue: str | None = None,
+        targetQueue: Optional[str] = None,
     ) -> bytes:
         logger.debug(
             "Read Register %s (%x), length=%d,command count=%d",
@@ -247,7 +249,7 @@ class AbstractRFG:
         register: RFGRegister,
         count: int,
         increment: bool = False,
-        targetQueue: str | None = None,
+        targetQueue: Optional[str] = None,
     ) -> int:
         return int.from_bytes(
             await self.syncRead(register, count, increment, targetQueue), "little"

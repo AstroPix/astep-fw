@@ -1,9 +1,9 @@
-""" 
-Boards Module 
+"""
+Boards Module
 
 This Module contains the Board Driver class which is the entry point to drive the Firmware functionalities.
 
-This module init script contains factory methods to create a Board Driver instance based on the target configuration. 
+This module init script contains factory methods to create a Board Driver instance based on the target configuration.
 
 For Example:
 
@@ -13,9 +13,10 @@ For Example:
 """
 import sys
 import os
-import rfg.io
-import rfg.core
-import rfg.discovery
+
+from typing import Optional
+
+from ... import rfg
 
 ## Firmware Support Register File Definition will be loaded by the discovery method
 ## This is one way to do things, we could also make a release from firmware with the RFG Python part and copy it locally as a module
@@ -48,22 +49,21 @@ def getCMODDriver():
     import drivers.cmod
     firmwareRF  = rfg.discovery.loadOneFSPRFGOrFail()
     boardDriver = drivers.cmod.CMODBoard(firmwareRF)
-    
+
     return boardDriver
 
 def getGeccoNODriver():
     return getGeccoDriver()
 
 def getGeccoUARTDriver(portPath : str | None = None, baud : int | None = None):
-    return getGeccoDriver().selectUARTIO(portPath,baud)
+    return getGeccoDriver().selectUARTIO(portPath, baud)
 
 def getGeccoFTDIDriver():
     return getGeccoDriver().selectFTDIFifoIO()
 
-
 def getCMODUartDriver(portPath : str | None = None, baud : int | None = None):
-    return getCMODDriver().selectUARTIO(portPath,baud)
+    return getCMODDriver().selectUARTIO(portPath, baud)
 
-def getCMODSPIDriver(spiPath:str,gpioPath:str,csLine:int):
-    return getCMODDriver().selectSPIIO(spiPath,gpioPath,csLine)
+def getCMODSPIDriver(spiPath : str, gpioPath : str, csLine : int):
+    return getCMODDriver().selectSPIIO(spiPath, gpioPath, csLine)
 
