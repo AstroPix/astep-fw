@@ -170,23 +170,23 @@ module astep24_3l_top_clocking (
 
     );
 
-    // BUFGCE based /4 clock divider -  needs generated_clock constraint
+    // BUFGCE based /8 clock divider -  needs generated_clock constraint
 
-    logic [1:0] cnt4;
-    always_ff @(posedge clk_20) begin
-        if(!clk_20_resn) begin
-            cnt4 <= '0;
-        end
-        else begin
-            cnt4 <= cnt4 + 1'b1;
-        end
-    end
+    // logic [2:0] cnt8;
+    // always_ff @(posedge clk_20) begin
+    //     if(!clk_20_resn) begin
+    //         cnt8 <= '0;
+    //     end
+    //     else begin
+    //         cnt8 <= cnt8 + 1'b1;
+    //     end
+    // end
 
-    BUFGCE clk_2_5_buffer (
-        .O(clk_2_5),
-        .CE(cnt4 == '1),
-        .I(clk_20)
-    );
+    // BUFGCE clk_2_5_buffer (
+    //     .O(clk_2_5),
+    //     .CE(cnt8=='1),
+    //     .I(clk_20)
+    // );
 
     // Module Instance
     /*top_clocking_core_io_uart top_clocking_core_io_uart_I (
@@ -201,6 +201,17 @@ module astep24_3l_top_clocking (
         .power_down(shutdown),
         .resetn(!shutdown)
         );*/
+
+    BUFR #(
+        .BUFR_DIVIDE("8"),   // Values: "BYPASS, 1, 2, 3, 4, 5, 6, 7, 8"
+        .SIM_DEVICE("7SERIES")  // Must be set to "7SERIES"
+        )
+    BUFR_inst (
+        .O(clk_2_5),     // 1-bit output: Clock output port
+        .CE(1'b1),   // 1-bit input: Active high, clock enable (Divided modes only)
+        .CLR(1'b0), // 1-bit input: Active high, asynchronous clear (Divided modes only)
+        .I(clk_20)      // 1-bit input: Clock buffer input driven by an IBUF, MMCM or local interconnect
+    );
 
 
     resets_synchronizer #(

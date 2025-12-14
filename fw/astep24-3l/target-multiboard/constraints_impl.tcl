@@ -22,9 +22,13 @@ set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks 
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks clk_20_clk_core_extorint_40]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clk_20_clk_core_extorint_40_1]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clk_20_clk_core_extorint_40_2]
-set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks clkts_apix4]
-set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clkts_apix4]
-set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clkts_apix4]
+
+# Exclude TS mux select clock and RFG clock interaction
+set_clock_groups -logically_exclusive -group [get_clocks clk_80_clk_core_extorint_40*] -group [get_clocks timestamp_clk_internal_ap4*]
+
+# Set ts mux clocks physically exclusive
+set_clock_groups -physically_exclusive -group [get_clocks timestamp_clk_internal_ap4] -group [get_clocks timestamp_clk_internal_ap4_1] -group [get_clocks timestamp_clk_internal_ap4_2]
+
 
 if {$::IC_BOARD == "astropix-nexys"} {
 
