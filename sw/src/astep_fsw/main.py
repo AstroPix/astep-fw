@@ -188,6 +188,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Exit immediately. Useful for testing code imports ok, before attempting to run anything",
     )
+    parser.add_argument(
+        "--systemd-test",
+        dest="systemd_test",
+        action="store_true",
+        help="Repeat log message, used for systemd testing",
+    )
 
     args = parser.parse_args()
 
@@ -199,6 +205,11 @@ if __name__ == "__main__":
     if args.exit:
         print("--exit flag set, so exiting. Code imported ok")
         sys.exit(0)
+    elif args.systemd_test:
+        while True:
+            s = time.strftime("%Y-%m-%dT%H:%M:%S")
+            print(f"{s}: astep.main still running")
+            time.sleep(10)
 
     # Define the loglevel
     ll = args.loglevel
