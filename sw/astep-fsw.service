@@ -1,0 +1,15 @@
+[Unit]
+Description=ASTEP flight software
+After=network.target
+
+[Service]
+Type=simple
+User=debian
+Group=debian
+WorkingDirectory=/home/debian
+ExecStart=/usr/bin/python -m astep_fsw.main --systemd-test
+Environment="BASE="
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
