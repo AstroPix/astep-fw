@@ -34,6 +34,19 @@ if serialLoader is not None:
 
     rfg.core.AbstractRFG.withUARTIO = withUARTIO
 
+## If Python spidev is installed, offer to use UART IO
+spidevLoader = importlib.util.find_spec('spidev')
+if spidevLoader is not None:
+    import rfg.io.spidev
+
+
+    def withSPIDEVIO(self,path:str,gpioPath: str,csGpioLine:int) -> rfg.core.AbstractRFG :
+        spiIO = rfg.io.spidev.SPIDEVIO(path,gpioPath,csGpioLine)
+        self.withIODriver(spiIO)
+        return self
+
+    rfg.core.AbstractRFG.withSPIDEVIO = withSPIDEVIO
+
 
 ## If FTDI D2XX is installed, offer to use FTDI
 ftdiLoader = importlib.util.find_spec('ftd2xx')

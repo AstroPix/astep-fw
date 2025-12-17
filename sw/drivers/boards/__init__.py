@@ -64,6 +64,6 @@ def getGeccoFTDIDriver():
 def getCMODUartDriver(portPath : str | None = None):
     return getCMODDriver().selectUARTIO(portPath)
 
-def getCMODSPIDriver():
-    raise NotImplementedError
+def getCMODSPIDriver(spiPath:str,gpioPath:str,csLine:int):
+    return getCMODDriver().selectSPIIO(spiPath,gpioPath,csLine)
 
