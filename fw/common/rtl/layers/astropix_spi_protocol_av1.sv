@@ -52,7 +52,8 @@ module astropix_spi_protocol_av1 #(
     input  wire [TS_WIDTH-1:0]	    cfg_fpga_timestamp,
     input  wire [1:0]		        cfg_fpga_timestamp_size, // 0 -> 16 bits, 1 -> 32 ,2 -> 48, 3-> 64
     input  wire [7:0]               cfg_nodata_continue, // Number of IDLE bytes to keep readout active after interrupt is high
-    input  wire                     cfg_layer_reset
+    input  wire                     cfg_layer_reset,
+    input  wire [7:0]               cfg_payload_length
 );
 
     // Receiving interface
@@ -193,7 +194,7 @@ module astropix_spi_protocol_av1 #(
                         protocol_state          <= HEADER_ID;
                         m_axis_tdata            <= LAYER_ID;
 
-                        if (receive_frame_length_frozen!=ASTROPIX_PAYLOAD_LENGTH) begin
+                        if (receive_frame_length_frozen!=cfg_payload_length) begin
                             stat_wronglength_detected <= 1'b1;
                         end
                     end

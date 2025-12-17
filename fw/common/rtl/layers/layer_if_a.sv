@@ -31,6 +31,8 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
     input  wire [7:0]		        cfg_nodata_continue,
     input  wire                     cfg_layer_reset,
     input  wire                     cfg_disable_miso,
+    input  wire [7:0]               cfg_payload_length,
+
 
     output wire                     status_frame_decoding,
 
@@ -120,6 +122,8 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
 
         .enable(/* WAIVED: Not implemented yet */),
         .interruptn(interruptn),
+
+        .cfg_payload_length(cfg_payload_length),
 
         .m_axis_tdata(frames_m_axis_tdata),
         .m_axis_tdest(frames_m_axis_tdest),

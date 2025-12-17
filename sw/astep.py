@@ -26,14 +26,14 @@ from drivers.cmod import CMODBoard
 from drivers.gecco import GeccoCarrierBoard
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 
 class AstepRun:
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these
     # allows for simpler specifying of values.
-    def __init__(self, chipversion=3, clock_period_ns=5, SR: bool = False):
+    def __init__(self, chipversion=3, clock_period_ns=None, SR: bool = False):
         """
         Initalizes astropix object.
         No required arguments
@@ -41,6 +41,8 @@ class AstepRun:
         clock_period_ns:int - period of main clock in ns
         SR:bool - if True, configure with shift registers. If False, configure with SPI
         """
+        if clock_period_ns is None:
+            clock_period_ns = 10 if chipversion == 3 else 25
         self.sampleclock_period_ns = clock_period_ns
         self.chipversion = chipversion
         self.SR = SR  # define how to configure. If True, shift registers. If False, SPI
@@ -66,6 +68,12 @@ class AstepRun:
         logger.info("FPGA test successful.")
         
         return self.boardDriver
+
+    async def fpga_configure_chipversion(self):
+        """Configure chip version"""
+        await self.boardDriver.rfg.write_chip_version(
+            value=self.chipversion, flush=True
+        )
 
     async def fpga_configure_clocks(
         self,
@@ -149,8 +157,7 @@ class AstepRun:
         # If the provided yaml string is already a file, don't create the default path
         pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
         if os.path.exists(yaml) is False:
-            ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yaml"
-            
+            ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yml"
         else:
             ymlpath = yaml
         
@@ -170,12 +177,12 @@ class AstepRun:
             )
         except FileNotFoundError as e:
             logger.error(
-                f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
+                "Config File %s was not found, pass the name of a config file from the scripts/config folder", ymlpath
             )
             raise e
-        except Exception as e:
-            logger.error("An error occured while setting up the asics")
-            raise e
+        # except Exception as e:
+        #     logger.error("An error occured while setting up the asics")
+        #     raise e
 
         ## Test to see whether the yml file can be read
         # try:
@@ -196,33 +203,33 @@ class AstepRun:
 
     # Interface with asic.py
     def cfg_enable_pixel(self, layer: int, chip: int, row: int, col: int):
-        self.asics[layer].enable_pixel(chip, col, row)
+        self.boardDriver.asics[layer].enable_pixel(chip, col, row)
 
     # enable pixels for injection. Must be called once per pixel
     def cfg_enable_injection(self, layer: int, chip: int, row: int, col: int):
         try:
-            self.asics[layer].enable_inj_col(chip, col, inplace=False)
-            self.asics[layer].enable_inj_row(chip, row, inplace=False)
+            self.boardDriver.asics[layer].enable_inj_col(chip, col, inplace=False)
+            self.boardDriver.asics[layer].enable_inj_row(chip, row, inplace=False)
         except (IndexError, KeyError):
             logger.error(
-                f"Cannot enable injection in pixel layer {layer}, chip {chip}, row {row}, col {col}. Ensure layer, chip, and column values all passed."
+                "Cannot enable injection in pixel layer %d, chip %d, row %d, col %d. Ensure layer, chip, and column values all passed.", layer, chip, row, col
             )
-            sys.exit(1)
+            #sys.exit(1)
 
     # enable pixels for analog readout. Must be called once per pixel
     def cfg_enable_analog(self, layer: int, chip: int, col: int):
         try:
             # Enable analog pixel from given chip in the daisy chain
             logger.info(
-                f"enabling analog output in column {col} of chip {chip} in layer {layer}"
+                "enabling analog output in layer %d, chip %d, column %d of  in ", layer, chip, col
             )
-            self.asics[layer].enable_ampout_col(chip, col, inplace=False)
+            self.boardDriver.asics[layer].enable_ampout_col(chip, col, inplace=False)
             self.cfg_enable_pixel(layer, chip, 0, col)
         except (IndexError, KeyError):
             logger.error(
-                f"Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed."
+                "Cannot enable analog pixel - chip does not exist. Ensure layer, chip, and column values all passed."
             )
-            sys.exit(1)
+            #sys.exit(1)
 
     ##################### CHIP INTERACTIONS #########################
     async def chips_reset(self):
@@ -259,7 +266,7 @@ class AstepRun:
     ##################### CHIP COMMUNICATIONS #########################
     # Set chip routing
     async def chips_setID(self, layer: int = 0, firstChip: int = 0) -> None:
-        logger.info(f"Writting SPI Routing frame for Layer {layer}")
+        logger.info("Writting SPI Routing frame for Layer %d", layer)
         await self.boardDriver.writeRoutingFrame(lane=layer, firstChipID=firstChip)
 
     # The method to write data to the asic.
@@ -389,7 +396,7 @@ class AstepRun:
         # Included in YAML for v3 (not v2)
 
         # Check the required HW is available
-        if not self._geccoBoard:
+        if not isinstance(self.boardDriver, GeccoCarrierBoard):
             logger.error(
                 "No GECCO board configured, so a voltageboard cannot be configured. Check FPGA settings."
             )
@@ -438,9 +445,9 @@ class AstepRun:
         self,
         layer: int,
         chip: int,
-        inj_voltage: float = None,
+        inj_voltage: float = 0.0,
         inj_period: int = 100,
-        clkdiv: int = 300,
+        clkdiv: int = 100,
         initdelay: int = 100,
         cycle: float = 0,
         pulseperset: int = 1,
@@ -463,38 +470,9 @@ class AstepRun:
         dac_config:tuple[int, list[float]]: injdac settings. Must be fully specified if set.
         onchip: bool (generate signal on chip or on GECCO card)
         """
+        if is_mV:  # Needs conversion to vdac units
+            inj_voltage = inj_voltage / 1000.0
 
-        """
-        # Check the required HW is available
-        if not self._geccoBoard:
-            logger.error("No GECCO board configured, so an injectionboard cannot be configured. Check FPGA settings.")
-            raise
-
-        if (inj_voltage is not None) and (dac_config is None):
-            # elifs check to ensure we are not injecting a negative value because we don't have that ability
-            if inj_voltage < 0:
-                raise ValueError("Cannot inject a negative voltage!")
-            elif inj_voltage > 800:
-                logger.warning("Cannot inject more than 800mV, will use defaults")
-                inj_voltage = 300 #Sets to 300 mV
-        """
-
-        if inj_voltage:
-            # Update vdac value from yml
-            if is_mV:  # Needs conversion to vdac units
-                await self.update_asic_config(
-                    layer,
-                    chip,
-                    vdac_cfg={"vinj": self.get_internal_vdac(inj_voltage / 1000.0)},
-                )
-            else:  # Already converted to vdac units
-                await self.update_asic_config(
-                    layer, chip, vdac_cfg={"vinj": inj_voltage}
-                )
-
-        # self._geccoBoard = False
-        # print("INJ_WDATA BEFORE CONF")
-        # print(await self.boardDriver.rfg.read_layers_inj_wdata(1024))
         self.injector = self.boardDriver.geccoGetInjectionBoard()
         self.injector.period = inj_period
         self.injector.clkdiv = clkdiv
@@ -502,7 +480,7 @@ class AstepRun:
         self.injector.cycle = cycle
         self.injector.pulsesperset = pulseperset
 
-        if self._geccoBoard and not onchip:
+        if isinstance(self.boardDriver, GeccoCarrierBoard) and not onchip:
             # Injection Board is provided by the board Driver
             # The Injection Board provides an underlying Voltage Board
             await self.boardDriver.ioSetInjectionToGeccoInjBoard(
@@ -510,16 +488,18 @@ class AstepRun:
             )
             self.injectorBoard = self.injector.vBoard
             self.injectorBoard.dacvalues = (
-                8,
-                [inj_voltage / 1000.0, 0.0],
-            )  # defaults from Nicolas
+                2,
+                [inj_voltage, 0.0],
+            )
             self.injectorBoard.vcal = self.vboard.vcal
             self.injectorBoard.vsupply = self.vboard.vsupply
             await self.injectorBoard.update()
+            logger.info("Injection: Configured to use GECCO card")
         else:
             # Injection provided through integrated features on chip
             # print("SET INJ WITH REGISTERS")
             await self.boardDriver.ioSetInjectionToChip(enable=True, flush=True)
+            logger.info("Injection: Configured to use onchip circuit")
 
     # update injection settings via injectionboard after object is already created
     async def update_injection(
@@ -755,7 +735,7 @@ class AstepRun:
         try:  # Attempts to write to and read from a register
             ## Try to read the firmware ID and or Version
             fwId = await self.boardDriver.readFirmwareID()
-            logger.info(f"Reading FWID successful: {fwId}")
+            logger.info("Reading FWID successful: %s", fwId)
             # self.nexys.write_register(0x09, 0x55, True)
             # self.nexys.read_register(0x09)
             # self.nexys.spi_reset()

@@ -14,6 +14,7 @@ module main_rfg(
     output reg                   rfg_read_valid,
     output reg  [7:0]            rfg_read_value,
 
+    output wire [7:0]           chip_version,
     output wire [7:0]           clock_ctrl,
     output wire                  clock_ctrl_ext_clk_enable,
     output wire                  clock_ctrl_ext_clk_differential,
@@ -181,6 +182,9 @@ module main_rfg(
     output wire                  layers_sr_out_ld0,
     output wire                  layers_sr_out_ld1,
     output wire                  layers_sr_out_ld2,
+    output wire                  layers_sr_out_ldtdac0,
+    output wire                  layers_sr_out_ldtdac1,
+    output wire                  layers_sr_out_ldtdac2,
     output wire [7:0]           layers_sr_in,
     input  wire                  layers_sr_in_sout0,
     input  wire                  layers_sr_in_sout1,
@@ -264,6 +268,9 @@ module main_rfg(
     logic [31:0] hk_firmware_id_reg;
     
     logic [31:0] hk_firmware_version_reg;
+    
+    logic [7:0] chip_version_reg;
+    assign chip_version = chip_version_reg;
     
     logic [7:0] clock_ctrl_reg;
     assign clock_ctrl = clock_ctrl_reg;
@@ -409,6 +416,9 @@ module main_rfg(
     assign layers_sr_out_ld0 = layers_sr_out_reg[3];
     assign layers_sr_out_ld1 = layers_sr_out_reg[4];
     assign layers_sr_out_ld2 = layers_sr_out_reg[5];
+    assign layers_sr_out_ldtdac0 = layers_sr_out_reg[6];
+    assign layers_sr_out_ldtdac1 = layers_sr_out_reg[7];
+    assign layers_sr_out_ldtdac2 = layers_sr_out_reg[8];
     assign layers_sr_rb_ctrl_rb = layers_sr_rb_ctrl_reg[0];
     assign layers_sr_rb_ctrl_crc_enable = layers_sr_rb_ctrl_reg[1];
     assign layers_sr_rb_ctrl_sout_select = layers_sr_rb_ctrl_reg[6:2];
@@ -439,6 +449,7 @@ module main_rfg(
             rfg_write_valid <= 'd0;
             hk_firmware_id_reg <= `RFG_FW_ID;
             hk_firmware_version_reg <= `RFG_FW_BUILD;
+            chip_version_reg <= 8'h3;
             clock_ctrl_reg <= 8'h2;
             hk_xadc_temperature_reg <= '0;
             hk_xadc_vccint_reg <= '0;
@@ -527,336 +538,340 @@ module main_rfg(
             // Write for simple registers
             case({rfg_write,rfg_address})
                 {1'b1,16'h8}: begin
+                    chip_version_reg[7:0] <= rfg_write_value;
+                    rfg_write_valid <= 'd1;
+                end
+                {1'b1,16'h9}: begin
                     clock_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hd}: begin
+                {1'b1,16'he}: begin
                     hk_conversion_trigger_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'he}: begin
+                {1'b1,16'hf}: begin
                     hk_conversion_trigger_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hf}: begin
+                {1'b1,16'h10}: begin
                     hk_conversion_trigger_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h10}: begin
+                {1'b1,16'h11}: begin
                     hk_conversion_trigger_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h15}: begin
+                {1'b1,16'h16}: begin
                     hk_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h1c}: begin
+                {1'b1,16'h1d}: begin
                     spi_layers_ckdivider_reg <= rfg_write_value;
                 end
-                {1'b1,16'h1d}: begin
+                {1'b1,16'h1e}: begin
                     spi_hk_ckdivider_reg <= rfg_write_value;
                 end
-                {1'b1,16'h1e}: begin
+                {1'b1,16'h1f}: begin
                     layer_0_cfg_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h1f}: begin
+                {1'b1,16'h20}: begin
                     layer_1_cfg_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h20}: begin
+                {1'b1,16'h21}: begin
                     layer_2_cfg_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h24}: begin
+                {1'b1,16'h25}: begin
                     layer_0_stat_frame_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h25}: begin
+                {1'b1,16'h26}: begin
                     layer_0_stat_frame_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h26}: begin
+                {1'b1,16'h27}: begin
                     layer_0_stat_frame_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h27}: begin
+                {1'b1,16'h28}: begin
                     layer_0_stat_frame_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h28}: begin
+                {1'b1,16'h29}: begin
                     layer_1_stat_frame_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h29}: begin
+                {1'b1,16'h2a}: begin
                     layer_1_stat_frame_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2a}: begin
+                {1'b1,16'h2b}: begin
                     layer_1_stat_frame_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2b}: begin
+                {1'b1,16'h2c}: begin
                     layer_1_stat_frame_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2c}: begin
+                {1'b1,16'h2d}: begin
                     layer_2_stat_frame_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2d}: begin
+                {1'b1,16'h2e}: begin
                     layer_2_stat_frame_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2e}: begin
+                {1'b1,16'h2f}: begin
                     layer_2_stat_frame_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h2f}: begin
+                {1'b1,16'h30}: begin
                     layer_2_stat_frame_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h30}: begin
+                {1'b1,16'h31}: begin
                     layer_0_stat_idle_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h31}: begin
+                {1'b1,16'h32}: begin
                     layer_0_stat_idle_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h32}: begin
+                {1'b1,16'h33}: begin
                     layer_0_stat_idle_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h33}: begin
+                {1'b1,16'h34}: begin
                     layer_0_stat_idle_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h34}: begin
+                {1'b1,16'h35}: begin
                     layer_1_stat_idle_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h35}: begin
+                {1'b1,16'h36}: begin
                     layer_1_stat_idle_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h36}: begin
+                {1'b1,16'h37}: begin
                     layer_1_stat_idle_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h37}: begin
+                {1'b1,16'h38}: begin
                     layer_1_stat_idle_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h38}: begin
+                {1'b1,16'h39}: begin
                     layer_2_stat_idle_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h39}: begin
+                {1'b1,16'h3a}: begin
                     layer_2_stat_idle_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3a}: begin
+                {1'b1,16'h3b}: begin
                     layer_2_stat_idle_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3b}: begin
+                {1'b1,16'h3c}: begin
                     layer_2_stat_idle_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3c}: begin
+                {1'b1,16'h3d}: begin
                     layer_0_stat_wronglength_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3d}: begin
+                {1'b1,16'h3e}: begin
                     layer_0_stat_wronglength_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3e}: begin
+                {1'b1,16'h3f}: begin
                     layer_0_stat_wronglength_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h3f}: begin
+                {1'b1,16'h40}: begin
                     layer_0_stat_wronglength_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h40}: begin
+                {1'b1,16'h41}: begin
                     layer_1_stat_wronglength_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h41}: begin
+                {1'b1,16'h42}: begin
                     layer_1_stat_wronglength_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h42}: begin
+                {1'b1,16'h43}: begin
                     layer_1_stat_wronglength_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h43}: begin
+                {1'b1,16'h44}: begin
                     layer_1_stat_wronglength_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h44}: begin
+                {1'b1,16'h45}: begin
                     layer_2_stat_wronglength_counter_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h45}: begin
+                {1'b1,16'h46}: begin
                     layer_2_stat_wronglength_counter_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h46}: begin
+                {1'b1,16'h47}: begin
                     layer_2_stat_wronglength_counter_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h47}: begin
+                {1'b1,16'h48}: begin
                     layer_2_stat_wronglength_counter_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h75}: begin
+                {1'b1,16'h76}: begin
                     layers_fpga_timestamp_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h76}: begin
+                {1'b1,16'h77}: begin
                     layers_fpga_timestamp_ctrl_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h77}: begin
+                {1'b1,16'h78}: begin
                     layers_fpga_timestamp_divider_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h78}: begin
+                {1'b1,16'h79}: begin
                     layers_fpga_timestamp_divider_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h79}: begin
+                {1'b1,16'h7a}: begin
                     layers_fpga_timestamp_divider_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h7a}: begin
+                {1'b1,16'h7b}: begin
                     layers_fpga_timestamp_divider_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h83}: begin
+                {1'b1,16'h84}: begin
                     layers_fpga_timestamp_forced_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h84}: begin
+                {1'b1,16'h85}: begin
                     layers_fpga_timestamp_forced_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h85}: begin
+                {1'b1,16'h86}: begin
                     layers_fpga_timestamp_forced_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h86}: begin
+                {1'b1,16'h87}: begin
                     layers_fpga_timestamp_forced_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h87}: begin
+                {1'b1,16'h88}: begin
                     layers_fpga_timestamp_forced_reg[39:32] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h88}: begin
+                {1'b1,16'h89}: begin
                     layers_fpga_timestamp_forced_reg[47:40] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h89}: begin
+                {1'b1,16'h8a}: begin
                     layers_fpga_timestamp_forced_reg[55:48] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8a}: begin
+                {1'b1,16'h8b}: begin
                     layers_fpga_timestamp_forced_reg[63:56] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8b}: begin
+                {1'b1,16'h8c}: begin
                     layers_tlu_trigger_delay_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8c}: begin
+                {1'b1,16'h8d}: begin
                     layers_tlu_trigger_delay_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8d}: begin
+                {1'b1,16'h8e}: begin
                     layers_tlu_busy_duration_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8e}: begin
+                {1'b1,16'h8f}: begin
                     layers_tlu_busy_duration_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h8f}: begin
+                {1'b1,16'h90}: begin
                     layers_cfg_nodata_continue_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h90}: begin
+                {1'b1,16'h91}: begin
                     layers_sr_out_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h91}: begin
+                {1'b1,16'h92}: begin
                     layers_sr_in_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h92}: begin
+                {1'b1,16'h93}: begin
                     layers_sr_rb_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h9e}: begin
+                {1'b1,16'h9f}: begin
                     layers_inj_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'h9f}: begin
+                {1'b1,16'ha0}: begin
                     layers_inj_waddr_reg[3:0] <= rfg_write_value[3:0];
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'ha0}: begin
+                {1'b1,16'ha1}: begin
                     layers_inj_wdata_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'ha1}: begin
+                {1'b1,16'ha2}: begin
                     layers_readout_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'ha7}: begin
+                {1'b1,16'ha8}: begin
                     io_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'ha8}: begin
+                {1'b1,16'ha9}: begin
                     io_led_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'ha9}: begin
+                {1'b1,16'haa}: begin
                     gecco_sr_ctrl_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'haa}: begin
+                {1'b1,16'hab}: begin
                     hk_conversion_trigger_match_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hab}: begin
+                {1'b1,16'hac}: begin
                     hk_conversion_trigger_match_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hac}: begin
+                {1'b1,16'had}: begin
                     hk_conversion_trigger_match_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'had}: begin
+                {1'b1,16'hae}: begin
                     hk_conversion_trigger_match_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hae}: begin
+                {1'b1,16'haf}: begin
                     layers_fpga_timestamp_divider_match_reg[7:0] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'haf}: begin
+                {1'b1,16'hb0}: begin
                     layers_fpga_timestamp_divider_match_reg[15:8] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hb0}: begin
+                {1'b1,16'hb1}: begin
                     layers_fpga_timestamp_divider_match_reg[23:16] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
-                {1'b1,16'hb1}: begin
+                {1'b1,16'hb2}: begin
                     layers_fpga_timestamp_divider_match_reg[31:24] <= rfg_write_value;
                     rfg_write_valid <= 'd1;
                 end
@@ -866,7 +881,7 @@ module main_rfg(
             endcase
             
             // Write for FIFO Master
-            if(rfg_write && rfg_address==16'h16) begin
+            if(rfg_write && rfg_address==16'h17) begin
                 hk_adcdac_mosi_fifo_m_axis_tvalid <= 1'b1;
                 hk_adcdac_mosi_fifo_m_axis_tdata  <= rfg_write_value;
                 hk_adcdac_mosi_fifo_m_axis_tlast  <= rfg_write_last;
@@ -874,7 +889,7 @@ module main_rfg(
                 hk_adcdac_mosi_fifo_m_axis_tvalid <= 1'b0;
                 hk_adcdac_mosi_fifo_m_axis_tlast  <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h48) begin
+            if(rfg_write && rfg_address==16'h49) begin
                 layer_0_mosi_m_axis_tvalid <= 1'b1;
                 layer_0_mosi_m_axis_tdata  <= rfg_write_value;
                 layer_0_mosi_m_axis_tlast  <= rfg_write_last;
@@ -882,7 +897,7 @@ module main_rfg(
                 layer_0_mosi_m_axis_tvalid <= 1'b0;
                 layer_0_mosi_m_axis_tlast  <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h4d) begin
+            if(rfg_write && rfg_address==16'h4e) begin
                 layer_1_mosi_m_axis_tvalid <= 1'b1;
                 layer_1_mosi_m_axis_tdata  <= rfg_write_value;
                 layer_1_mosi_m_axis_tlast  <= rfg_write_last;
@@ -890,7 +905,7 @@ module main_rfg(
                 layer_1_mosi_m_axis_tvalid <= 1'b0;
                 layer_1_mosi_m_axis_tlast  <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h52) begin
+            if(rfg_write && rfg_address==16'h53) begin
                 layer_2_mosi_m_axis_tvalid <= 1'b1;
                 layer_2_mosi_m_axis_tdata  <= rfg_write_value;
                 layer_2_mosi_m_axis_tlast  <= rfg_write_last;
@@ -898,19 +913,19 @@ module main_rfg(
                 layer_2_mosi_m_axis_tvalid <= 1'b0;
                 layer_2_mosi_m_axis_tlast  <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h57) begin
+            if(rfg_write && rfg_address==16'h58) begin
                 layer_0_loopback_miso_m_axis_tvalid <= 1'b1;
                 layer_0_loopback_miso_m_axis_tdata  <= rfg_write_value;
             end else begin
                 layer_0_loopback_miso_m_axis_tvalid <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h5c) begin
+            if(rfg_write && rfg_address==16'h5d) begin
                 layer_1_loopback_miso_m_axis_tvalid <= 1'b1;
                 layer_1_loopback_miso_m_axis_tdata  <= rfg_write_value;
             end else begin
                 layer_1_loopback_miso_m_axis_tvalid <= 1'b0;
             end
-            if(rfg_write && rfg_address==16'h61) begin
+            if(rfg_write && rfg_address==16'h62) begin
                 layer_2_loopback_miso_m_axis_tvalid <= 1'b1;
                 layer_2_loopback_miso_m_axis_tdata  <= rfg_write_value;
             end else begin
@@ -965,10 +980,10 @@ module main_rfg(
             end
             // Writes for Counter
             // Counter with interrupt on matching register: If the match register is written, reset the counter
-            if((rfg_write && rfg_address==16'haa)) begin
+            if((rfg_write && rfg_address==16'hab)) begin
                 hk_conversion_trigger_reg <= 'd0;
             end
-            else if(!(rfg_write && rfg_address==16'hd)) begin
+            else if(!(rfg_write && rfg_address==16'he)) begin
                 hk_conversion_trigger_reg <= hk_conversion_trigger_up ? hk_conversion_trigger_reg + 'd1 : hk_conversion_trigger_reg - 'd1 ;
             end
             
@@ -983,38 +998,38 @@ module main_rfg(
             if(hk_stat_conversions_counter_enable) begin
                 hk_stat_conversions_counter_reg <= hk_stat_conversions_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h24) && layer_0_stat_frame_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h25) && layer_0_stat_frame_counter_enable) begin
                 layer_0_stat_frame_counter_reg <= layer_0_stat_frame_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h28) && layer_1_stat_frame_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h29) && layer_1_stat_frame_counter_enable) begin
                 layer_1_stat_frame_counter_reg <= layer_1_stat_frame_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h2c) && layer_2_stat_frame_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h2d) && layer_2_stat_frame_counter_enable) begin
                 layer_2_stat_frame_counter_reg <= layer_2_stat_frame_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h30) && layer_0_stat_idle_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h31) && layer_0_stat_idle_counter_enable) begin
                 layer_0_stat_idle_counter_reg <= layer_0_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h34) && layer_1_stat_idle_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h35) && layer_1_stat_idle_counter_enable) begin
                 layer_1_stat_idle_counter_reg <= layer_1_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h38) && layer_2_stat_idle_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h39) && layer_2_stat_idle_counter_enable) begin
                 layer_2_stat_idle_counter_reg <= layer_2_stat_idle_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h3c) && layer_0_stat_wronglength_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h3d) && layer_0_stat_wronglength_counter_enable) begin
                 layer_0_stat_wronglength_counter_reg <= layer_0_stat_wronglength_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h40) && layer_1_stat_wronglength_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h41) && layer_1_stat_wronglength_counter_enable) begin
                 layer_1_stat_wronglength_counter_reg <= layer_1_stat_wronglength_counter_reg + 1 ;
             end
-            if(!(rfg_write && rfg_address==16'h44) && layer_2_stat_wronglength_counter_enable) begin
+            if(!(rfg_write && rfg_address==16'h45) && layer_2_stat_wronglength_counter_enable) begin
                 layer_2_stat_wronglength_counter_reg <= layer_2_stat_wronglength_counter_reg + 1 ;
             end
             // Counter with interrupt on matching register: If the match register is written, reset the counter
-            if((rfg_write && rfg_address==16'hae)) begin
+            if((rfg_write && rfg_address==16'haf)) begin
                 layers_fpga_timestamp_divider_reg <= 'd0;
             end
-            else if(!(rfg_write && rfg_address==16'h77) && layers_fpga_timestamp_divider_enable) begin
+            else if(!(rfg_write && rfg_address==16'h78) && layers_fpga_timestamp_divider_enable) begin
                 layers_fpga_timestamp_divider_reg <= layers_fpga_timestamp_divider_up ? layers_fpga_timestamp_divider_reg + 'd1 : layers_fpga_timestamp_divider_reg - 'd1 ;
             end
             // Counter with interrupt on matching register: Enable counting when match counter is reached, and set up-down to change counting direction
@@ -1031,12 +1046,12 @@ module main_rfg(
     
     // Read for FIFO Slave
     // ---------------
-    assign hk_adc_miso_fifo_s_axis_tready = rfg_read && rfg_address==16'h17;
-    assign layer_0_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h66;
-    assign layer_1_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h6b;
-    assign layer_2_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h70;
-    assign layers_sr_bytes_s_axis_tready = rfg_read && rfg_address==16'h99;
-    assign layers_readout_s_axis_tready = rfg_read && rfg_address==16'ha2;
+    assign hk_adc_miso_fifo_s_axis_tready = rfg_read && rfg_address==16'h18;
+    assign layer_0_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h67;
+    assign layer_1_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h6c;
+    assign layer_2_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h71;
+    assign layers_sr_bytes_s_axis_tready = rfg_read && rfg_address==16'h9a;
+    assign layers_readout_s_axis_tready = rfg_read && rfg_address==16'ha3;
     
     
     // Register Read
@@ -1081,654 +1096,658 @@ module main_rfg(
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h8}: begin
-                    rfg_read_value <= clock_ctrl_reg[7:0];
+                    rfg_read_value <= chip_version_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h9}: begin
-                    rfg_read_value <= hk_xadc_temperature_reg[7:0];
+                    rfg_read_value <= clock_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'ha}: begin
-                    rfg_read_value <= hk_xadc_temperature_reg[15:8];
+                    rfg_read_value <= hk_xadc_temperature_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'hb}: begin
-                    rfg_read_value <= hk_xadc_vccint_reg[7:0];
+                    rfg_read_value <= hk_xadc_temperature_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'hc}: begin
-                    rfg_read_value <= hk_xadc_vccint_reg[15:8];
+                    rfg_read_value <= hk_xadc_vccint_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'hd}: begin
-                    rfg_read_value <= hk_conversion_trigger_reg[7:0];
+                    rfg_read_value <= hk_xadc_vccint_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'he}: begin
-                    rfg_read_value <= hk_conversion_trigger_reg[15:8];
+                    rfg_read_value <= hk_conversion_trigger_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'hf}: begin
-                    rfg_read_value <= hk_conversion_trigger_reg[23:16];
+                    rfg_read_value <= hk_conversion_trigger_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h10}: begin
-                    rfg_read_value <= hk_conversion_trigger_reg[31:24];
+                    rfg_read_value <= hk_conversion_trigger_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h11}: begin
-                    rfg_read_value <= hk_stat_conversions_counter_reg[7:0];
+                    rfg_read_value <= hk_conversion_trigger_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h12}: begin
-                    rfg_read_value <= hk_stat_conversions_counter_reg[15:8];
+                    rfg_read_value <= hk_stat_conversions_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h13}: begin
-                    rfg_read_value <= hk_stat_conversions_counter_reg[23:16];
+                    rfg_read_value <= hk_stat_conversions_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h14}: begin
-                    rfg_read_value <= hk_stat_conversions_counter_reg[31:24];
+                    rfg_read_value <= hk_stat_conversions_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
                 {1'b1,16'h15}: begin
+                    rfg_read_value <= hk_stat_conversions_counter_reg[31:24];
+                    rfg_read_valid <= 1 ;
+                end
+                {1'b1,16'h16}: begin
                     rfg_read_value <= hk_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h17}: begin
+                {1'b1,16'h18}: begin
                     rfg_read_value <= hk_adc_miso_fifo_s_axis_tvalid ? hk_adc_miso_fifo_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h18}: begin
+                {1'b1,16'h19}: begin
                     rfg_read_value <= hk_adc_miso_fifo_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h19}: begin
+                {1'b1,16'h1a}: begin
                     rfg_read_value <= hk_adc_miso_fifo_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1a}: begin
+                {1'b1,16'h1b}: begin
                     rfg_read_value <= hk_adc_miso_fifo_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1b}: begin
+                {1'b1,16'h1c}: begin
                     rfg_read_value <= hk_adc_miso_fifo_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1c}: begin
+                {1'b1,16'h1d}: begin
                     rfg_read_value <= spi_layers_ckdivider_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1d}: begin
+                {1'b1,16'h1e}: begin
                     rfg_read_value <= spi_hk_ckdivider_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1e}: begin
+                {1'b1,16'h1f}: begin
                     rfg_read_value <= layer_0_cfg_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h1f}: begin
+                {1'b1,16'h20}: begin
                     rfg_read_value <= layer_1_cfg_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h20}: begin
+                {1'b1,16'h21}: begin
                     rfg_read_value <= layer_2_cfg_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h21}: begin
+                {1'b1,16'h22}: begin
                     rfg_read_value <= layer_0_status_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h22}: begin
+                {1'b1,16'h23}: begin
                     rfg_read_value <= layer_1_status_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h23}: begin
+                {1'b1,16'h24}: begin
                     rfg_read_value <= layer_2_status_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h24}: begin
+                {1'b1,16'h25}: begin
                     rfg_read_value <= layer_0_stat_frame_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h25}: begin
+                {1'b1,16'h26}: begin
                     rfg_read_value <= layer_0_stat_frame_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h26}: begin
+                {1'b1,16'h27}: begin
                     rfg_read_value <= layer_0_stat_frame_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h27}: begin
+                {1'b1,16'h28}: begin
                     rfg_read_value <= layer_0_stat_frame_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h28}: begin
+                {1'b1,16'h29}: begin
                     rfg_read_value <= layer_1_stat_frame_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h29}: begin
+                {1'b1,16'h2a}: begin
                     rfg_read_value <= layer_1_stat_frame_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2a}: begin
+                {1'b1,16'h2b}: begin
                     rfg_read_value <= layer_1_stat_frame_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2b}: begin
+                {1'b1,16'h2c}: begin
                     rfg_read_value <= layer_1_stat_frame_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2c}: begin
+                {1'b1,16'h2d}: begin
                     rfg_read_value <= layer_2_stat_frame_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2d}: begin
+                {1'b1,16'h2e}: begin
                     rfg_read_value <= layer_2_stat_frame_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2e}: begin
+                {1'b1,16'h2f}: begin
                     rfg_read_value <= layer_2_stat_frame_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h2f}: begin
+                {1'b1,16'h30}: begin
                     rfg_read_value <= layer_2_stat_frame_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h30}: begin
+                {1'b1,16'h31}: begin
                     rfg_read_value <= layer_0_stat_idle_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h31}: begin
+                {1'b1,16'h32}: begin
                     rfg_read_value <= layer_0_stat_idle_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h32}: begin
+                {1'b1,16'h33}: begin
                     rfg_read_value <= layer_0_stat_idle_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h33}: begin
+                {1'b1,16'h34}: begin
                     rfg_read_value <= layer_0_stat_idle_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h34}: begin
+                {1'b1,16'h35}: begin
                     rfg_read_value <= layer_1_stat_idle_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h35}: begin
+                {1'b1,16'h36}: begin
                     rfg_read_value <= layer_1_stat_idle_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h36}: begin
+                {1'b1,16'h37}: begin
                     rfg_read_value <= layer_1_stat_idle_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h37}: begin
+                {1'b1,16'h38}: begin
                     rfg_read_value <= layer_1_stat_idle_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h38}: begin
+                {1'b1,16'h39}: begin
                     rfg_read_value <= layer_2_stat_idle_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h39}: begin
+                {1'b1,16'h3a}: begin
                     rfg_read_value <= layer_2_stat_idle_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3a}: begin
+                {1'b1,16'h3b}: begin
                     rfg_read_value <= layer_2_stat_idle_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3b}: begin
+                {1'b1,16'h3c}: begin
                     rfg_read_value <= layer_2_stat_idle_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3c}: begin
+                {1'b1,16'h3d}: begin
                     rfg_read_value <= layer_0_stat_wronglength_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3d}: begin
+                {1'b1,16'h3e}: begin
                     rfg_read_value <= layer_0_stat_wronglength_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3e}: begin
+                {1'b1,16'h3f}: begin
                     rfg_read_value <= layer_0_stat_wronglength_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h3f}: begin
+                {1'b1,16'h40}: begin
                     rfg_read_value <= layer_0_stat_wronglength_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h40}: begin
+                {1'b1,16'h41}: begin
                     rfg_read_value <= layer_1_stat_wronglength_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h41}: begin
+                {1'b1,16'h42}: begin
                     rfg_read_value <= layer_1_stat_wronglength_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h42}: begin
+                {1'b1,16'h43}: begin
                     rfg_read_value <= layer_1_stat_wronglength_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h43}: begin
+                {1'b1,16'h44}: begin
                     rfg_read_value <= layer_1_stat_wronglength_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h44}: begin
+                {1'b1,16'h45}: begin
                     rfg_read_value <= layer_2_stat_wronglength_counter_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h45}: begin
+                {1'b1,16'h46}: begin
                     rfg_read_value <= layer_2_stat_wronglength_counter_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h46}: begin
+                {1'b1,16'h47}: begin
                     rfg_read_value <= layer_2_stat_wronglength_counter_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h47}: begin
+                {1'b1,16'h48}: begin
                     rfg_read_value <= layer_2_stat_wronglength_counter_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h49}: begin
+                {1'b1,16'h4a}: begin
                     rfg_read_value <= layer_0_mosi_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h4a}: begin
+                {1'b1,16'h4b}: begin
                     rfg_read_value <= layer_0_mosi_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h4b}: begin
+                {1'b1,16'h4c}: begin
                     rfg_read_value <= layer_0_mosi_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h4c}: begin
+                {1'b1,16'h4d}: begin
                     rfg_read_value <= layer_0_mosi_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h4e}: begin
+                {1'b1,16'h4f}: begin
                     rfg_read_value <= layer_1_mosi_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h4f}: begin
+                {1'b1,16'h50}: begin
                     rfg_read_value <= layer_1_mosi_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h50}: begin
+                {1'b1,16'h51}: begin
                     rfg_read_value <= layer_1_mosi_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h51}: begin
+                {1'b1,16'h52}: begin
                     rfg_read_value <= layer_1_mosi_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h53}: begin
+                {1'b1,16'h54}: begin
                     rfg_read_value <= layer_2_mosi_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h54}: begin
+                {1'b1,16'h55}: begin
                     rfg_read_value <= layer_2_mosi_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h55}: begin
+                {1'b1,16'h56}: begin
                     rfg_read_value <= layer_2_mosi_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h56}: begin
+                {1'b1,16'h57}: begin
                     rfg_read_value <= layer_2_mosi_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h58}: begin
+                {1'b1,16'h59}: begin
                     rfg_read_value <= layer_0_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h59}: begin
+                {1'b1,16'h5a}: begin
                     rfg_read_value <= layer_0_loopback_miso_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h5a}: begin
+                {1'b1,16'h5b}: begin
                     rfg_read_value <= layer_0_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h5b}: begin
+                {1'b1,16'h5c}: begin
                     rfg_read_value <= layer_0_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h5d}: begin
+                {1'b1,16'h5e}: begin
                     rfg_read_value <= layer_1_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h5e}: begin
+                {1'b1,16'h5f}: begin
                     rfg_read_value <= layer_1_loopback_miso_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h5f}: begin
+                {1'b1,16'h60}: begin
                     rfg_read_value <= layer_1_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h60}: begin
+                {1'b1,16'h61}: begin
                     rfg_read_value <= layer_1_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h62}: begin
+                {1'b1,16'h63}: begin
                     rfg_read_value <= layer_2_loopback_miso_write_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h63}: begin
+                {1'b1,16'h64}: begin
                     rfg_read_value <= layer_2_loopback_miso_write_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h64}: begin
+                {1'b1,16'h65}: begin
                     rfg_read_value <= layer_2_loopback_miso_write_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h65}: begin
+                {1'b1,16'h66}: begin
                     rfg_read_value <= layer_2_loopback_miso_write_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h66}: begin
+                {1'b1,16'h67}: begin
                     rfg_read_value <= layer_0_loopback_mosi_s_axis_tvalid ? layer_0_loopback_mosi_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h67}: begin
+                {1'b1,16'h68}: begin
                     rfg_read_value <= layer_0_loopback_mosi_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h68}: begin
+                {1'b1,16'h69}: begin
                     rfg_read_value <= layer_0_loopback_mosi_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h69}: begin
+                {1'b1,16'h6a}: begin
                     rfg_read_value <= layer_0_loopback_mosi_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6a}: begin
+                {1'b1,16'h6b}: begin
                     rfg_read_value <= layer_0_loopback_mosi_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6b}: begin
+                {1'b1,16'h6c}: begin
                     rfg_read_value <= layer_1_loopback_mosi_s_axis_tvalid ? layer_1_loopback_mosi_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6c}: begin
+                {1'b1,16'h6d}: begin
                     rfg_read_value <= layer_1_loopback_mosi_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6d}: begin
+                {1'b1,16'h6e}: begin
                     rfg_read_value <= layer_1_loopback_mosi_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6e}: begin
+                {1'b1,16'h6f}: begin
                     rfg_read_value <= layer_1_loopback_mosi_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h6f}: begin
+                {1'b1,16'h70}: begin
                     rfg_read_value <= layer_1_loopback_mosi_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h70}: begin
+                {1'b1,16'h71}: begin
                     rfg_read_value <= layer_2_loopback_mosi_s_axis_tvalid ? layer_2_loopback_mosi_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h71}: begin
+                {1'b1,16'h72}: begin
                     rfg_read_value <= layer_2_loopback_mosi_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h72}: begin
+                {1'b1,16'h73}: begin
                     rfg_read_value <= layer_2_loopback_mosi_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h73}: begin
+                {1'b1,16'h74}: begin
                     rfg_read_value <= layer_2_loopback_mosi_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h74}: begin
+                {1'b1,16'h75}: begin
                     rfg_read_value <= layer_2_loopback_mosi_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h75}: begin
+                {1'b1,16'h76}: begin
                     rfg_read_value <= layers_fpga_timestamp_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h76}: begin
+                {1'b1,16'h77}: begin
                     rfg_read_value <= layers_fpga_timestamp_ctrl_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h77}: begin
+                {1'b1,16'h78}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h78}: begin
+                {1'b1,16'h79}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h79}: begin
+                {1'b1,16'h7a}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7a}: begin
+                {1'b1,16'h7b}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7b}: begin
+                {1'b1,16'h7c}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7c}: begin
+                {1'b1,16'h7d}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7d}: begin
+                {1'b1,16'h7e}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7e}: begin
+                {1'b1,16'h7f}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h7f}: begin
+                {1'b1,16'h80}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[39:32];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h80}: begin
+                {1'b1,16'h81}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[47:40];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h81}: begin
+                {1'b1,16'h82}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[55:48];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h82}: begin
+                {1'b1,16'h83}: begin
                     rfg_read_value <= layers_fpga_timestamp_counter[63:56];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h83}: begin
+                {1'b1,16'h84}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h84}: begin
+                {1'b1,16'h85}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h85}: begin
+                {1'b1,16'h86}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h86}: begin
+                {1'b1,16'h87}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h87}: begin
+                {1'b1,16'h88}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[39:32];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h88}: begin
+                {1'b1,16'h89}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[47:40];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h89}: begin
+                {1'b1,16'h8a}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[55:48];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8a}: begin
+                {1'b1,16'h8b}: begin
                     rfg_read_value <= layers_fpga_timestamp_forced_reg[63:56];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8b}: begin
+                {1'b1,16'h8c}: begin
                     rfg_read_value <= layers_tlu_trigger_delay_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8c}: begin
+                {1'b1,16'h8d}: begin
                     rfg_read_value <= layers_tlu_trigger_delay_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8d}: begin
+                {1'b1,16'h8e}: begin
                     rfg_read_value <= layers_tlu_busy_duration_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8e}: begin
+                {1'b1,16'h8f}: begin
                     rfg_read_value <= layers_tlu_busy_duration_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h8f}: begin
+                {1'b1,16'h90}: begin
                     rfg_read_value <= layers_cfg_nodata_continue_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h90}: begin
+                {1'b1,16'h91}: begin
                     rfg_read_value <= layers_sr_out_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h91}: begin
+                {1'b1,16'h92}: begin
                     rfg_read_value <= layers_sr_in_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h92}: begin
+                {1'b1,16'h93}: begin
                     rfg_read_value <= layers_sr_rb_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h93}: begin
+                {1'b1,16'h94}: begin
                     rfg_read_value <= layers_sr_crc_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h94}: begin
+                {1'b1,16'h95}: begin
                     rfg_read_value <= layers_sr_crc_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h95}: begin
+                {1'b1,16'h96}: begin
                     rfg_read_value <= layers_sr_crc_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h96}: begin
+                {1'b1,16'h97}: begin
                     rfg_read_value <= layers_sr_crc_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h97}: begin
+                {1'b1,16'h98}: begin
                     rfg_read_value <= layers_sr_crc_reg[39:32];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h98}: begin
+                {1'b1,16'h99}: begin
                     rfg_read_value <= layers_sr_crc_reg[47:40];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h99}: begin
+                {1'b1,16'h9a}: begin
                     rfg_read_value <= layers_sr_bytes_s_axis_tvalid ? layers_sr_bytes_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9a}: begin
+                {1'b1,16'h9b}: begin
                     rfg_read_value <= layers_sr_bytes_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9b}: begin
+                {1'b1,16'h9c}: begin
                     rfg_read_value <= layers_sr_bytes_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9c}: begin
+                {1'b1,16'h9d}: begin
                     rfg_read_value <= layers_sr_bytes_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9d}: begin
+                {1'b1,16'h9e}: begin
                     rfg_read_value <= layers_sr_bytes_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9e}: begin
+                {1'b1,16'h9f}: begin
                     rfg_read_value <= layers_inj_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'h9f}: begin
+                {1'b1,16'ha0}: begin
                     rfg_read_value <= {4'd0,layers_inj_waddr_reg[3:0]};
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha0}: begin
+                {1'b1,16'ha1}: begin
                     rfg_read_value <= layers_inj_wdata_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha1}: begin
+                {1'b1,16'ha2}: begin
                     rfg_read_value <= layers_readout_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha2}: begin
+                {1'b1,16'ha3}: begin
                     rfg_read_value <= layers_readout_s_axis_tvalid ? layers_readout_s_axis_tdata : 16'hff;
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha3}: begin
+                {1'b1,16'ha4}: begin
                     rfg_read_value <= layers_readout_read_size_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha4}: begin
+                {1'b1,16'ha5}: begin
                     rfg_read_value <= layers_readout_read_size_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha5}: begin
+                {1'b1,16'ha6}: begin
                     rfg_read_value <= layers_readout_read_size_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha6}: begin
+                {1'b1,16'ha7}: begin
                     rfg_read_value <= layers_readout_read_size_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha7}: begin
+                {1'b1,16'ha8}: begin
                     rfg_read_value <= io_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha8}: begin
+                {1'b1,16'ha9}: begin
                     rfg_read_value <= io_led_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'ha9}: begin
+                {1'b1,16'haa}: begin
                     rfg_read_value <= gecco_sr_ctrl_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'haa}: begin
+                {1'b1,16'hab}: begin
                     rfg_read_value <= hk_conversion_trigger_match_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'hab}: begin
+                {1'b1,16'hac}: begin
                     rfg_read_value <= hk_conversion_trigger_match_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'hac}: begin
+                {1'b1,16'had}: begin
                     rfg_read_value <= hk_conversion_trigger_match_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'had}: begin
+                {1'b1,16'hae}: begin
                     rfg_read_value <= hk_conversion_trigger_match_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'hae}: begin
+                {1'b1,16'haf}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_match_reg[7:0];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'haf}: begin
+                {1'b1,16'hb0}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_match_reg[15:8];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'hb0}: begin
+                {1'b1,16'hb1}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_match_reg[23:16];
                     rfg_read_valid <= 1 ;
                 end
-                {1'b1,16'hb1}: begin
+                {1'b1,16'hb2}: begin
                     rfg_read_value <= layers_fpga_timestamp_divider_match_reg[31:24];
                     rfg_read_valid <= 1 ;
                 end
@@ -1796,7 +1815,7 @@ module main_rfg(
         if (!resn) begin
             rfg_address_valid <= 'd0;
         end else begin
-            rfg_address_valid <= rfg_address >= 'd0 && rfg_address <= 'hb1;
+            rfg_address_valid <= rfg_address >= 'd0 && rfg_address <= 'hb2;
         end
     end
     

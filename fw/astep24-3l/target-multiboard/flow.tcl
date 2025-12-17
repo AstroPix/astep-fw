@@ -152,7 +152,7 @@ proc run_bit {board version defines constraints_file} {
     ## Test if in open mode, if env(OPEN) is NOT set, catch returns 1
     set openMode [expr [catch {set ::env(OPEN)}] == 1 ? 0 : 1]
     set supported_chipversions [list 2 3 4]
-    set supported_defines [list SCLOCK_SE_DIFF CONFIG_SE TELESCOPE SINGLE_LAYER]
+    set supported_defines [list SCLOCK_SE_DIFF CONFIG_SE TELESCOPE SINGLE_LAYER REVERSEADAPTER]
 
     ## Check chip version
     if {$version in $supported_chipversions} {
