@@ -208,8 +208,8 @@ class AstepRun:
     # enable pixels for injection. Must be called once per pixel
     def cfg_enable_injection(self, layer: int, chip: int, row: int, col: int):
         try:
-            self.boardDriver.asics[layer].enable_inj_col(chip, col, inplace=False)
-            self.boardDriver.asics[layer].enable_inj_row(chip, row, inplace=False)
+            self.boardDriver.asics[layer].enable_inj_col(chip, col)
+            self.boardDriver.asics[layer].enable_inj_row(chip, row)
         except (IndexError, KeyError):
             logger.error(
                 "Cannot enable injection in pixel layer %d, chip %d, row %d, col %d. Ensure layer, chip, and column values all passed.", layer, chip, row, col
@@ -223,7 +223,7 @@ class AstepRun:
             logger.info(
                 "enabling analog output in layer %d, chip %d, column %d of  in ", layer, chip, col
             )
-            self.boardDriver.asics[layer].enable_ampout_col(chip, col, inplace=False)
+            self.boardDriver.asics[layer].enable_ampout_col(chip, col)
             self.cfg_enable_pixel(layer, chip, 0, col)
         except (IndexError, KeyError):
             logger.error(

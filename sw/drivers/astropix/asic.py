@@ -148,7 +148,7 @@ class Asic:
             0 if enable is False else 1
         )
 
-    def enable_inj_row(self, chip: int, row: int, inplace: bool = False):
+    def enable_inj_row(self, chip: int, row: int):
         """
         Enable injection in specified row
         Takes:
@@ -162,10 +162,9 @@ class Asic:
                 )[1]
                 | 0b000_00000_00000_00000_00000_00000_00000_00001
             )
-        if inplace:
-            self.asic_update()
+        
 
-    def enable_inj_col(self, chip: int, col: int, inplace: bool = False):
+    def enable_inj_col(self, chip: int, col: int):
         """
         Enable injection in specified column
         Takes:
@@ -179,10 +178,9 @@ class Asic:
                 )[1]
                 | 0b010_00000_00000_00000_00000_00000_00000_00000
             )
-        if inplace:
-            self.asic_update()
+        
 
-    def enable_ampout_col(self, chip: int, col: int, inplace: bool = False):
+    def enable_ampout_col(self, chip: int, col: int):
         """
         Enables analog output, Select Col for analog mux and disable other cols
         Takes:
@@ -204,10 +202,8 @@ class Asic:
             | 0b100_00000_00000_00000_00000_00000_00000_00000
         )
 
-        if inplace:
-            self.asic_update()
 
-    def enable_pixel(self, chip: int, col: int, row: int, inplace: bool = False):
+    def enable_pixel(self, chip: int, col: int, row: int):
         """
         Turns on comparator in specified pixel
         Takes:
@@ -222,6 +218,7 @@ class Asic:
         assert col >= 0 and col < self.num_cols, (
             f"Row outside of accepted range 0 <= row < {self.num_cols}"
         )
+        #logger.info(f"Enable pixel: {self.asic_config}")
         if row < self.num_rows and col < self.num_cols:
             self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
                 self.asic_config[f"config_{chip}"]["recconfig"].get(
@@ -230,10 +227,7 @@ class Asic:
                 & ~(2 << row)
             )
 
-        if inplace:
-            self.asic_update()
-
-    def disable_pixel(self, chip: int, col: int, row: int, inplace: bool = False):
+    def disable_pixel(self, chip: int, col: int, row: int):
         """
         Disable comparator in specified pixel
 
@@ -250,8 +244,7 @@ class Asic:
                 )[1]
                 | (2 << row)
             )
-        if inplace:
-            self.asic_update()
+       
 
     # AS: update below this
 
@@ -281,6 +274,10 @@ class Asic:
 
     def get_pixel(self, col: int, row: int):
         return self.is_pixel_enabled(col, row)
+
+    def set_vinj(self,chip:int,inj:float):
+        #logger.info(f"Set vinj: {self.asic_config}")
+        self.asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int( inj / 1000 * 1024 / 1.8 ) 
 
     def is_pixel_enabled(self, col: int, row: int):
         """
