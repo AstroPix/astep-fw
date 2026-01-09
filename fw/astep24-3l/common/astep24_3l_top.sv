@@ -703,7 +703,7 @@ module astep24_3l_top(
             layer_0_cfg_ctrl_disable_miso
         }),
 
-        .config_payload_length(config_payload_length),
+        .config_payload_length(payload_length),
 
         // Statistics
         //----------------------
