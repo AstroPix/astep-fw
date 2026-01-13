@@ -12,7 +12,9 @@ module astep24_3l_top(
 
     output wire             clk_ext_selected,
     output wire				clk_sample,
+    output wire				clk_sample_ap4,
     output wire				clk_timestamp,
+    output wire				clk_timestamp_ap4,
     
     output wire             sysclk_40M, // 40M clock derived from Board Clock
 
@@ -62,6 +64,9 @@ module astep24_3l_top(
     output wire				layers_sr_out_ld0,
     output wire				layers_sr_out_ld1,
     output wire				layers_sr_out_ld2,
+    output wire				layers_sr_out_ldtdac0,
+    output wire				layers_sr_out_ldtdac1,
+    output wire				layers_sr_out_ldtdac2,
     output wire				layers_sr_out_sin,
 
     output wire [7:0]		rfg_io_led,
@@ -83,6 +88,7 @@ module astep24_3l_top(
     output wire             ftdi_oe_n,
 
 
+    output wire [7:0]       chip_version,
 
 
     // Target Specific
@@ -150,6 +156,12 @@ module astep24_3l_top(
 
         .clk_10(clk_timestamp),
         .clk_10_resn(),
+
+        .clk_20(clk_sample_ap4),
+        .clk_20_resn(),
+
+        .clk_2_5(clk_timestamp_ap4),
+        .clk_2_5_resn(),
 
         .clk_ext_selected(clk_ext_selected),
 
@@ -340,6 +352,8 @@ module astep24_3l_top(
         .rfg_read_value(sw_if_rfg_read_value),
 
         .io_led(rfg_io_led[7:0]),
+
+        .chip_version(chip_version),
         
         
         .clock_ctrl(),
@@ -534,6 +548,9 @@ module astep24_3l_top(
         .layers_sr_out_ld0(layers_sr_out_ld0),
         .layers_sr_out_ld1(layers_sr_out_ld1),
         .layers_sr_out_ld2(layers_sr_out_ld2),
+        .layers_sr_out_ldtdac0(layers_sr_out_ldtdac0),
+        .layers_sr_out_ldtdac1(layers_sr_out_ldtdac1),
+        .layers_sr_out_ldtdac2(layers_sr_out_ldtdac2),
         
         
         .layers_sr_in(),
@@ -604,7 +621,7 @@ module astep24_3l_top(
     wire [1:0] layer_0_spi_miso_internal;
     wire [1:0] layer_1_spi_miso_internal;
     wire [1:0] layer_2_spi_miso_internal;
-    
+    wire [7:0] payload_length = chip_version == 8'd3 ? 8'd4 : chip_version == 8'd4 ? 8'd7 : 8'd4;
     
     layers_readout_switched #(.LAYER_COUNT(3)) switched_readout(
         .clk_core(clk_core),
@@ -685,6 +702,8 @@ module astep24_3l_top(
             layer_1_cfg_ctrl_disable_miso,
             layer_0_cfg_ctrl_disable_miso
         }),
+
+        .config_payload_length(payload_length),
 
         // Statistics
         //----------------------

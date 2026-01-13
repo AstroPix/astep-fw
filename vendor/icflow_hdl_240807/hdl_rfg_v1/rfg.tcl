@@ -232,17 +232,17 @@ namespace eval icflow::rfg {
         ## RFG main interface
         lappend ioLines "// RFG R/W Interface"
         lappend ioLines "// --------------------"
-        lappend ioLines "input  wire                  clk"
-        lappend ioLines "input  wire                  resn"
-        lappend ioLines "input  wire  \[15:0\]          rfg_address"
-        lappend ioLines "output reg                   rfg_address_valid"
-        lappend ioLines "input  wire  \[7:0\]           rfg_write_value"
-        lappend ioLines "output reg                   rfg_write_valid"
-        lappend ioLines "input  wire                  rfg_write"
-        lappend ioLines "input  wire                  rfg_write_last"
-        lappend ioLines "input  wire                  rfg_read"
-        lappend ioLines "output reg                   rfg_read_valid"
-        lappend ioLines "output reg  \[7:0\]            rfg_read_value"
+        lappend ioLines "input  logic                  clk"
+        lappend ioLines "input  logic                  resn"
+        lappend ioLines "input  logic \[15:0\]         rfg_address"
+        lappend ioLines "output logic                  rfg_address_valid"
+        lappend ioLines "input  logic \[7:0\]          rfg_write_value"
+        lappend ioLines "output logic                  rfg_write_valid"
+        lappend ioLines "input  logic                  rfg_write"
+        lappend ioLines "input  logic                  rfg_write_last"
+        lappend ioLines "input  logic                  rfg_read"
+        lappend ioLines "output logic                  rfg_read_valid"
+        lappend ioLines "output logic \[7:0\]          rfg_read_value"
         lappend ioLines ""
 
         ## I/O for registers
@@ -255,9 +255,9 @@ namespace eval icflow::rfg {
 
                 lappend ioLines "// AXIS Slave interface to read from FIFO ${name}"
                 lappend ioLines "// --------------------"
-                lappend ioLines "input  wire \[[expr {$size-1}]:0\]            ${name}_s_axis_tdata"
-                lappend ioLines "input  wire                  ${name}_s_axis_tvalid"
-                lappend ioLines "output wire                  ${name}_s_axis_tready"
+                lappend ioLines "input  logic \[[expr {$size-1}]:0\]            ${name}_s_axis_tdata"
+                lappend ioLines "input  logic                  ${name}_s_axis_tvalid"
+                lappend ioLines "output logic                  ${name}_s_axis_tready"
 
             } elseif {[icflow::args::contains $params -fifo_axis_master]} {
 
@@ -265,31 +265,31 @@ namespace eval icflow::rfg {
                 lappend ioLines "// --------------------"
                 lappend ioLines "output logic \[7:0\]             ${name}_m_axis_tdata"
                 lappend ioLines "output logic                   ${name}_m_axis_tvalid"
-                lappend ioLines "input  wire                  ${name}_m_axis_tready"
+                lappend ioLines "input  logic                  ${name}_m_axis_tready"
                 if {[icflow::args::contains $params -with_tlast]} {
-                    lappend ioLines "output reg            ${name}_m_axis_tlast"
+                    lappend ioLines "output logic            ${name}_m_axis_tlast"
                 }
 
             } elseif {[icflow::args::contains $params -clock_divider]} {
 
-                lappend ioLines "input  wire            ${name}_source_clk"
-                lappend ioLines "input  wire            ${name}_source_resn"
+                lappend ioLines "input  logic            ${name}_source_clk"
+                lappend ioLines "input  logic            ${name}_source_resn"
                 lappend ioLines "output logic           ${name}_divided_clk"
-                lappend ioLines "output wire            ${name}_divided_resn"
+                lappend ioLines "output logic            ${name}_divided_resn"
 
             } else {
 
                 ## I/O for software/hardware readonly and write
                 if {[icflow::args::contains $params -hw_write]} {
-                    lappend ioLines "input  wire \[[expr $size-1]:0\]            $name"
+                    lappend ioLines "input  logic \[[expr $size-1]:0\]            $name"
                     if {[icflow::args::containsNot $params -hw_no_local_reg]} {
-                        lappend ioLines "input  wire                  ${name}_write"
+                        lappend ioLines "input  logic                  ${name}_write"
                     }
 
                 } elseif {[icflow::args::containsNot $params -hw_ignore]} {
 
                     ## Main Reg output
-                    lappend ioLines "output wire \[[expr $size-1]:0\]           $name"
+                    lappend ioLines "output logic \[[expr $size-1]:0\]           $name"
 
                     ## Single bits
                     if {[icflow::args::contains $params bits]} {
@@ -305,9 +305,9 @@ namespace eval icflow::rfg {
                                 set bitSize ""
                             }
                             if {[icflow::args::contains $bOpts -input]} {
-                                lappend ioLines "input  wire$bitSize                  ${name}_$bName"
+                                lappend ioLines "input  logic $bitSize                  ${name}_$bName"
                             } else {
-                                lappend ioLines "output wire$bitSize                  ${name}_$bName"
+                                lappend ioLines "output logic $bitSize                  ${name}_$bName"
                             }
 
                         }
@@ -316,16 +316,16 @@ namespace eval icflow::rfg {
 
                 ## I/O for special types
                 if {[icflow::args::contains $params -counter -interrupt]} {
-                    lappend ioLines "output reg                   ${name}_interrupt"
+                    lappend ioLines "output logic                  ${name}_interrupt"
                 }
                 if {[icflow::args::contains $params -counter -enable]} {
-                    lappend ioLines "input  wire                  ${name}_enable"
+                    lappend ioLines "input  logic                  ${name}_enable"
                 }
                 if {[icflow::args::contains $params -counter -clear]} {
-                    lappend ioLines "input  wire                  ${name}_clear"
+                    lappend ioLines "input  logic                  ${name}_clear"
                 }
                 if {[icflow::args::contains $params -written]} {
-                    lappend ioLines "output reg                   ${name}_written"
+                    lappend ioLines "output logic                  ${name}_written"
                 }
 
 
@@ -379,7 +379,7 @@ namespace eval icflow::rfg {
                 icflow::generate::writeLine $o "logic \[[expr $size-1]:0\] ${name}_reg;"
 
                 if {[icflow::args::contains $params -read_clock]} {
-                    icflow::generate::writeLine $o "(* ASYNC_REG = \"TRUE\" *) reg \[7:0\] ${name}_reg_target_clock;"
+                    icflow::generate::writeLine $o "(* ASYNC_REG = \"TRUE\" *) logic \[7:0\] ${name}_reg_target_clock;"
                     icflow::generate::writeLine $o "assign ${name} = ${name}_reg_target_clock;"
                 } elseif {[icflow::args::containsNot $params -hw_ignore]}  {
                     icflow::generate::writeLine $o "assign ${name} = ${name}_reg;"
@@ -491,17 +491,36 @@ namespace eval icflow::rfg {
                 }
                 icflow::generate::writeEmptyLines $o 2
 
+                ## Default assignments for FIFO master
+                icflow::generate::writeLine $o "// Default assignments for FIFO Master"
+                foreach {name params} $dictRegisters {
+                    #set name        [dict get $register name]
+                    set address     [dict get $params address]
+                    #set parameters  [dict get $register parameters]
+
+                    if {[icflow::args::contains $params -fifo*master]} {
+                            icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b0;"
+                            if {[icflow::args::contains $params -with_tlast]} {
+                                icflow::generate::writeLine $o "${name}_m_axis_tlast  <= 1'b0;"
+                            }
+                    }
+                }
+                icflow::generate::writeLine $o ""
+
                 ## Write Case  for registers
                 icflow::generate::writeLine $o "// Write for simple registers"
-                icflow::generate::writeLine $o "case({rfg_write,rfg_address})" -indent
+                icflow::generate::writeLine $o "rfg_write_valid <= '0;"
+                icflow::generate::writeLine $o "if(rfg_write) begin" -indent
+                icflow::generate::writeLine $o "unique case(rfg_address)" -indent
                     foreach {name params} $dictRegisters {
                         #set params [dict get $register parameters]
                         #set name   [dict get $register name]
                         set address     [dict get $params address]
                         if {[icflow::args::contains $params -clock_divider]} {
 
-                            icflow::generate::writeLine $o "{1'b1,16'h[format %x $address]}: begin" -indent
+                            icflow::generate::writeLine $o "16'h[format %x $address]: begin" -indent
                                 icflow::generate::writeLine $o "${name}_reg <= rfg_write_value;"
+                                icflow::generate::writeLine $o "rfg_write_valid <= '1;"
                             icflow::generate::writeLine $o "end" -outdent
 
                         }  elseif {[icflow::args::containsNot $params -fifo* -sw_read_only -tmr]} {
@@ -511,7 +530,7 @@ namespace eval icflow::rfg {
                             #puts "base address [dict get $register address]"
                             for {set i 0} {$i < $byteCount} {incr i} {
                                 set partAddress [expr $address + $i  ]
-                                icflow::generate::writeLine $o "{1'b1,16'h[format %x $partAddress]}: begin" -indent
+                                icflow::generate::writeLine $o "16'h[format %x $partAddress]: begin" -indent
                                     set lowBit  [expr $i*8]
                                     set highBit [expr $lowBit + [expr $registerSize<8 ? $registerSize - 1 : 7]]
                                     if {$highBit<7} {
@@ -519,18 +538,29 @@ namespace eval icflow::rfg {
                                     } else {
                                         icflow::generate::writeLine $o "${name}_reg\[$highBit:$lowBit\] <= rfg_write_value;"
                                     }
-                                    icflow::generate::writeLine $o "rfg_write_valid <= 'd1;"
+                                    icflow::generate::writeLine $o "rfg_write_valid <= '1;"
 
                                 icflow::generate::writeLine $o "end" -outdent
                             }
+                        
+                        } elseif {[icflow::args::contains $params -fifo*master]} {
+                        icflow::generate::writeLine $o "16'h[format %x $address]: begin" -indent
 
-                        }
+                            icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b1;"
+                            icflow::generate::writeLine $o "${name}_m_axis_tdata  <= rfg_write_value;"
+                            if {[icflow::args::contains $params -with_tlast]} {
+                                icflow::generate::writeLine $o "${name}_m_axis_tlast  <= rfg_write_last;"
+                            }
+                            icflow::generate::writeLine $o "rfg_write_valid <= '1;"
+                        icflow::generate::writeLine $o "end" -outdent
                     }
-                    icflow::generate::writeLine $o "default: begin"
-                    icflow::generate::writeLine $o "    rfg_write_valid <= 'd0 ;"
-                    icflow::generate::writeLine $o "end"
+                    }
+                    # icflow::generate::writeLine $o "default: begin"
+                    # icflow::generate::writeLine $o "    rfg_write_valid <= 'd0 ;"
+                    # icflow::generate::writeLine $o "end"
 
                 icflow::generate::writeLine $o "endcase" -outdent
+                icflow::generate::writeLine $o "end" -outdent
                 icflow::generate::writeLine $o ""
 
                 ## Written Registers
@@ -546,33 +576,34 @@ namespace eval icflow::rfg {
                     }
                 }
 
+                ## Integrated into the case
+                #
+                # ## Write case for FIFO
+                # icflow::generate::writeLine $o "// Write for FIFO Master"
+                # foreach {name params} $dictRegisters {
+                #     #set name        [dict get $register name]
+                #     set address     [dict get $params address]
+                #     #set parameters  [dict get $register parameters]
 
-                ## Write case for FIFO
-                icflow::generate::writeLine $o "// Write for FIFO Master"
-                foreach {name params} $dictRegisters {
-                    #set name        [dict get $register name]
-                    set address     [dict get $params address]
-                    #set parameters  [dict get $register parameters]
+                #     if {[icflow::args::contains $params -fifo*master]} {
+                #         icflow::generate::writeLine $o "if(rfg_write && rfg_address==16'h[format %x $address]) begin" -indent
 
-                    if {[icflow::args::contains $params -fifo*master]} {
-                        icflow::generate::writeLine $o "if(rfg_write && rfg_address==16'h[format %x $address]) begin" -indent
+                #             icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b1;"
+                #             icflow::generate::writeLine $o "${name}_m_axis_tdata  <= rfg_write_value;"
+                #             if {[icflow::args::contains $params -with_tlast]} {
+                #                 icflow::generate::writeLine $o "${name}_m_axis_tlast  <= rfg_write_last;"
+                #             }
 
-                            icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b1;"
-                            icflow::generate::writeLine $o "${name}_m_axis_tdata  <= rfg_write_value;"
-                            if {[icflow::args::contains $params -with_tlast]} {
-                                icflow::generate::writeLine $o "${name}_m_axis_tlast  <= rfg_write_last;"
-                            }
+                #         icflow::generate::writeLine $o "end else begin" -outdent -indent
 
-                        icflow::generate::writeLine $o "end else begin" -outdent -indent
-
-                            icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b0;"
-                            if {[icflow::args::contains $params -with_tlast]} {
-                                icflow::generate::writeLine $o "${name}_m_axis_tlast  <= 1'b0;"
-                            }
-                        icflow::generate::writeLine $o "end" -outdent
-                    }
-                }
-                icflow::generate::writeLine $o ""
+                #             icflow::generate::writeLine $o "${name}_m_axis_tvalid <= 1'b0;"
+                #             if {[icflow::args::contains $params -with_tlast]} {
+                #                 icflow::generate::writeLine $o "${name}_m_axis_tlast  <= 1'b0;"
+                #             }
+                #         icflow::generate::writeLine $o "end" -outdent
+                #     }
+                # }
+                # icflow::generate::writeLine $o ""
 
                 ## Write case for HW Write only
                 icflow::generate::writeLine $o "// Writes for HW Write only"
@@ -595,7 +626,7 @@ namespace eval icflow::rfg {
                     if {[icflow::args::contains $params -counter]} {
 
                         # Count condition set by this line
-                        set countLine "${name}_reg <= ${name}_reg + 1 ;"
+                        set countLine "${name}_reg <= ${name}_reg + 'd1 ;"
                         if {[icflow::args::contains $params -updown]} {
                             set countLine "${name}_reg <= ${name}_up ? ${name}_reg + 'd1 : ${name}_reg - 'd1 ;"
                         }
@@ -709,10 +740,11 @@ namespace eval icflow::rfg {
                     set partReadCounterName ${name}_partread_counter
                     set partReadMemName     ${name}_partread_mem
 
-                    icflow::generate::writeLine $o "reg \[[expr $counterSize-1]:0\] ${partReadCounterName};"
-                    icflow::generate::writeLine $o "reg \[7:0\] ${partReadMemName}\[[expr $numberOfSegments-1]\];"
+                    icflow::generate::writeLine $o "logic \[[expr $counterSize-1]:0\] ${partReadCounterName};"
+                    icflow::generate::writeLine $o "logic \[7:0\] ${partReadMemName}\[[expr $numberOfSegments-1]\];"
 
-                    icflow::generate::writeLine $o "wire ${name}_read_valid = rfg_read && rfg_address==16'h[format %x $address] ; // A read to this fifo is requested in the current cycle"
+                    icflow::generate::writeLine $o "logic ${name}_read_valid";
+                    icflow::generate::writeLine $o "assign ${name}_read_valid = rfg_read && rfg_address==16'h[format %x $address] ; // A read to this fifo is requested in the current cycle"
 
                     icflow::generate::writeLine $o "assign ${name}_s_axis_tready = ${name}_read_valid && ${partReadCounterName}=='d[expr int(pow(2,$counterSize)-1)];"
 
@@ -733,7 +765,7 @@ namespace eval icflow::rfg {
 
                         icflow::generate::writeLine $o "if (${partReadCounterName}=='d0 && ${name}_read_valid) begin" -indent
                             for {set pi 0} {$pi < [expr {$numberOfSegments-1}]} {incr pi} {
-                                icflow::generate::writeLine $o "${partReadMemName}\[$pi\] <= ${name}_s_axis_tvalid ? ${name}_s_axis_tdata\[[expr {15+$pi*8}]:[expr {8+$pi*8}]\] : 8'hff;"
+                                icflow::generate::writeLine $o "${partReadMemName}\[$pi\] <= ${name}_s_axis_tvalid ? ${name}_s_axis_tdata\[[expr {15+$pi*8}]:[expr {8+$pi*8}]\] : '1;"
                             }
 
                         icflow::generate::writeLine $o "end" -outdent
@@ -753,13 +785,15 @@ namespace eval icflow::rfg {
 
 
             icflow::generate::writeLine $o "if (!resn) begin" -indent
-                icflow::generate::writeLine $o "rfg_read_valid <= 0;"
-                icflow::generate::writeLine $o "rfg_read_value <= 0;"
+                icflow::generate::writeLine $o "rfg_read_valid <= '0;"
+                icflow::generate::writeLine $o "rfg_read_value <= '0;"
             icflow::generate::writeLine $o "end else begin" -outdent -indent
 
                 ## Read Case  for registers
                 icflow::generate::writeLine $o "// Read for simple registers"
-                icflow::generate::writeLine $o "case({rfg_read,rfg_address})" -indent
+                icflow::generate::writeLine $o "rfg_read_valid <= '0;"
+                icflow::generate::writeLine $o "if(rfg_read) begin" -indent
+                icflow::generate::writeLine $o "unique case(rfg_address)" -indent
                     foreach {name params} $dictRegisters {
                         #set params [dict get $register parameters]
                         #set name   [dict get $register name]
@@ -782,18 +816,18 @@ namespace eval icflow::rfg {
 
                             set fifoWidth [icflow::args::getValue $params size 8]
 
-                            icflow::generate::writeLine $o "{1'b1,16'h[format %x $address]}: begin" -indent
+                            icflow::generate::writeLine $o "16'h[format %x $address]: begin" -indent
 
                                 set partReadCounterName ${name}_partread_counter
                                 set partReadMemName     ${name}_partread_mem
 
                                 if {$fifoWidth>8} {
-                                    icflow::generate::writeLine $o "rfg_read_value <= ${partReadCounterName} == 'd0 ? (${name}_s_axis_tvalid ? ${name}_s_axis_tdata\[7:0\] : 16'hff) : ${partReadMemName}\[${partReadCounterName}-1\] ;"
+                                    icflow::generate::writeLine $o "rfg_read_value <= ${partReadCounterName} == 'd0 ? (${name}_s_axis_tvalid ? ${name}_s_axis_tdata\[7:0\] : '1) : ${partReadMemName}\[${partReadCounterName}-1\] ;"
                                 } else {
-                                    icflow::generate::writeLine $o "rfg_read_value <= ${name}_s_axis_tvalid ? ${name}_s_axis_tdata : 16'hff;"
+                                    icflow::generate::writeLine $o "rfg_read_value <= ${name}_s_axis_tvalid ? ${name}_s_axis_tdata : '1;"
                                 }
 
-                                icflow::generate::writeLine $o "rfg_read_valid <= 1 ;"
+                                icflow::generate::writeLine $o "rfg_read_valid <= '1;"
                             icflow::generate::writeLine $o "end" -outdent
                         } elseif {[icflow::args::containsNot $params -fifo*master]} {
                             ## Standard registers
@@ -802,7 +836,7 @@ namespace eval icflow::rfg {
                             #puts "base address [dict get $register address]"
                             for {set i 0} {$i < $byteCount} {incr i} {
                                 set partAddress [expr [dict get $params address] + $i  ]
-                                icflow::generate::writeLine $o "{1'b1,16'h[format %x $partAddress]}: begin" -indent
+                                icflow::generate::writeLine $o "16'h[format %x $partAddress]: begin" -indent
                                     set lowBit  [expr $i*8]
                                     set highBit [expr $lowBit +7 > $registerSize - 1 ? $registerSize - 1 : $lowBit +7  ]
 
@@ -819,7 +853,7 @@ namespace eval icflow::rfg {
                                         icflow::generate::writeLine $o "rfg_read_value <= ${regName}\[$highBit:$lowBit\];"
                                     }
 
-                                    icflow::generate::writeLine $o "rfg_read_valid <= 1 ;"
+                                    icflow::generate::writeLine $o "rfg_read_valid <= '1 ;"
 
                                 icflow::generate::writeLine $o "end" -outdent
                             }
@@ -827,11 +861,12 @@ namespace eval icflow::rfg {
 
 
                     }
-                    icflow::generate::writeLine $o "default: begin"
-                        icflow::generate::writeLine $o "    rfg_read_valid <= 0 ;"
-                    icflow::generate::writeLine $o "end"
+                    # icflow::generate::writeLine $o "default: begin"
+                    #     icflow::generate::writeLine $o "    rfg_read_valid <= 0 ;"
+                    # icflow::generate::writeLine $o "end"
 
                 icflow::generate::writeLine $o "endcase" -outdent
+                icflow::generate::writeLine $o "end" -outdent
                 icflow::generate::writeLine $o ""
 
             icflow::generate::writeLine $o "end" -outdent
@@ -852,7 +887,7 @@ namespace eval icflow::rfg {
                     icflow::generate::writeLine $o "if (!${name}_source_resn) begin" -indent
 
                         icflow::generate::writeLine $o "${name}_divided_clk <= 1'b0;"
-                        icflow::generate::writeLine $o "${name}_counter <= 16'h00;"
+                        icflow::generate::writeLine $o "${name}_counter <= '0;"
 
 
                     icflow::generate::writeLine $o "end else begin" -indent -outdent
@@ -861,7 +896,7 @@ namespace eval icflow::rfg {
 
                         icflow::generate::writeLine $o "if (${name}_counter==${name}_reg) begin" -indent
                             icflow::generate::writeLine $o "${name}_divided_clk <= !${name}_divided_clk;"
-                            icflow::generate::writeLine $o "${name}_counter <= 16'h00;"
+                            icflow::generate::writeLine $o "${name}_counter <= '0;"
 
                         icflow::generate::writeLine $o "end else begin" -indent -outdent
                             icflow::generate::writeLine $o "${name}_counter <= ${name}_counter+1;"
@@ -883,7 +918,7 @@ namespace eval icflow::rfg {
                 icflow::generate::writeLine $o "assign ${name}_divided_resn = ${name}_divided_resn_delay\[7\];"
                 icflow::generate::writeLine $o "always_ff@(posedge ${name}_divided_clk$resetEdge or negedge ${name}_source_resn) begin" -indent
                     icflow::generate::writeLine $o "if (!${name}_source_resn) begin" -indent
-                        icflow::generate::writeLine $o "${name}_divided_resn_delay <= 16'h00;"
+                        icflow::generate::writeLine $o "${name}_divided_resn_delay <= '0;"
                     icflow::generate::writeLine $o "end else begin" -indent -outdent
                         icflow::generate::writeLine $o "${name}_divided_resn_delay <= {${name}_divided_resn_delay\[6:0\],1'b1};"
                     icflow::generate::writeLine $o "end" -outdent
@@ -904,7 +939,7 @@ namespace eval icflow::rfg {
                 icflow::generate::writeLine $o "// Synchronisation of $name into read clock domain"
                 icflow::generate::writeLine $o "always_ff@(posedge ${targetClock}_clk) begin" -indent
                     icflow::generate::writeLine $o "if (!${targetClock}_resn) begin" -indent
-                        icflow::generate::writeLine $o "${name}_reg_target_clock <= 16'h00;"
+                        icflow::generate::writeLine $o "${name}_reg_target_clock <= '0;"
                     icflow::generate::writeLine $o "end else begin" -indent -outdent
                         icflow::generate::writeLine $o "${name}_reg_target_clock <= ${name}_reg;"
                     icflow::generate::writeLine $o "end" -outdent

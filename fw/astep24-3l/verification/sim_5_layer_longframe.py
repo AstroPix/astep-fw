@@ -31,6 +31,7 @@ async def run_gen_read_test(
     autoRead: bool,
     framesCount: int,
     frameLength: int,
+    timestamp_size:int = 1,
     pause: bool = False,
 ):
     ##
@@ -49,10 +50,10 @@ async def run_gen_read_test(
 
         # framesCount = 150
         # frameLength=5
-        finalBytesCount = framesCount * (frameLength + 4 + 2)
+        finalBytesCount = framesCount * (frameLength + driver.fpgaTimeStampBytesCount + 2)
 
         dut._log.info(
-            f"-- Start, expected {finalBytesCount} bytes, autoread={autoRead} (frames={framesCount},frame length={frameLength},single fw frame length={frameLength + 1 + 4 + 2} bytes)"
+            f"-- Start, expected {finalBytesCount} bytes, autoread={autoRead} (frames={framesCount},frame length={frameLength},single fw frame length={frameLength + 1 + driver.fpgaTimeStampBytesCount + 2} bytes)"
         )
 
         ## Now Restart frame generator with a Readout in parallel
@@ -142,7 +143,7 @@ async def run_gen_read_test(
 
         ## Now Decode Check
         ##########
-        asic.decodeCheckASTEPFramesStaticLength(readBytes, framesCount, frameLength)
+        asic.decodeCheckASTEPFramesStaticLength(readBytes, framesCount, frameLength,driver.fpgaTimeStampBytesCount)
 
         idleBytes = await driver.getLayerStatIDLECounter(0)
         dut._log.info(
@@ -456,10 +457,12 @@ async def test_layer_0_longframe_longtest(dut):
     driver = await astep24_3l_sim.getDriver(dut)
 
     ## Enable FPGA Timestamp counting
+    tsSize = 3
     await driver.layersConfigFPGATimestamp(
         enable=True,
         use_divider=False,
         use_tlu=False,
+        timestamp_size = tsSize,
         flush=True,
     )
 
@@ -467,7 +470,18 @@ async def test_layer_0_longframe_longtest(dut):
     #    dut, driver, [asic], autoRead=False, framesCount=65, frameLength=5, pause=True
     #)
     #return 
+    # 
+    await run_gen_read_test(
+        dut, driver, asic, autoRead=True, framesCount=4096, frameLength=5,timestamp_size=tsSize, pause=True
+    )
+    await run_gen_read_test(
+        dut, driver, asic, autoRead=True, framesCount=4096, frameLength=5,timestamp_size=tsSize, pause=False
+    )
     
+    
+    
+    await Timer(10, units="us")
+    return 
     await run_gen_read_test(
         dut, driver, asic, autoRead=False, framesCount=2, frameLength=5, pause=True
     )

@@ -5,6 +5,8 @@
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets spi_clk_IBUF]
 set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clk_ext_IBUF]
 
+## Generated Clocks
+##########
 
 ## Multi Cycle Paths
 ##########
@@ -17,6 +19,15 @@ set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clk_ext_IBUF]
 #set_false_path -from [get_clocks clk_core_top_clocking_core_io_uart] -to [get_clocks clk_sample_top_clocking_core_io_uart]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks clk_100_clk_core_extorint_40]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clk_100_clk_core_extorint_40_1]
+set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks clk_20_clk_core_extorint_40]
+set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clk_20_clk_core_extorint_40_1]
+set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clk_20_clk_core_extorint_40_2]
+
+# Exclude TS mux select clock and RFG clock interaction
+set_clock_groups -logically_exclusive -group [get_clocks clk_80_clk_core_extorint_40*] -group [get_clocks timestamp_clk_internal_ap4*]
+
+# Set ts mux clocks physically exclusive
+set_clock_groups -physically_exclusive -group [get_clocks timestamp_clk_internal_ap4] -group [get_clocks timestamp_clk_internal_ap4_1] -group [get_clocks timestamp_clk_internal_ap4_2]
 
 
 if {$::IC_BOARD == "astropix-nexys"} {
@@ -53,10 +64,12 @@ if {$::IC_BOARD=="astropix-nexys"} {
 
             clk_100_clk_core_extorint_40_1
             clk_80_clk_core_extorint_40_1
+            clk_20_clk_core_extorint_40_1
             clk_10_clk_core_extorint_40_1
 
             clk_100_clk_core_extorint_40_2
             clk_80_clk_core_extorint_40_2
+            clk_20_clk_core_extorint_40_2
             clk_10_clk_core_extorint_40_2
     }
 
@@ -66,20 +79,24 @@ if {$::IC_BOARD=="astropix-nexys"} {
     } -group {
         clk_100_clk_core_extorint_40
         clk_80_clk_core_extorint_40
+        clk_20_clk_core_extorint_40
         clk_10_clk_core_extorint_40
 
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
+        clk_20_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
 
         clk_100_clk_core_extorint_40_2
         clk_80_clk_core_extorint_40_2
+        clk_20_clk_core_extorint_40_2
         clk_10_clk_core_extorint_40_2
     }
 
     set_clock_groups -physically_exclusive -group {
         clk_100_clk_core_extorint_40
         clk_80_clk_core_extorint_40
+        clk_20_clk_core_extorint_40
         clk_10_clk_core_extorint_40
         clk_out1_clk_sys_to_40
     } -group {
@@ -87,20 +104,24 @@ if {$::IC_BOARD=="astropix-nexys"} {
 
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
+        clk_20_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
 
         clk_100_clk_core_extorint_40_2
         clk_80_clk_core_extorint_40_2
+        clk_20_clk_core_extorint_40_2
         clk_10_clk_core_extorint_40_2
     }
 
     set_clock_groups -physically_exclusive -group {
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
+        clk_20_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
     } -group {
         clk_100_clk_core_extorint_40_2
         clk_80_clk_core_extorint_40_2
+        clk_20_clk_core_extorint_40_2
         clk_10_clk_core_extorint_40_2
     }
 
@@ -120,6 +141,7 @@ if {$::IC_BOARD=="astropix-nexys"} {
 
             clk_100_clk_core_extorint_40_1
             clk_80_clk_core_extorint_40_1
+            clk_20_clk_core_extorint_40_1
             clk_10_clk_core_extorint_40_1
 
     }
@@ -130,10 +152,12 @@ if {$::IC_BOARD=="astropix-nexys"} {
     } -group {
         clk_100_clk_core_extorint_40
         clk_80_clk_core_extorint_40
+        clk_20_clk_core_extorint_40
         clk_10_clk_core_extorint_40
 
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
+        clk_20_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
 
     }
@@ -141,12 +165,14 @@ if {$::IC_BOARD=="astropix-nexys"} {
     set_clock_groups -physically_exclusive -group {
         clk_100_clk_core_extorint_40
         clk_80_clk_core_extorint_40
+        clk_20_clk_core_extorint_40
         clk_10_clk_core_extorint_40
     } -group {
 
 
         clk_100_clk_core_extorint_40_1
         clk_80_clk_core_extorint_40_1
+        clk_20_clk_core_extorint_40_1
         clk_10_clk_core_extorint_40_1
 
     }

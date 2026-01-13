@@ -154,7 +154,7 @@ module astep24_3l_multitarget_top (
 
 
     `else
-        // (single ende config here)
+        // (single ended config here)
     output wire				layers_sr_ck1,
     output wire				layers_sr_ck2,
     output wire				layers_sr_sin,
@@ -171,6 +171,16 @@ module astep24_3l_multitarget_top (
     input  wire				layers_sr_sout1,
     input  wire				layers_sr_sout2,
         `endif
+    `endif
+
+
+    // TDAC load (only single ended)
+    `ifdef TARGET_NEXYS
+    output wire layers_sr_ldtdac0,
+    // `ifndef SINGLE_LAYER
+    // output wire layers_sr_ldtdac1,
+    // output wire layers_sr_ldtdac2,
+    //  `endif
     `endif
 
 
@@ -227,6 +237,8 @@ module astep24_3l_multitarget_top (
 
 );
 
+    wire [7:0] chip_version;
+
     // Clocks
     //----------------
 
@@ -234,7 +246,7 @@ module astep24_3l_multitarget_top (
     wire clk_core_resn;
 
     wire sample_clk_internal;
-    wire timestamp_clk_internal;
+    wire timestamp_clk_internal_ap3, timestamp_clk_internal_ap4;
 
     wire io_ctrl_sample_clock_enable;
     wire io_ctrl_timestamp_clock_enable;
@@ -243,22 +255,23 @@ module astep24_3l_multitarget_top (
 
     wire sample_clk_gated; // Clock for normal sample_clk
     wire sample_clk_se_gated; // Clock for se outputs
-    wire sample_clk_se_selected = io_ctrl_sample_clock_enable && io_ctrl_gecco_sample_clock_se;
+    wire sample_clk_se_selected = io_ctrl_sample_clock_enable && io_ctrl_gecco_sample_clock_se && chip_version == 8'd3;
+    wire sample_clk_se_enable = io_ctrl_sample_clock_enable && sample_clk_se_selected;
+    wire sample_clk_enable = io_ctrl_sample_clock_enable && !sample_clk_se_selected;
 
-
-
+    // Clock multiplexer for sample and timestamp clock
+    assign sample_clk_internal = chip_version==8'd4 ? sample_clk_internal_ap4 : sample_clk_internal_ap3;
+    BUFGCTRL  timestamp_clk_mux (.I0(timestamp_clk_internal_ap3),.I1(timestamp_clk_internal_ap4),.O(timestamp_clk),.S0(chip_version==8'd3),.S1(chip_version!=8'd3),.CE0(io_ctrl_timestamp_clock_enable),.CE1(io_ctrl_timestamp_clock_enable));
 
     // Gate Sample clock and Timestamp clock based on config. Enable signals disable/enable clocks for all configs
     // Sample clock is going to either sample_clk_gated or sample_clk_se_gated
-    BUFGCE sample_clock_gate    (.I(sample_clk_internal),   .O(sample_clk_gated),   .CE(io_ctrl_sample_clock_enable && !sample_clk_se_selected));
-
+    BUFGCE sample_clock_gate    (.I(sample_clk_internal),   .O(sample_clk_gated),   .CE(sample_clk_enable));
 
 
     // Clocks and TLU for targets
     // SCLOCK_SE_DIFF ->  SE clock as differential to carrier other wise CMOS single ended to carrier
     // Normal Diff sample clock -> directly to chip or can be replicated 4 times in telescope mode
     // ---------------
-
 
     wire clk_ext_internal;
     `ifdef TARGET_NEXYS
@@ -271,9 +284,7 @@ module astep24_3l_multitarget_top (
 
         BUFGMUX  clk_ext_diff_or_single_ended(.I0(clk_ext),.I1(clk_ext_diff),.O(clk_ext_internal),.S(io_ctrl_fpga_ts_clock_diff));
 
-        BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
-
-        BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk_se_gated),.CE(io_ctrl_sample_clock_enable && sample_clk_se_selected));
+        BUFGCE sample_clock_se_gate (.I(sample_clk_internal), .O(sample_clk_se_gated),.CE(sample_clk_se_enable));
 
        // SE Clock
        `ifdef SCLOCK_SE_DIFF
@@ -314,7 +325,7 @@ module astep24_3l_multitarget_top (
             BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk),.CE(io_ctrl_sample_clock_enable));
 
             // Output buffer to enable timestamp clock to astropix
-            BUFGCE timestamp_clock_gate (.I(timestamp_clk_internal),.O(timestamp_clk), .CE(io_ctrl_timestamp_clock_enable));
+            BUFGCTRL  timestamp_clk_mux (.I0(timestamp_clk_internal_ap3),.I1(timestamp_clk_internal_ap4),.O(timestamp_clk),.S0(chip_version==8'd3),.S1(chip_version!=8'd3),.CE0(io_ctrl_timestamp_clock_enable),.CE1(io_ctrl_timestamp_clock_enable));
 
 
     `endif
@@ -502,8 +513,10 @@ module astep24_3l_multitarget_top (
     astep24_3l_top  astep24_3l_top_I(
         .sysclk(sysclk),
 
-        .clk_sample(sample_clk_internal),
-        .clk_timestamp(timestamp_clk_internal),
+        .clk_sample(sample_clk_internal_ap3),
+        .clk_timestamp(timestamp_clk_internal_ap3),
+        .clk_sample_ap4(sample_clk_internal_ap4),
+        .clk_timestamp_ap4(timestamp_clk_internal_ap4),
 
         .resn(resn_internal), // Warm reset either from IO or a local button
 
@@ -515,6 +528,7 @@ module astep24_3l_multitarget_top (
         
         .sysclk_40M(sysclk_40M),
 
+        .chip_version(chip_version),
 
         .ext_adc_spi_csn(ext_spi_adc_csn),
         .ext_adc_spi_miso(ext_spi_adc_miso),
@@ -581,6 +595,9 @@ module astep24_3l_multitarget_top (
         .layers_sr_out_ld0(layers_sr_ld0),
         .layers_sr_out_ld1(layers_sr_ld1),
         .layers_sr_out_ld2(layers_sr_ld2),
+        .layers_sr_out_ldtdac0(layers_sr_ldtdac0),
+        .layers_sr_out_ldtdac1(layers_sr_ldtdac1),
+        .layers_sr_out_ldtdac2(layers_sr_ldtdac2),
         .rfg_io_led(rfg_io_led),
         .spi_clk(spi_clk),
         .spi_csn(spi_csn),

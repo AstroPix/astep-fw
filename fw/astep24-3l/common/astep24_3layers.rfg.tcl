@@ -47,6 +47,10 @@ set ::RFG_FW_BUILD `RFG_FW_BUILD
 set baseRegisters {
     HK_FIRMWARE_ID         {-size 32 -reset ${::RFG_FW_ID}    -sw_read_only -hw_ignore -doc "ID to identify the Firmware"}
     HK_FIRMWARE_VERSION    {-size 32 -reset ${::RFG_FW_BUILD} -sw_read_only -hw_ignore -doc "Date based Build version: YEARMONTHDAYCOUNT"}
+    CHIP_VERSION {
+        -size 8 -doc "AstroPix Chip Version"
+        -reset 8'h3
+    }
     CLOCK_CTRL {
         -size 8 -doc "Clock Control Register for the Firmware and Astropix"
         -reset 8'h2
@@ -151,7 +155,9 @@ set baseRegisters {
             LD0 {-doc "Load signal for Layer 0"}
             LD1 {-doc "Load signal for Layer 1"}
             LD2 {-doc "Load signal for Layer 2"}
-            
+            LDTDAC0 {-doc "TDAC Load signal for Layer 0"}
+            LDTDAC1 {-doc "TDAC Load signal for Layer 1"}
+            LDTDAC2 {-doc "TDAC Load signal for Layer 2"}
         }
     }
     LAYERS_SR_IN {

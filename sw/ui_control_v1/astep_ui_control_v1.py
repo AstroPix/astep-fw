@@ -59,7 +59,7 @@ def uiListConfigFiles():
 def uiOpenConfigFile():
     configFile = window.configFilesList.currentText()
     print(f"Opening Config {configFile}")
-    asic = onIO(window.boardDriver.setupASICSAuto(f"./configs/{configFile}"))
+    asic = onIO(window.boardDriver.setupASICS(f"./configs/{configFile}"))
     window.configLoadedRows.setText(f"{asic.num_rows}")
     window.configLoadedColumns.setText(f"{asic.num_cols}")
     window.configLoadedChipVersion.setText(f"{asic.chipversion}")
@@ -239,8 +239,8 @@ def mainUI():
     #############
     window.updateLayerStatsButton.clicked.connect(uiRequestUpdate)
     # v =  True if state is QtCore.Qt.Checked.value else False; 
-    window.ioSampleClockEnBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.ioSetSampleClock(True if state is QtCore.Qt.Checked.value else False,True)))
-    window.ioTimestampClockEnBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.ioSetTimestampClock(True if state is QtCore.Qt.Checked.value else False,True)))
+    window.ioSampleClockEnBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.setSampleClock(True if state is QtCore.Qt.Checked.value else False,True)))
+    window.ioTimestampClockEnBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.setTimestampClock(True if state is QtCore.Qt.Checked.value else False,True)))
     window.ioSampleClockSEBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.ioSetSampleClockSingleEnded(True if state is QtCore.Qt.Checked.value else False,True)))
     window.ioInjToCardEnBox.stateChanged.connect(lambda state,window=window: onIO(window.boardDriver.ioSetInjectionToGeccoInjBoard(True if state is QtCore.Qt.Checked.value else False,True)))
 

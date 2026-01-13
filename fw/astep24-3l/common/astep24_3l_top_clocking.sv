@@ -21,8 +21,12 @@ module astep24_3l_top_clocking (
     output wire clk_100_resn,
     output wire clk_80,
     output wire clk_80_resn,
+    output wire clk_20,
+    output wire clk_20_resn,
     output wire clk_10,
     output wire clk_10_resn,
+    output wire clk_2_5,
+    output wire clk_2_5_resn,
 
     output wire sysclk_40M
 );
@@ -159,11 +163,30 @@ module astep24_3l_top_clocking (
         .clk_100(clk_100),
         .clk_80 (clk_80),
         .clk_10 (clk_10),
+        .clk_20 (clk_20),
 
         .locked(core_locked)
 
 
     );
+
+    // BUFGCE based /8 clock divider -  needs generated_clock constraint
+
+    // logic [2:0] cnt8;
+    // always_ff @(posedge clk_20) begin
+    //     if(!clk_20_resn) begin
+    //         cnt8 <= '0;
+    //     end
+    //     else begin
+    //         cnt8 <= cnt8 + 1'b1;
+    //     end
+    // end
+
+    // BUFGCE clk_2_5_buffer (
+    //     .O(clk_2_5),
+    //     .CE(cnt8=='1),
+    //     .I(clk_20)
+    // );
 
     // Module Instance
     /*top_clocking_core_io_uart top_clocking_core_io_uart_I (
@@ -179,14 +202,25 @@ module astep24_3l_top_clocking (
         .resetn(!shutdown)
         );*/
 
+    BUFR #(
+        .BUFR_DIVIDE("8"),   // Values: "BYPASS, 1, 2, 3, 4, 5, 6, 7, 8"
+        .SIM_DEVICE("7SERIES")  // Must be set to "7SERIES"
+        )
+    BUFR_inst (
+        .O(clk_2_5),     // 1-bit output: Clock output port
+        .CE(1'b1),   // 1-bit input: Active high, clock enable (Divided modes only)
+        .CLR(1'b0), // 1-bit input: Active high, asynchronous clear (Divided modes only)
+        .I(clk_20)      // 1-bit input: Clock buffer input driven by an IBUF, MMCM or local interconnect
+    );
+
 
     resets_synchronizer #(
-        .CLOCKS(3),
+        .CLOCKS(5),
         .RESET_DELAY(15)
     ) resets (
         .async_resn_in(reset_condition),
-        .input_clocks({clk_100, clk_80, clk_10}),
-        .output_resn({clk_100_resn, clk_80_resn, clk_10_resn}),
+        .input_clocks({clk_100, clk_80, clk_20, clk_10, clk_2_5}),
+        .output_resn({clk_100_resn, clk_80_resn, clk_20_resn, clk_10_resn, clk_2_5_resn}),
         .master_all_reset( )
     );
 

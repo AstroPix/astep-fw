@@ -61,9 +61,20 @@ class UILayerStats(QWidget):
     def evtReset(self, state):
         v = True if state is QtCore.Qt.Checked.value else False
         asyncio.run(
-            self.boardDriver.setLayerReset(
-                self.layerID, reset=v, modify=True, flush=True
+            self.boardDriver.setLayerConfig(
+                layer = self.layerID,
+                reset = v,
+                autoread = False ,
+                hold = True if state is QtCore.Qt.Checked.value else False,
+                chipSelect  = True if state is QtCore.Qt.Checked.value else False,
+                disableMISO  = False,
+                flush=True
+                
+               # self.layerID, reset=v, modify=True, flush=True
             )
+            #self.boardDriver.setLayerReset(
+            #    self.layerID, reset=v, modify=True, flush=True
+            #)
         )
 
     def evtHold(self, state):

@@ -15,6 +15,10 @@ global defines_list
 #    source $variablesScriptFromRun
 #}
 
+if {[lsearch -exact $defines_list REVERSEADAPTER] == -1} {
+    puts stderr "Use this contraint file only with REVERSEADAPTER option!"
+    exit 1
+}
 
 puts "Chip version: $chipversion"
 
@@ -23,7 +27,7 @@ puts "Chip version: $chipversion"
 ## Clock Signal
 #set_property -dict {PACKAGE_PIN R4 IOSTANDARD LVCMOS33} [get_ports sysclk]
 #set_property -dict {PACKAGE_PIN R4 IOSTANDARD LVCMOS33} [get_ports {sysclk}]
-set_property -dict {PACKAGE_PIN R4 IOSTANDARD LVCMOS25} [get_ports sysclk]
+set_property -dict {PACKAGE_PIN R4 IOSTANDARD LVCMOS33} [get_ports sysclk]
 #create_clock -period 10.000 -name clk [get_ports sysclk]
 
 
@@ -168,10 +172,10 @@ set_property -dict {PACKAGE_PIN M17 IOSTANDARD LVCMOS25} [get_ports {sw[7]}]
 
 
 ## Pmod header JA
-set_property -dict {PACKAGE_PIN AB22 IOSTANDARD LVCMOS25} [get_ports spi_clk]
-set_property -dict {PACKAGE_PIN AB21 IOSTANDARD LVCMOS25} [get_ports spi_mosi]
-set_property -dict {PACKAGE_PIN AB20 IOSTANDARD LVCMOS25} [get_ports spi_csn]
-set_property -dict {PACKAGE_PIN AB18 IOSTANDARD LVCMOS25} [get_ports spi_miso]
+set_property -dict {PACKAGE_PIN AB22 IOSTANDARD LVCMOS33} [get_ports spi_clk]
+set_property -dict {PACKAGE_PIN AB21 IOSTANDARD LVCMOS33} [get_ports spi_mosi]
+set_property -dict {PACKAGE_PIN AB20 IOSTANDARD LVCMOS33} [get_ports spi_csn]
+set_property -dict {PACKAGE_PIN AB18 IOSTANDARD LVCMOS33} [get_ports spi_miso]
 #set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets spi_clk_IBUF]
 
 #set_property -dict { PACKAGE_PIN AB22  IOSTANDARD LVDS } [get_ports { ja[0] }]; #IO_L10N_T1_D15_14 Sch=ja[1]
@@ -191,16 +195,11 @@ set_property -dict {PACKAGE_PIN AB18 IOSTANDARD LVCMOS25} [get_ports spi_miso]
 
 
 ## Pmod header JB
-set_property -dict {PACKAGE_PIN V9 IOSTANDARD LVCMOS25} [get_ports ext_spi_adc_csn]
-set_property -dict {PACKAGE_PIN V8 IOSTANDARD LVCMOS25} [get_ports ext_spi_adc_miso]
-set_property -dict {PACKAGE_PIN V7 IOSTANDARD LVCMOS25} [get_ports ext_spi_dac_csn]
-set_property -dict {PACKAGE_PIN W7 IOSTANDARD LVCMOS25} [get_ports ext_spi_clk]
-set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS25} [get_ports ext_spi_mosi]
-
-set_property -dict {PACKAGE_PIN Y9 IOSTANDARD LVCMOS25} [get_ports tlu_trigger_debug]
-set_property -dict {PACKAGE_PIN Y8 IOSTANDARD LVCMOS25} [get_ports tlu_t0_debug]
-set_property -dict {PACKAGE_PIN Y7 IOSTANDARD LVCMOS25} [get_ports tlu_trigger_synced]
-
+set_property -dict {PACKAGE_PIN V9 IOSTANDARD LVCMOS33} [get_ports ext_spi_adc_csn]
+set_property -dict {PACKAGE_PIN V8 IOSTANDARD LVCMOS33} [get_ports ext_spi_adc_miso]
+set_property -dict {PACKAGE_PIN V7 IOSTANDARD LVCMOS33} [get_ports ext_spi_dac_csn]
+set_property -dict {PACKAGE_PIN W7 IOSTANDARD LVCMOS33} [get_ports ext_spi_clk]
+set_property -dict {PACKAGE_PIN W9 IOSTANDARD LVCMOS33} [get_ports ext_spi_mosi]
 
 
 #set_property PACKAGE_PIN V9 [get_ports debug_spi_csn]
@@ -242,16 +241,13 @@ set_property -dict {PACKAGE_PIN Y7 IOSTANDARD LVCMOS25} [get_ports tlu_trigger_s
 # Updated TLU mapping for DESY standard setup
 set_property -dict { PACKAGE_PIN Y6    IOSTANDARD LVDS_25 } [get_ports { tlu_trigger_p }]; #IO_L18P_T2_34 Sch=jc_p[1]
 set_property -dict { PACKAGE_PIN AA6   IOSTANDARD LVDS_25 } [get_ports { tlu_trigger_n }]; #IO_L18N_T2_34 Sch=jc_n[1]
-set_property -dict { PACKAGE_PIN AA8   IOSTANDARD LVCMOS25 } [get_ports { tlu_t0 }]; #IO_L22P_T3_34 Sch=jc_p[2]
-set_property -dict { PACKAGE_PIN AB8   IOSTANDARD LVCMOS25 } [get_ports { clk_ext }]; #IO_L22N_T3_34 Sch=jc_n[2] This PIN should be  CONT/NOTUSED - used as single ended clk for now for backward compatibility
+set_property -dict { PACKAGE_PIN AA8   IOSTANDARD LVCMOS33 } [get_ports { tlu_t0 }]; #IO_L22P_T3_34 Sch=jc_p[2]
+set_property -dict { PACKAGE_PIN AB8   IOSTANDARD LVCMOS33 } [get_ports { clk_ext }]; #IO_L22N_T3_34 Sch=jc_n[2] This PIN should be  CONT/NOTUSED - used as single ended clk for now for backward compatibility
 set_property -dict { PACKAGE_PIN R6    IOSTANDARD LVDS_25 } [get_ports { clk_ext_p }]; #IO_L17P_T2_34 Sch=jc_p[3]
 set_property -dict { PACKAGE_PIN T6    IOSTANDARD LVDS_25 } [get_ports { clk_ext_n }]; #IO_L17N_T2_34 Sch=jc_n[3]
-set_property -dict { PACKAGE_PIN AB7   IOSTANDARD LVCMOS25 } [get_ports { tlu_busy_p }]; #IO_L20P_T3_34 Sch=jc_p[4]
-set_property -dict { PACKAGE_PIN AB6   IOSTANDARD LVCMOS25 } [get_ports { tlu_busy_n }]; #IO_L20N_T3_34 Sch=jc_n[4]
+set_property -dict { PACKAGE_PIN AB7   IOSTANDARD LVCMOS33 } [get_ports { tlu_busy_p }]; #IO_L20P_T3_34 Sch=jc_p[4]
+set_property -dict { PACKAGE_PIN AB6   IOSTANDARD LVCMOS33 } [get_ports { tlu_busy_n }]; #IO_L20N_T3_34 Sch=jc_n[4]
 
-#set_property DIFF_TERM 1 [get_ports clk_ext_p]
-#set_property DIFF_TERM 1 [get_ports tlu_busy_p]
-#set_property DIFF_TERM 1 [get_ports tlu_trigger_p]
 #set_property  -dict {PACKAGE_PIN Y6  IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_sin]
 #set_property  -dict {PACKAGE_PIN AA6 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ck]
 #set_property  -dict {PACKAGE_PIN AA8 IOSTANDARD LVCMOS33} [get_ports gecco_sr_ctrl_ld]
@@ -281,8 +277,8 @@ set_property -dict { PACKAGE_PIN AB6   IOSTANDARD LVCMOS25 } [get_ports { tlu_bu
 
 
 ## UART
-set_property -dict {PACKAGE_PIN AA19 IOSTANDARD LVCMOS25} [get_ports uart_rx_out]
-set_property -dict {PACKAGE_PIN V18 IOSTANDARD LVCMOS25} [get_ports uart_tx_in]
+set_property -dict {PACKAGE_PIN AA19 IOSTANDARD LVCMOS33} [get_ports uart_rx_out]
+set_property -dict {PACKAGE_PIN V18 IOSTANDARD LVCMOS33} [get_ports uart_tx_in]
 
 
 ## Ethernet
@@ -310,22 +306,22 @@ set_property -dict {PACKAGE_PIN V18 IOSTANDARD LVCMOS25} [get_ports uart_tx_in]
 
 ## DPTI/DSPI
 create_clock -add -name ftdi_clk -period 16.6  [get_ports ftdi_clko]
-set_property -dict { PACKAGE_PIN Y18   IOSTANDARD LVCMOS25 } [get_ports { ftdi_clko }]; #IO_L13P_T2_MRCC_14 Sch=ftdi_clko
-set_property -dict { PACKAGE_PIN U20   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[0]}]; #IO_L11P_T1_SRCC_14 Sch=ftdi_data0/sck
-set_property -dict { PACKAGE_PIN P14   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[1] }]; #IO_L19P_T3_A10_D26_14 Sch=ftdi_data1/mosi
-set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[2] }]; #IO_L22P_T3_A05_D21_14 Sch=ftdi_data2/miso
-set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[3]}]; #IO_L18P_T2_A12_D28_14 Sch=ftdi_data3/ss
-set_property -dict { PACKAGE_PIN R17   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[4] }]; #IO_L24N_T3_A00_D16_14 Sch=ftdi_data[4]
-set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[5] }]; #IO_L24P_T3_A01_D17_14 Sch=ftdi_data[5]
-set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[6] }]; #IO_L20P_T3_A08_D24_14 Sch=ftdi_data[6]
-set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS25 } [get_ports { ftdi_data[7] }]; #IO_L23N_T3_A02_D18_14 Sch=ftdi_data[7]
-set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS25 } [get_ports { ftdi_oe_n }]; #IO_L16P_T2_CSI_B_14 Sch=prog_oen
-set_property -dict { PACKAGE_PIN P19   IOSTANDARD LVCMOS25 } [get_ports { ftdi_rd_n }]; #IO_L5P_T0_D06_14 Sch=prog_rdn
-set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS25 } [get_ports { ftdi_rxf_n }]; #IO_L21P_T3_DQS_14 Sch=prog_rxen
-set_property -dict { PACKAGE_PIN P17   IOSTANDARD LVCMOS25 } [get_ports { ftdi_siwun }]; #IO_L21N_T3_DQS_A06_D22_14 Sch=prog_siwun
+set_property -dict { PACKAGE_PIN Y18   IOSTANDARD LVCMOS33 } [get_ports { ftdi_clko }]; #IO_L13P_T2_MRCC_14 Sch=ftdi_clko
+set_property -dict { PACKAGE_PIN U20   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[0]}]; #IO_L11P_T1_SRCC_14 Sch=ftdi_data0/sck
+set_property -dict { PACKAGE_PIN P14   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[1] }]; #IO_L19P_T3_A10_D26_14 Sch=ftdi_data1/mosi
+set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[2] }]; #IO_L22P_T3_A05_D21_14 Sch=ftdi_data2/miso
+set_property -dict { PACKAGE_PIN U17   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[3]}]; #IO_L18P_T2_A12_D28_14 Sch=ftdi_data3/ss
+set_property -dict { PACKAGE_PIN R17   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[4] }]; #IO_L24N_T3_A00_D16_14 Sch=ftdi_data[4]
+set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[5] }]; #IO_L24P_T3_A01_D17_14 Sch=ftdi_data[5]
+set_property -dict { PACKAGE_PIN R18   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[6] }]; #IO_L20P_T3_A08_D24_14 Sch=ftdi_data[6]
+set_property -dict { PACKAGE_PIN N14   IOSTANDARD LVCMOS33 } [get_ports { ftdi_data[7] }]; #IO_L23N_T3_A02_D18_14 Sch=ftdi_data[7]
+set_property -dict { PACKAGE_PIN V17   IOSTANDARD LVCMOS33 } [get_ports { ftdi_oe_n }]; #IO_L16P_T2_CSI_B_14 Sch=prog_oen
+set_property -dict { PACKAGE_PIN P19   IOSTANDARD LVCMOS33 } [get_ports { ftdi_rd_n }]; #IO_L5P_T0_D06_14 Sch=prog_rdn
+set_property -dict { PACKAGE_PIN N17   IOSTANDARD LVCMOS33 } [get_ports { ftdi_rxf_n }]; #IO_L21P_T3_DQS_14 Sch=prog_rxen
+set_property -dict { PACKAGE_PIN P17   IOSTANDARD LVCMOS33 } [get_ports { ftdi_siwun }]; #IO_L21N_T3_DQS_A06_D22_14 Sch=prog_siwun
 #set_property -dict { PACKAGE_PIN R14   IOSTANDARD LVCMOS33 } [get_ports { prog_spien }]; #IO_L19N_T3_A09_D25_VREF_14 Sch=prog_spien
-set_property -dict { PACKAGE_PIN Y19   IOSTANDARD LVCMOS25 } [get_ports { ftdi_txe_n }]; #IO_L13N_T2_MRCC_14 Sch=prog_txen
-set_property -dict { PACKAGE_PIN R19   IOSTANDARD LVCMOS25 } [get_ports { ftdi_wr_n }]; #IO_L5N_T0_D07_14 Sch=prog_wrn
+set_property -dict { PACKAGE_PIN Y19   IOSTANDARD LVCMOS33 } [get_ports { ftdi_txe_n }]; #IO_L13N_T2_MRCC_14 Sch=prog_txen
+set_property -dict { PACKAGE_PIN R19   IOSTANDARD LVCMOS33 } [get_ports { ftdi_wr_n }]; #IO_L5N_T0_D07_14 Sch=prog_wrn
 
 set_input_delay  -max -clock ftdi_clk 7.0 [get_ports ftdi_data* ]
 set_input_delay  -min -clock ftdi_clk 1.0 [get_ports ftdi_data* ]
@@ -467,13 +463,10 @@ set_property -dict {PACKAGE_PIN V14 IOSTANDARD LVCMOS25} [get_ports vadj_en]
 #set_property -dict { PACKAGE_PIN L16   IOSTANDARD LVCMOS25 } [get_ports { out_ld_vdac }]; #IO_L23P_T3_FOE_B_15 Sch=fmc_la_p[15]
 #set_property -dict { PACKAGE_PIN G18   IOSTANDARD LVCMOS25 } [get_ports { out_ld_column }]; #IO_L4N_T0_15 Sch=fmc_la_n[16]
 if {[lsearch -exact $defines_list TELESCOPE] == -1} {
-set_property -dict {PACKAGE_PIN G17 IOSTANDARD LVCMOS25} [get_ports layers_inj]
+set_property -dict {PACKAGE_PIN L16 IOSTANDARD LVCMOS25} [get_ports layers_inj]
 }
-set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS25} [get_ports layers_sr_rb]
-set_property -dict {PACKAGE_PIN B17 IOSTANDARD LVCMOS25} [get_ports layers_sr_sout0]
-
-set_property -dict {PACKAGE_PIN A19 IOSTANDARD LVCMOS25} [get_ports layers_sr_ldtdac0]
-
+set_property -dict {PACKAGE_PIN C17 IOSTANDARD LVCMOS25} [get_ports layers_sr_rb]
+set_property -dict {PACKAGE_PIN D17 IOSTANDARD LVCMOS25} [get_ports layers_sr_sout0]
 #set_property -dict { PACKAGE_PIN C17   IOSTANDARD LVCMOS25 } [get_ports { sample_clk_n }]; #IO_L12N_T1_MRCC_16 Sch=fmc_la18_cc_n
 #set_property -dict { PACKAGE_PIN D17   IOSTANDARD LVCMOS25 } [get_ports { sample_clk_p }]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
 #set_property -dict { PACKAGE_PIN A19   IOSTANDARD LVCMOS25 } [get_ports { trigro_reset_n }]; #IO_L17N_T2_16 Sch=fmc_la_n[19]
@@ -510,18 +503,18 @@ set_property -dict {PACKAGE_PIN C14 IOSTANDARD LVDS_25} [get_ports gecco_sr_ctrl
 #set_property -dict { PACKAGE_PIN F14   IOSTANDARD LVDS_25 } [get_ports { config_ck2_n }]; #IO_L1N_T0_16 Sch=fmc_la_n[33]
 #set_property -dict { PACKAGE_PIN F13   IOSTANDARD LVDS_25 } [get_ports { config_ck2_p }]; #IO_L1P_T0_16 Sch=fmc_la_p[33]
 
-set_property -dict {PACKAGE_PIN C17 IOSTANDARD LVCMOS25} [get_ports layers_resn]
+set_property -dict {PACKAGE_PIN B18 IOSTANDARD LVCMOS25} [get_ports layers_resn]
 
-set_property -dict {PACKAGE_PIN F20 IOSTANDARD LVCMOS25} [get_ports timestamp_clk]
+set_property -dict {PACKAGE_PIN A19 IOSTANDARD LVCMOS25} [get_ports timestamp_clk]
 
 # Reverse hold <-> interrupt switch from V2
 # Reverse hold <-> interrupt switch from V2
-if {${chipversion} == 3 || $chipversion == 4} {
-    set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports layers_hold]; #IO_L18P_T2_16 Sch=fmc_la_p[20]
-    set_property -dict {PACKAGE_PIN D17 IOSTANDARD LVCMOS25} [get_ports layer_0_interruptn]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
+if {${chipversion} == 3} {
+    set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS25} [get_ports layers_hold]; #IO_L18P_T2_16 Sch=fmc_la_p[20]
+    set_property -dict {PACKAGE_PIN B17 IOSTANDARD LVCMOS25} [get_ports layer_0_interruptn]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
 } elseif {${chipversion} == 2} {
-    set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports layer_0_interruptn]; #IO_L18P_T2_16 Sch=fmc_la_p[20]
-    set_property -dict {PACKAGE_PIN D17 IOSTANDARD LVCMOS25} [get_ports layers_hold]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
+    set_property -dict {PACKAGE_PIN B17 IOSTANDARD LVCMOS25} [get_ports layer_0_interruptn]; #IO_L18P_T2_16 Sch=fmc_la_p[20]
+    set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS25} [get_ports layers_hold]; #IO_L12P_T1_MRCC_16 Sch=fmc_la18_cc_p
 }
 # For reference, could be used if pcb doesn't include pullup
 set_property PULLUP true [get_ports layer_0_interruptn]
@@ -531,19 +524,18 @@ set_property PULLUP true [get_ports layer_0_interruptn]
 
 ## If SCLOCK_SE_DIFF defined, se sample clock will be diff output, otherwise single ended LVCMOS
 if {[lsearch -exact $defines_list SCLOCK_SE_DIFF] != -1} {
-
-    set_property -dict {PACKAGE_PIN B16 IOSTANDARD LVDS_25} [get_ports sample_clk_se_n]
-    set_property -dict {PACKAGE_PIN B15 IOSTANDARD LVDS_25} [get_ports sample_clk_se_p]
+    set_property -dict {PACKAGE_PIN A21 IOSTANDARD LVDS_25} [get_ports sample_clk_se_n]
+    set_property -dict {PACKAGE_PIN B21 IOSTANDARD LVDS_25} [get_ports sample_clk_se_p]
 
 } else {
-    set_property -dict {PACKAGE_PIN B16 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_n]
-    set_property -dict {PACKAGE_PIN B15 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_p]
+    set_property -dict {PACKAGE_PIN A21 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_n]
+    set_property -dict {PACKAGE_PIN B21 IOSTANDARD LVCMOS25} [get_ports sample_clk_se_p]
 }
 
 ## Normal Sample clock output can be one pair or 4 pairs if in telescope mode
-if {[lsearch -exact $defines_list TELESCOPE] == -1} {
-    set_property -dict {PACKAGE_PIN D21 IOSTANDARD LVDS_25} [get_ports sample_clk_n]
-    set_property -dict {PACKAGE_PIN E21 IOSTANDARD LVDS_25} [get_ports sample_clk_p]
+if {1} {
+    set_property -dict {PACKAGE_PIN D19 IOSTANDARD LVDS_25} [get_ports sample_clk_n]
+    set_property -dict {PACKAGE_PIN E19 IOSTANDARD LVDS_25} [get_ports sample_clk_p]
 } else {
 
     set_property -dict { PACKAGE_PIN K22   IOSTANDARD LVDS_25 } [get_ports { sample_clk_n[3] }]; #IO_L9N_T1_DQS_AD3N_15 Sch=fmc_la_n[10]
@@ -565,18 +557,18 @@ if {[lsearch -exact $defines_list TELESCOPE] == -1} {
 
 
 # SPI left
-set_property -dict {PACKAGE_PIN A21 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_clk]
-set_property -dict {PACKAGE_PIN B21 IOSTANDARD LVCMOS25} [get_ports layers_spi_csn]
-set_property -dict {PACKAGE_PIN D19 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_miso[0]}]
-set_property -dict {PACKAGE_PIN E19 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_miso[1]}]
-set_property -dict {PACKAGE_PIN A18 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_mosi]
+set_property -dict {PACKAGE_PIN B15 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_clk]
+set_property -dict {PACKAGE_PIN B16 IOSTANDARD LVCMOS25} [get_ports layers_spi_csn]
+set_property -dict {PACKAGE_PIN D21 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_miso[0]}]
+set_property -dict {PACKAGE_PIN E21 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_miso[1]}]
+set_property -dict {PACKAGE_PIN F19 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_mosi]
 
 #SPI right
-set_property -dict {PACKAGE_PIN L14 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_mosi]
-set_property -dict {PACKAGE_PIN J17 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_csn]
-set_property -dict {PACKAGE_PIN K17 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_right_miso[0]}]
-set_property -dict {PACKAGE_PIN K16 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_right_miso[1]}]
-set_property -dict {PACKAGE_PIN L16 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_clk]
+set_property -dict {PACKAGE_PIN L19 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_mosi]
+set_property -dict {PACKAGE_PIN H22 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_csn]
+set_property -dict {PACKAGE_PIN J22 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_right_miso[0]}]
+set_property -dict {PACKAGE_PIN G18 IOSTANDARD LVCMOS25} [get_ports {layer_0_spi_right_miso[1]}]
+set_property -dict {PACKAGE_PIN G17 IOSTANDARD LVCMOS25} [get_ports layer_0_spi_right_clk]
 
 #END Astropix FMC
 

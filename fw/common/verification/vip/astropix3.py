@@ -198,15 +198,15 @@ class Astropix3Model:
 
     ## SPI Frame Decoding
     ###########
-    def decodeCheckASTEPFramesStaticLength(self,readBytes:bytes,framesCount:int,frameLength:int):
+    def decodeCheckASTEPFramesStaticLength(self,readBytes:bytes,framesCount:int,frameLength:int,tssize:int=4):
         """Checks that readout frames are correct, assuming the frame lenght was always the same"""
         logger.info("Checking received ASTEP frames against generated ones")
-        expectedReadBytesLength = framesCount * (frameLength+4+2)
+        expectedReadBytesLength = framesCount * (frameLength+tssize+2)
         assert(len(readBytes) == expectedReadBytesLength)
 
         # Params
         astropixFrameFullLength = frameLength
-        frameHeaderLength = 1 + astropixFrameFullLength + 4   # Header length is the length of frame payload, excluding itself
+        frameHeaderLength = 1 + astropixFrameFullLength + tssize   # Header length is the length of frame payload, excluding itself
         frameHeaderLayerId = 0
 
         # Loop through received bytes, and check headers and data
@@ -237,7 +237,7 @@ class Astropix3Model:
             assert(astropixFrame == sourceAstropixFrame)
 
             ## The next 4 bytes are FPGA Timestamp, skip these as we can't check against known values
-            i = i + 4
+            i = i + tssize
 
             if (i == len(readBytes)):
                 finished = True
