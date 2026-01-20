@@ -325,7 +325,7 @@ module astep24_3l_multitarget_top (
             BUFGCE sample_clock_se_gate (.I(sample_clk_internal),   .O(sample_clk),.CE(io_ctrl_sample_clock_enable));
 
             // Output buffer to enable timestamp clock to astropix
-            BUFGCTRL  timestamp_clk_mux (.I0(timestamp_clk_internal_ap3),.I1(timestamp_clk_internal_ap4),.O(timestamp_clk),.S0(chip_version==8'd3),.S1(chip_version!=8'd3),.CE0(io_ctrl_timestamp_clock_enable),.CE1(io_ctrl_timestamp_clock_enable));
+           // BUFGCTRL  timestamp_clk_mux (.I0(timestamp_clk_internal_ap3),.I1(timestamp_clk_internal_ap4),.O(timestamp_clk),.S0(chip_version==8'd3),.S1(chip_version!=8'd3),.CE0(io_ctrl_timestamp_clock_enable),.CE1(io_ctrl_timestamp_clock_enable));
 
 
     `endif

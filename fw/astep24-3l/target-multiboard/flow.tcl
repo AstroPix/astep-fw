@@ -1,11 +1,15 @@
 #!/usr/bin/tclsh
 
 # This script creates Vivado projects and bitfiles for the supported hardware platforms
+set ::buildIteration 01
+if {[llength [array get ::env BUILD_ITERATION]] > 0} {
+    set ::buildIteration $::env(BUILD_ITERATION)
+}
 
 ## This method used to generate a Date version for RFG, so that SW can read a build version to easily check which firmware is flashed
 proc getDateVersion args {
     set date [clock seconds]
-    return   [clock format $date -format "%y%m%d"]$::env(BUILD_ITERATION)
+    return   [clock format $date -format "%y%m%d"]${::buildIteration}
 }
 
 # Get project file dir

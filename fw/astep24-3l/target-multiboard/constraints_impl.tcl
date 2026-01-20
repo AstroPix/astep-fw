@@ -21,17 +21,23 @@ set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks cl
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clk_100_clk_core_extorint_40_1]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40] -to [get_clocks clk_20_clk_core_extorint_40]
 set_false_path -from [get_clocks clk_80_clk_core_extorint_40_1] -to [get_clocks clk_20_clk_core_extorint_40_1]
-set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clk_20_clk_core_extorint_40_2]
+
 
 # Exclude TS mux select clock and RFG clock interaction
 set_clock_groups -logically_exclusive -group [get_clocks clk_80_clk_core_extorint_40*] -group [get_clocks timestamp_clk_internal_ap4*]
 
-# Set ts mux clocks physically exclusive
-set_clock_groups -physically_exclusive -group [get_clocks timestamp_clk_internal_ap4] -group [get_clocks timestamp_clk_internal_ap4_1] -group [get_clocks timestamp_clk_internal_ap4_2]
+# Set ts mux clocks physically exclusive -> RL 20/01/26, moved to board specific constraint, clocks are different on cmod than on nexys
 
 
 if {$::IC_BOARD == "astropix-nexys"} {
+    
+    
+    set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clk_20_clk_core_extorint_40_2]
 
+    # Set ts mux clocks physically exclusive -> different on cmod than on nexys
+    set_clock_groups -physically_exclusive -group [get_clocks timestamp_clk_internal_ap4] -group [get_clocks timestamp_clk_internal_ap4_1] -group [get_clocks timestamp_clk_internal_ap4_2]
+
+    
     set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets clk_ext_diff]
 
     set_false_path -from [get_clocks clk_80_clk_core_extorint_40_2] -to [get_clocks clk_100_clk_core_extorint_40_2]
@@ -39,6 +45,11 @@ if {$::IC_BOARD == "astropix-nexys"} {
     set_clock_groups -physically_exclusive -group clk_out1_clk_sys_to_40 -group [get_clocks {ext_clk_se ext_clk_diff}]
 
 } else {
+    
+    # Set ts mux clocks physically exclusive -> different on cmod than on nexys
+    set_clock_groups -physically_exclusive -group [get_clocks timestamp_clk_internal_ap4]   -group [get_clocks timestamp_clk_internal_ap4_1]
+
+    
     set_clock_groups -physically_exclusive -group clk_out1_clk_sys_to_40 -group [get_clocks {ext_clk_se}]
 }
 

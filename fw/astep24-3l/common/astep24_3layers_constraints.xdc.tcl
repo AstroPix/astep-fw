@@ -89,12 +89,6 @@ for {set i 0} {$i < $layersCount} {incr i} {
 ## Generated HK SPI Clouck output produced by spi master, twice as slow as reference spi clock
 create_generated_clock -name hk_spi_divided_clock_internal -source [get_pins -of_objects [get_clocks hk_spi_divided]] -divide_by 2  [get_pins astep24_3l_top_I/housekeeping/ext_adcdac_driver/spi_io/spi_clk_reg_reg/Q]
 
-#set i 0
-#foreach layer_clk [get_ports -quiet layer_*_spi_clk] {
-#    create_generated_clock -name spi_layer${i}_clock_out -source [get_pins -of_objects [get_clocks layers_spi_divided]] -divide_by 1 -combinational [get_ports layer_${i}_spi_clk]
-#}
-
-#create_generated_clock -name ext_spi_clk_out -source [get_pins -of_objects [get_clocks hk_spi_divided]] -divide_by 1 -combinational [get_ports ext_spi_clk]
 
 
 
@@ -128,6 +122,12 @@ for {set i 0} {$i < $numberOfLayerClocks} {incr i} {
     }
 
 }
+
+## SPI Loopback timing relax. Loopback enable from RFG doesn't need timing, it's a slow enable/disable, same for chip select config
+for {set i 0} {$i < $layersCount} {incr i} {
+    set_false_path -through [get_nets -hier *layer_${i}_loopback_csn*] 
+}
+
 
 
 ## ADC + DAC

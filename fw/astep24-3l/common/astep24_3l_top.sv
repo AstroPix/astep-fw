@@ -788,9 +788,9 @@ module astep24_3l_top(
 
     // SPI Loopbacks
     //-----------------------
-    wire layer_0_loopback_csn = layer_0_spi_csn || !(layer_0_cfg_ctrl_loopback);
-    wire layer_1_loopback_csn = layer_1_spi_csn || !(layer_1_cfg_ctrl_loopback);
-    wire layer_2_loopback_csn = layer_2_spi_csn || !(layer_2_cfg_ctrl_loopback);
+    (*  DONT_TOUCH = "yes" *) wire layer_0_loopback_csn = layer_0_spi_csn || !(layer_0_cfg_ctrl_loopback);
+    (*  DONT_TOUCH = "yes" *) wire layer_1_loopback_csn = layer_1_spi_csn || !(layer_1_cfg_ctrl_loopback);
+    (*  DONT_TOUCH = "yes" *) wire layer_2_loopback_csn = layer_2_spi_csn || !(layer_2_cfg_ctrl_loopback);
 
 
 
