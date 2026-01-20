@@ -8,18 +8,7 @@
 
 *.swp
 
-## Xilinx
-**/*.cache
-**/*.hw
-**/*.ip_user_files
-**/*.sim
-**/*.runs
-**/*.srcs/*
-*_ooc.xdc
-*.bxml
-*.jou
-*pid*
-.Xil
+
 
 ## Xcelium/sim
 xcelium.d*
