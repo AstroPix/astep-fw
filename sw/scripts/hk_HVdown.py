@@ -67,7 +67,7 @@ async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change 
     ## Open UART Driver for CMOD
     driver = drivers.boards.getCMODUartDriver("COM6")
     await driver.open() #does the driver need to be closed between reads? 
-    await driver.houseKeeping.selectDAC()
+    await driver.houseKeeping.selectSPI(adc=0,dac=1)
 
     #defaulting with Power-down with Hi-Z at the moment
     if setVoltage == 0 and lsbFirst == True:
@@ -84,7 +84,7 @@ async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change 
             byte1 = int(bytess[0:8],2)
             byte2 = int(bytess[8:16],2)
     
-        await driver.houseKeeping.selectDAC()
+        await driver.houseKeeping.selectSPI(adc=0,dac=1)
         await driver.houseKeeping.writeADCDACBytes([byte1,byte2])
 
     await driver.close()

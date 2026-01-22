@@ -7,27 +7,18 @@ import drivers.boards
 import drivers.astropix.asic
 
 
-
-
-async def mainasync():
-    ## Open UART Driver for Gecco:
-    ##  - Change this to the correct COM Port for the system
-    ##  - On Linux, leave empty to filter FTDI Com ports and use the first available
-    ##  - For CMOD -> change to drivers.boards.getCMODUartDriver("COM4")
-    #boardDriver = drivers.boards.getGeccoFTDIDriver()
-    port = "COM4"
-    port = "/dev/ttyUSB1"
-    boardDriver = drivers.boards.getCMODUartDriver(port)
+async def test_fpga():
+    boardDriver = drivers.boards.getCMODUartDriver("COM6")
     await boardDriver.open()
     
-    ## Read Firmware version
-    ## This call should run in asyncio
+    print('ID')
     id =      await boardDriver.readFirmwareID()
+    print(f"Firmware ID: {hex(id)}")
     version = await boardDriver.readFirmwareVersion()
-    
-    print(f"Firmware ID: 0x{hex(id)}")
     print(f"Firmware Version: {str(version)}")
-        
 
+    await boardDriver.close()
 
-asyncio.run(mainasync())
+if __name__ == "__main__":
+    asyncio.run(test_fpga())
+

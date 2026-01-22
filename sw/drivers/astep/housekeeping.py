@@ -81,9 +81,8 @@ class Housekeeping():
         return await self.rfg.read_hk_adc_miso_fifo_raw(count)
 
 
-
     async def configureSPI(self,adc:bool,dac:bool):
-        """Selects ADC/DAC and configures CPOL/CPHA of SPI master accordingly"""
+        """Configures CPOL/CPHA of SPI master for ADC/DAC accordingly"""
         assert not(adc and dac),"ADC and DAC cannot be selected at the same time"
 
         # First Change the CPOL/CPHA configuration, then after a little wait select the Chip
@@ -101,13 +100,16 @@ class Housekeeping():
         await self.rfg.write_hk_ctrl(regval,True)
 
     async def selectSPI(self,adc:bool,dac:bool):
-        """Selects ADC/DAC and configures CPOL/CPHA of SPI master accordingly"""
+        """Selects ADC/DAC after configuration of CPOL/CPHA of SPI master accordingly"""
         assert not(adc and dac),"ADC and DAC cannot be selected at the same time"
 
         # First Change the CPOL/CPHA configuration, then after a little wait select the Chip
         # Reason is that if all bits change at once, the clock polarity will change after chip select is low, creating an edge that will be wrongly interpreted
 
         # Change CPOL/CPHA
+        await self.configureSPI(adc,dac)
+
+        # Read register and turn on ADC/DAC
         regval = await self.rfg.read_hk_ctrl()
         regval |= adc | (dac << 1)
 

@@ -222,9 +222,9 @@ async def main(args):
     )
     await boardDriver.layersConfigFPGATimestamp(
         enable=True,
-        force=False,
-        source_match_counter=True,
-        source_external=False,
+        forced_value=False,
+        use_divider=True,
+        use_tlu=False,
         flush=True,
     )
 
@@ -248,7 +248,7 @@ async def main(args):
     try:
         for layer, (nchips, yml) in enumerate(zip(args.chipsPerRow, ymlpath)):
             boardDriver.setupASIC(
-                version=3, row=layer, chipsPerRow=nchips, configFile=yml
+                version=3, lane=layer, chipsPerLane=nchips, configFile=yml
             )
     except FileNotFoundError as e:
         logger.error(
@@ -268,16 +268,15 @@ async def main(args):
         logger.debug("Enable injection pixel")
         try:
             boardDriver.asics[args.inject[0]].enable_inj_col(
-                args.inject[1], args.inject[3], inplace=False
+                args.inject[1], args.inject[3]
             )
             boardDriver.asics[args.inject[0]].enable_inj_row(
-                args.inject[1], args.inject[2], inplace=False
+                args.inject[1], args.inject[2]
             )
             boardDriver.asics[args.inject[0]].enable_pixel(
                 chip=args.inject[1],
                 col=args.inject[3],
                 row=args.inject[2],
-                inplace=False,
             )
             logger.debug("Set injection voltage")
             # Priority to command line, defaults to yaml - already in vdac units
@@ -317,18 +316,15 @@ async def main(args):
     # Set chip IDs
     await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
     for layer in layerlst:
-        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
+        #await boardDriver.asics[layer].writeSPIRoutingFrame(0)
+        await boardDriver.writeRoutingFrame(lane=layer, firstChipID=0)
     await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
 
     for i in range(args.chipsPerRow[layer]):
         await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
         for layer in layerlst:
             if i < args.chipsPerRow[layer]:
-                value = boardDriver.asics[0].gen_config_vector_SPI(targetChip=i)
-                payload = boardDriver.asics[layer].createSPIConfigFrame(
-                    load=True, n_load=10, broadcast=False, targetChip=i, value=value
-                )
-                await boardDriver.asics[layer].writeSPI(payload)
+                await boardDriver.writeSPIAsicConfig(lane=layer,targetChip=i)
         await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
     # Flush old data
     # await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
@@ -637,7 +633,7 @@ if __name__ == "__main__":
         args.readout = 4096
 
     try:
-        asyncio.run(newmain(args))
+        asyncio.run(main(args))
         logger.info("Finished Main")
 
     except KeyboardInterrupt:
