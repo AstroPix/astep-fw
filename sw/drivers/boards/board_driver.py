@@ -26,6 +26,7 @@ def debug():
 
 
 class BoardDriver:
+    
     def __init__(self, rfg):
         self.rfg = rfg
         self.houseKeeping = drivers.astep.housekeeping.Housekeeping(self, rfg)
@@ -40,7 +41,19 @@ class BoardDriver:
         ## Opened Event -> Set/unset by close/open
         ## Useful to start or stop tasks dependent on open/close state of the driver
         self.openedEvent = asyncio.Event()
-        
+    
+    def selectUARTIO(self, portPath: str | None = None, baud : int | None = None):
+        """This method is common to all targets now, because all targets have a USB-UART Converter available"""
+        if portPath is None:
+            from drivers.astep.serial import getSerialPort
+
+            port = getSerialPort()
+            if port is None:
+                raise RuntimeError("No Serial Port could be listed")
+            else:
+                portPath = port.device
+        self.rfg.withUARTIO(portPath,baud)
+        return self    
         
     async def utilWaitSeconds(self,wait:int):
         """This method can be override for example in simulation to wait using proper mechanism"""

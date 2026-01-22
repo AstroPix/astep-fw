@@ -458,14 +458,81 @@ module astep24_3l_multitarget_top (
 
 
     `elsif TARGET_CMOD
-
-
-    wire resn_internal = resn & ext_resn;
-
-    assign led = led_internal[1:0];
+    
+    logic [31:0] led_toggle_count;
+    logic        led_toggle;
+    
+    logic [31:0] led_toggle_count_sysclk40M;
+    logic        led_toggle_sysclk40M;
+    
+    // Reset button on CMOD is 0 by default, when pressed 1, so invert it first 
+    wire resn_from_button = !resn;
+    
+    wire resn_internal = resn_from_button & ext_resn;
+    
+    assign led = {led_toggle_sysclk40M,led_toggle};
     assign led0_r = !led_internal[2];
     assign led0_g = !led_internal[3];
     assign led0_b = !led_internal[4];
+    
+    
+    // LED To quickly Check Clocks 
+    // -----------------
+    
+    // Core Clock 80Mhz (after all PLL)
+    // Make LED Toggle 2/sec on core clock
+    always_ff @(posedge clk_core ) begin
+        if (!clk_core_resn) begin
+            led_toggle       <= 'b0;
+            led_toggle_count <= 'd0;
+        end
+        else begin
+            if (led_toggle_count==32'd40000000) begin
+                led_toggle <= ! led_toggle;
+                led_toggle_count <= 'd0;
+            end
+            else begin
+                led_toggle_count <= led_toggle_count + 32'd1;
+            end
+        end
+    end
+    
+    /*always_ff @(posedge sysclk ) begin
+        if (!resn_internal) begin
+            led_toggle       <= 'b0;
+            led_toggle_count <= 'd0;
+        end
+        else begin
+            if (led_toggle_count==32'd20000000) begin
+                led_toggle <= ! led_toggle;
+                led_toggle_count <= 'd0;
+            end
+            else begin
+                led_toggle_count <= led_toggle_count + 32'd1;
+            end
+        end
+    end*/
+    
+    // Sysclock 40Mhz -> 40M clock derived from board clock 
+    // -----------
+    wire sysclk_40M;
+    always_ff @(posedge sysclk_40M ) begin
+        if (!clk_core_resn) begin
+            led_toggle_sysclk40M       <= 'b0;
+            led_toggle_count_sysclk40M <= 'd0;
+        end
+        else begin
+            if (led_toggle_count_sysclk40M==32'd20000000) begin
+                led_toggle_sysclk40M <= ! led_toggle_sysclk40M;
+                led_toggle_count_sysclk40M <= 'd0;
+            end
+            else begin
+                led_toggle_count_sysclk40M <= led_toggle_count_sysclk40M + 32'd1;
+            end
+        end
+    end
+    
+    
     `endif
 
     // Single Layer / MultiLayer assigns

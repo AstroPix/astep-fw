@@ -17,18 +17,7 @@ class CMODBoard(BoardDriver):
         )  # Refactor to remove pointer to rfg and to BoardDriver
         self.injector = None
 
-    def selectUARTIO(self, portPath: str | None = None):
-        """This method is common to all targets now, because all targets have a USB-UART Converter available"""
-        if portPath is None:
-            from drivers.astep.serial import getSerialPort
-
-            port = drivers.astep.serial.getSerialPort()
-            if port is None:
-                raise RuntimeError("No Serial Port could be listed")
-            else:
-                portPath = port.device
-        self.rfg.withUARTIO(portPath)
-        return self
+    
 
     def selectSPIIO(self,path:str,gpioPath:str,csLine:int):
         assert os.path.exists(path) , f"SPIDev {path} doesn't exist"
