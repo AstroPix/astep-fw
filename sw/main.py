@@ -9,6 +9,7 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 import argparse
 import asyncio
 import binascii
+from bitstring import BitArray
 
 # Logging stuff
 import logging
@@ -23,7 +24,6 @@ from tqdm import tqdm
 import drivers.astep.serial
 import drivers.astropix.decode
 import drivers.boards
-
 
 async def buffer_flush(boardDriver, layerlst=range(3)):
     """This method flushes data from SPI lanes then from FPGA buffer, and resets counters"""
@@ -49,6 +49,49 @@ async def buffer_flush(boardDriver, layerlst=range(3)):
     await boardDriver.readoutReadBytes(4098)
     await boardDriver.resetLayerStatCounters(layer)
 
+async def callHK(boardDriver, lsbFirst=True):
+    """
+    Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
+    Input is two bytes:
+    First 2 bits: ignored
+    Next 3 bits: Set Channel #
+    Last 11 bits: ignored
+
+    Shift register input style requires bytes to be read in left to right. May be changed in future versions
+    """
+    ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this setp
+    await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+    
+    ## Loop over ADC Settings
+    for chan in range(0,8):
+        bits = format(chan<<4,'08b')
+        if lsbFirst == True:
+            byte1 = int(bits[::-1],2)
+        else:
+            byte1 = int(bits,2)
+
+        print('CHANNEL ', chan)
+        print(f"{hex(byte1)}")
+        #read same channel a few extra times to confirm value comes through
+        for i in range(0,3):
+
+            await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+            await boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
+            adcBytesCount = await boardDriver.houseKeeping.getADCBytesCount()
+            print('Byte Count: ', adcBytesCount)
+            adcBytes = await boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+            print(adcBytes)
+
+            #reverse bit order
+            adcBits = BitArray(bytes=adcBytes)
+            adcBits.reverse()
+            adcBits.byteswap()
+            print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
+
+            await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+
+        #bytess = format(int((setVoltage/3.3)*2**12-1),'016b')
 
 # async def buffer_flush(boardDriver, layerlst = range(3)):
 #     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
@@ -351,6 +394,7 @@ async def main(args):
     )
 
     # Main loop
+    lastLoopTime = 0
     run = time.time() < end_time
     while run:
         try:
@@ -378,8 +422,16 @@ async def main(args):
                 # await printStatus(boardDriver, time.time()-end_time, buff=buff)
             print(f"  {buff:04d}  ", end="\r")
             # logger.info(binascii.hexlify(readout[:buff]))
+            
             # Check time
-            run = time.time() < end_time
+            loopTime = time.time()
+            run = loopTime < end_time
+
+            #Output Housekeeping
+            if loopTime-lastLoopTime > 1:
+                lastLoopTime = loopTime
+                await callHK(boardDriver)
+
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while in main loop - exiting.")
             run = False
