@@ -33,6 +33,7 @@ module main_rfg(
     output logic                   hk_ctrl_select_dac,
     output logic                   hk_ctrl_spi_cpol,
     output logic                   hk_ctrl_spi_cpha,
+    output logic                   hk_ctrl_spi_msbfirst,
     // AXIS Master interface to write to FIFO hk_adcdac_mosi_fifo,
     // --------------------,
     output logic [7:0]             hk_adcdac_mosi_fifo_m_axis_tdata,
@@ -385,6 +386,7 @@ module main_rfg(
     assign hk_ctrl_select_dac = hk_ctrl_reg[1];
     assign hk_ctrl_spi_cpol = hk_ctrl_reg[2];
     assign hk_ctrl_spi_cpha = hk_ctrl_reg[3];
+    assign hk_ctrl_spi_msbfirst = hk_ctrl_reg[4];
     assign layer_0_cfg_ctrl_hold = layer_0_cfg_ctrl_reg[0];
     assign layer_0_cfg_ctrl_reset = layer_0_cfg_ctrl_reg[1];
     assign layer_0_cfg_ctrl_disable_autoread = layer_0_cfg_ctrl_reg[2];
@@ -456,7 +458,7 @@ module main_rfg(
             hk_conversion_trigger_reg <= '0;
             hk_conversion_trigger_up <= 1'b1;
             hk_stat_conversions_counter_reg <= '0;
-            hk_ctrl_reg <= '0;
+            hk_ctrl_reg <= 8'h10;
             hk_adcdac_mosi_fifo_m_axis_tvalid <= 1'b0;
             hk_adcdac_mosi_fifo_m_axis_tlast  <= 1'b0;
             hk_adc_miso_fifo_read_size_reg <= '0;

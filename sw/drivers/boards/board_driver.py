@@ -510,7 +510,7 @@ class BoardDriver:
         )
 
     async def configureHKSPIDivider(self, divider: int, flush=True):
-        await self.rfg.spi_hk_ckdivider(divider, flush)
+        await self.rfg.write_spi_hk_ckdivider(divider, flush)
 
     ## Layers
     ##################

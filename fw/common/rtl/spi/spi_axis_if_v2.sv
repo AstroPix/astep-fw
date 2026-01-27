@@ -1,8 +1,6 @@
 `include "axi_ifs.sv"
 
-module spi_axis_if_v2 #(
-    parameter QSPI = 0,
-    parameter MSB_FIRST = 0  ) (
+module spi_axis_if_v2 #( parameter QSPI = 0) (
 
     // System clock
     input wire                    clk,
@@ -218,7 +216,7 @@ module spi_axis_if_v2 #(
                 // -----------
                 if (QSPI) begin
 
-                    if (MSB_FIRST) begin
+                    if (msb_first) begin
                         miso_byte           <= {miso_byte[5:0],spi_miso[1],spi_miso[0]};
                     end else begin
                         miso_byte           <= {spi_miso[1],spi_miso[0],miso_byte[7:2]};
@@ -232,7 +230,7 @@ module spi_axis_if_v2 #(
                 end
                 else begin
 
-                    if (MSB_FIRST) begin
+                    if (msb_first) begin
                         miso_byte           <= {miso_byte[6:0],spi_miso[0]};
                     end else begin
                         miso_byte           <= {spi_miso[0],miso_byte[7:1]};

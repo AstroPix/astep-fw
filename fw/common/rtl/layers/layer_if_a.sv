@@ -81,7 +81,7 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
         .s_axis_tvalid(mosi_s_axis_tvalid)
     );
 
-    spi_axis_if_v2 #(.QSPI(1),.MSB_FIRST(0) ) spi_io(
+    spi_axis_if_v2 #(.QSPI(1)  ) spi_io(
         .clk(clk_spi),
         .enable(spi_io_enable),
         .cpol(1'b0),
