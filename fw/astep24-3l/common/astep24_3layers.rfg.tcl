@@ -69,11 +69,13 @@ set baseRegisters {
     HK_STAT_CONVERSIONS_COUNTER {-size 32 -sw_read_only -counter -enable -hw_ignore -doc "Counter increased after each XADC conversion (for information) "}
     HK_CTRL {
         -doc "Controls for HK modules"
+        -reset 8'h10
         -bits {
             select_adc { -doc "Selects ADC SPI Output. 0 selects DAC, 1 selects ADC"}
             select_dac { -doc "Selects DAC SPI Output. If ADC is also selected, only ADC is selected"}
             spi_cpol   { -doc "Sets SPI Master CPOL mode"}
             spi_cpha   { -doc "Sets SPI Master CPHA mode"}
+            spi_msbFirst { -doc "Set SPI Master in MSBFirst" }
         }
     }
     HK_ADCDAC_MOSI_FIFO  { -fifo_axis_master -with_tlast -doc "FIFO to send bytes to ADC or DAC"}

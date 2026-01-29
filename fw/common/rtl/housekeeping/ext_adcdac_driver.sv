@@ -23,7 +23,8 @@ module ext_adcdac_driver(
     input  wire				ext_spi_miso,
     output wire				ext_spi_mosi,
     input  wire             spi_cpol,
-    input  wire             spi_cpha
+    input  wire             spi_cpha,
+    input  wire             spi_msbFirst
 );
 
     // Connections
@@ -78,13 +79,13 @@ module ext_adcdac_driver(
         .spi_mosi(ext_spi_mosi)
     );*/
 
-    spi_axis_if_v2 #(.QSPI(0),.MSB_FIRST(0) ) spi_io(
+    spi_axis_if_v2 #(.QSPI(0) ) spi_io(
         .clk(clk_spi),
         .resn(clk_spi_resn),
         .enable(1'd0),
         .cpol(spi_cpol),
         .cpha(spi_cpha),
-        .msb_first(0),
+        .msb_first(spi_msbFirst),
         .m_axis_tdata(spi_io_m_axis_tdata),
         .m_axis_tready(spi_io_m_axis_tready),
         .m_axis_tvalid(spi_io_m_axis_tvalid),

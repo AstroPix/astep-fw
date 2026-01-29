@@ -368,6 +368,7 @@ module astep24_3l_top(
         .hk_ctrl_select_dac(hk_ctrl_select_dac),
         .hk_ctrl_spi_cpol(hk_ctrl_spi_cpol),
         .hk_ctrl_spi_cpha(hk_ctrl_spi_cpha),
+        .hk_ctrl_spi_msbfirst(hk_ctrl_spi_msbFirst),
         .hk_xadc_temperature(hk_xadc_temperature),
         .hk_xadc_temperature_write(hk_xadc_temperature_write),
         .hk_xadc_vccint(hk_xadc_vccint),
@@ -776,6 +777,7 @@ module astep24_3l_top(
         .ext_spi_mosi(ext_spi_mosi),
         .spi_cpol(hk_ctrl_spi_cpol),
         .spi_cpha(hk_ctrl_spi_cpha),
+        .spi_msbFirst(hk_ctrl_spi_msbFirst),
 
 
         .xadc_conversion_trigger(hk_conversion_trigger_interrupt),

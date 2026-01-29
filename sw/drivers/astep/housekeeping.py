@@ -89,11 +89,11 @@ class Housekeeping():
         # Reason is that if all bits change at once, the clock polarity will change after chip select is low, creating an edge that will be wrongly interpreted
 
         # Change CPOL/CPHA
-        # For ADC: CPOL=1, CPHA=0 - Output on falling edge, capture on rising edge
+        # For ADC: CPOL=1, CPHA=0 , msb first- Output on falling edge, capture on rising edge
         # For DAC: CPOL=0, CPHA=1  - Output on rising edge, capture on Falling edge
         regval = 0
         if adc is True:
-            regval |= (1 << 2) | (0 << 3)
+            regval |= (1 << 2) | (0 << 3) | (1 << 4)
         else:
             regval |= (0 << 2) | (1 << 3)
 

@@ -24,6 +24,7 @@ module housekeeping_main(
     output wire				ext_spi_mosi,
     input  wire             spi_cpol,
     input  wire             spi_cpha,
+    input  wire             spi_msbFirst,
 
 
     input  wire				xadc_conversion_trigger,
@@ -76,7 +77,8 @@ module housekeeping_main(
         .ext_spi_miso(ext_spi_miso),
         .ext_spi_mosi(ext_spi_mosi),
         .spi_cpol(spi_cpol),
-        .spi_cpha(spi_cpha)
+        .spi_cpha(spi_cpha),
+        .spi_msbFirst(spi_msbFirst)
     );
 
 

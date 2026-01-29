@@ -25,7 +25,7 @@ class VSPISlave():
     ## Queue for Bytes Received from MAster
     mosiQueue : Queue | None
 
-    def __init__(self,clk,csn,mosi,miso,misoDefaultValue = 0x3D,misoSize = 2,cpol=0):
+    def __init__(self,clk,csn,mosi,miso,misoDefaultValue = 0x3D,misoSize = 2,cpol=0,cpha=1,msbFirst=False):
         self.clk                = clk
         self.csn                = csn
         self.mosi               = mosi
@@ -38,8 +38,23 @@ class VSPISlave():
         self.misoDoneEvent      = None
 
         self.cpol = cpol
+        self.cpha = cpha 
+        self.msbFirst = msbFirst
 
         self.bytesOut           = 0
+
+        ## Interpret Polarity and Phase to make code more readable 
+        # CPOL = 0, clock is 0  idle, CPOL= 1 , clock is 1 idle 
+        # CPHA =0 , sample on the first edge, output on second, CPHA=1, output on first edge, sample on second 
+        # 
+        # CPOL = 0 , CPHA = 0 : Sample on posedge, Output on negedge
+        # CPOL = 0, CPHA = 1 :  Output on posedge, Sample on negedge 
+        # CPOL= 1 , CPHA = 0 :  Sample on negedge, output on posedge
+        # CPOL = 1, CPHA= 1  :  Output on negedge, sample on posedge
+        self.sampleOnPosedge = (self.cpol == 0 and self.cpha == 0  ) or (self.cpol == 1 and self.cpha == 1  )
+        self.sampleOnNegedge = (self.cpol == 0 and self.cpha == 1  ) or (self.cpol == 1 and self.cpha == 0  )
+        self.outputOnPosedge = not self.sampleOnPosedge
+        self.outputOnNegedge = not self.sampleOnNegedge
 
         ## Init Slave out to 0
         if self.misoSize > 1:
@@ -69,18 +84,20 @@ class VSPISlave():
                     running = False
                 else:
 
-                    leadingEdge = self.clk.value == 1
-                    ## Write bit on leading edge for cpol=0
-                    if (self.cpol==0 and self.clk.value == 1) or (self.cpol==1 and self.clk.value == 0):
+                    posEdge = self.clk.value == 1
+                    negEdge = self.clk.value == 0
+                    
+                    ## Output Case, otherwise sample
+                    if (self.outputOnPosedge and posEdge) or (self.outputOnNegedge and negEdge):
 
-                        logger.debug(f"Writing bit, leading edge={leadingEdge}")
+                        logger.debug(f"Writing bit, posedge={posEdge}")
 
                         ## Output bit, range over misoSize because Miso can have multiple bits in parallel
                         for bitIndex in range(self.misoSize):
                             if self.misoSize > 1:
-                                self.miso[bitIndex].value = (misoCurrentByte >> misoBitCounter) & 0x1
+                                self.miso[bitIndex].value = (misoCurrentByte >> (misoBitCounter if self.msbFirst is False else 7-misoBitCounter)) & 0x1
                             else:
-                                self.miso.value = (misoCurrentByte >> misoBitCounter) & 0x1
+                                self.miso.value = (misoCurrentByte >> (misoBitCounter if self.msbFirst is False else 7-misoBitCounter)) & 0x1
                             misoBitCounter += 1
 
                         ## Next Byte process
@@ -106,12 +123,12 @@ class VSPISlave():
 
                     else:
 
-                        logger.debug(f"Reading bit, leading edge={leadingEdge}")
+                        logger.debug(f"Reading bit, posedge={posEdge}")
 
                         ## Receive bit on falling edge
                         ## Get bit and pack to byte
                         bit = self.mosi.value
-                        currentByte = currentByte | (bit << bitCounter)
+                        currentByte = currentByte | (bit << (bitCounter if self.msbFirst is False else 7-bitCounter))
                         bitCounter += 1
 
                         ## Push to Queue if byte reached
