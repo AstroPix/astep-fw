@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<fpga_config
+  SR="False"
+  chipversion="3"
+  fpga="gecco"
+  protocol="ftdi"
+  port="COM6"
+  FPGATSfreq="1000000"
+  useTLU="False"
+  SPIfreq="1000000"
+  RSTdelay="0.5"
+  autoread="True"
+  autoread_keepalive="1"
+/>

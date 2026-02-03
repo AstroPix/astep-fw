@@ -15,6 +15,7 @@ import logging
 import os
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 import pandas as pd
 from tqdm import tqdm
@@ -29,38 +30,39 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-class AstepRun:
+class AstropixRun:
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these
     # allows for simpler specifying of values.
-    def __init__(self, chipversion=3, clock_period_ns=None, SR: bool = False):
+    def __init__(self, fpgaxml):
         """
-        Initalizes astropix object.
-        No required arguments
-        Optional:
-        clock_period_ns:int - period of main clock in ns
-        SR:bool - if True, configure with shift registers. If False, configure with SPI
+        Initalizes AstropixRun object from xml config file
         """
-        if clock_period_ns is None:
-            clock_period_ns = 10 if chipversion == 3 else 25
-        self.sampleclock_period_ns = clock_period_ns
-        self.chipversion = chipversion
-        self.SR = SR  # define how to configure. If True, shift registers. If False, SPI
+        self.config = ET.parse(fpgaxml).getroot().attrib
+        self.config["chipversion"] = int(self.config["chipversion"])
+        self.config["SR"] = self.config["SR"]=="True"  # define how to configure. If True, shift registers. If False, SPI
 
     ##################### FPGA INTERACTIONS #########################
-    async def open_fpga(self, cmod: bool, uart: bool):
+    async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
-        if cmod and uart:
-            # self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
-        elif cmod and not uart:
-            self.boardDriver = drivers.boards.getCMODDriver()
-        elif not cmod and uart:
-            self.boardDriver = drivers.boards.getGeccoUARTDriver(
-                drivers.astep.serial.getFirstCOMPort()
-            )
-        elif not cmod and not uart:
-            self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+        if cmod or self.config["fpga"] == "cmod":
+            if uart or self.config["protocol"] == "uart":
+                self.boardDriver = drivers.boards.getCMODUartDriver(self.config["port"])
+            elif self.config["protocol"] == "spi":
+                raise NotImplementedError("CMOD/SPI not yet suppoted")
+                #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config["port"])
+            else:
+                self.boardDriver = drivers.boards.getCMODDriver()
+        elif self.config["fpga"] == "gecco":
+            if self.config["protocol"] == "uart":
+                self.boardDriver = drivers.boards.getGeccoUARTDriver(
+                    drivers.astep.serial.getFirstCOMPort()
+                )
+            elif self.config["protocol"] == "ftdi":
+                self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+            else:
+                self.boardDriver.getGeccoDriver()
+        raise RuntimeError(f"Unsupported or unrecognized protocol {self.config["protocol"]} or FPGA board {self.config["fpga"]}.")
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -72,16 +74,10 @@ class AstepRun:
     async def fpga_configure_chipversion(self):
         """Configure chip version"""
         await self.boardDriver.rfg.write_chip_version(
-            value=self.chipversion, flush=True
+            value=self.config["chipversion"], flush=True
         )
 
-    async def fpga_configure_clocks(
-        self,
-        FPGATSfreq: int = 1000000,
-        useTLU: bool = False,
-        SPIfreq: int = 1000000,
-        flush: bool = True,
-    ):
+    async def fpga_configure_clocks(self, flush: bool = True):
         """
         Configure FPGA TS clock (frequency and source), SPI clock frequency
         """
@@ -89,14 +85,14 @@ class AstepRun:
         await self.boardDriver.setTimestampClock(enable=True, flush=flush)
         # Setup FPGA timestamps
         await self.boardDriver.layersConfigFPGATimestampFrequency(
-            targetFrequencyHz=FPGATSfreq, flush=flush
+            targetFrequencyHz=int(self.config["FPGATSfreq"]), flush=flush
         )
 
         await self.boardDriver.layersConfigFPGATimestamp(
             enable=True,
             use_divider=True,
-            use_tlu=useTLU,
-            flush=True,
+            use_tlu=self.config["useTLU"]=="True",
+            flush=flush,
         )
         # await self.boardDriver.layersConfigFPGATimestamp(
         #    enable=True,
@@ -106,7 +102,7 @@ class AstepRun:
         #    flush=flush,
         # )
         # Configure SPI readout
-        await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
+        await self.boardDriver.configureLayerSPIFrequency(int(self.config["SPIfreq"]), flush=flush)
 
     async def fpga_configure_autoread_keepalive(
         self, nchips: int | None = None, flush=False
@@ -115,14 +111,17 @@ class AstepRun:
         Compute number of bytes needed between interrupt high and end of data stream in autoread mode
         :param nchips: number of chips in the daisy chain, default=None to compute from the configurations files if alerady loaded.
         """
-        if nchips is None:
-            if len(self.boardDriver.asics) == 0:
-                logger.warning(
-                    "configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!"
-                )
-                nchips = 1
-            else:
-                nchips = self.get_nchips()
+        if nchips is not None:
+            pass #nchips is already set, priority to script-provided values
+        elif "autoread_keepalive" in self.config.keys():
+            nchips = int(self.config["autoread_keepalive"]
+        elif len(self.boardDriver.asics) > 0:
+            nchips = self.get_nchips()
+        else:
+            logger.warning(
+                "configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!"
+            )
+            nchips = 1
         nbytes = 5 + nchips - 1
         await self.boardDriver.rfg.write_layers_cfg_nodata_continue(
             value=nbytes, flush=flush
@@ -141,40 +140,36 @@ class AstepRun:
     # For now we just stick to Asic
 
     # Method to initalize the asic. This is taking the place of asic.py.
-    def load_yaml(self, yaml, lanes:int = 1, chipsPerLane: int = 1):
+    def load_yaml(self, yaml:list, chipsPerLane: list, lanes: list|None = None):
         """
         Initalize the asic configuration. Must be called first
-        Positional arguments: None
-        Optional:
+        Positional arguments:
         yaml:list of str - Name of yml file(s) with configuration values (one file per bus)
         chipsPerRow:list of int - Number of arrays per SPI bus (one int per bus)
+        Optional:
+        lanes: list of lane numbers, default=None=range(n_lanes)
         """
-        
-        assert lanes >= 1 , "Cannot have less than one lane configured"
-        assert chipsPerLane >=1 , "Cannot have less than one chip per lane configured"
-        
-        # Define YAML path variables
+        if lanes is None: lanes = range(len(yaml))
+
+        # Define YAML path variables - INPUT SANITIZATION DONE IN MAIN.PY
         # If the provided yaml string is already a file, don't create the default path
-        pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-        if os.path.exists(yaml) is False:
-            ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yml"
-        else:
-            ymlpath = yaml
-        
-        
-        assert os.path.exists(ymlpath) , f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
-        
+        #pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
+        #if os.path.exists(yaml) is False:
+        #    ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yml"
+        #else:
+        #    ymlpath = yaml
+        #assert os.path.exists(ymlpath) , f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
 
         # Get config values from YAML and set chip properties
         try:
-            #for lane in range(lanes):
+            for y, nchips, lane in zip(yaml, chipsPerLane, lanes):
                 ## Init asic
-            self.boardDriver.setupASICS(
-                version=self.chipversion,
-                lanes=lanes,
-                chipsPerLane=chipsPerLane,
-                configFile=ymlpath,
-            )
+                self.boardDriver.setupASIC(
+                    version=self.chipversion,
+                    lanes=lane,
+                    chipsPerLane=nchips,
+                    configFile=y,
+                )
         except FileNotFoundError as e:
             logger.error(
                 "Config File %s was not found, pass the name of a config file from the scripts/config folder", ymlpath
@@ -192,7 +187,7 @@ class AstepRun:
         #    logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
         #    sys.exit(1)
 
-    def cfg_nchips(self):
+    def get_nchips(self):
         """
         Returns the maximum number of chips of all daisy chains
         """
@@ -236,7 +231,7 @@ class AstepRun:
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
-        await self.boardDriver.resetLayers(0.5)
+        await self.boardDriver.resetLayers(float(self.config["RSTdelay"]))
 
     async def chips_hold(self, hold: bool):
         """ """
@@ -250,12 +245,14 @@ class AstepRun:
         """ """
         await self.boardDriver.disableLayersReadout(True)
 
-    async def chips_enable_readout(self, autoread: bool, layerlst: list = [0]):
+    async def chips_enable_readout(self, autoread: bool|None = None, layerlst: list|None = None):
         """
         Enables data readout from the chips
-        :param autoread: bool
-        :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=[0]
+        :param autoread: bool, default=None
+        :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
+        if autoread is None: autoread = self.config["autoread"]==True
+        if layerlst is None: layerlst = self.asics.keys()
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
         elif isinstance(self.boardDriver, CMODBoard):
@@ -272,7 +269,7 @@ class AstepRun:
     # The method to write data to the asic.
     async def chips_setcfg(self):
         """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
-        if self.SR:
+        if self.config["SR"]:
             for layer in self.boardDriver.asics.keys():
                 await self.boardDriver.writeSRAsicConfig(lane=layer)
         else:
@@ -333,6 +330,9 @@ class AstepRun:
             )
 
     async def buffer_flush(self):
+        """
+        Flushes the data already present in chips digital periphery, then the FPGA buffer
+        """
         await self.chips_flush()
         buff = await self.boardDriver.readoutGetBufferSize()
         await self.boardDriver.readoutReadBytes(buff)

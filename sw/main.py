@@ -214,22 +214,21 @@ def bin2csv(fprefix):
 #################### MAIN FUNCTION ####################
 
 
-async def newmain(args):
-    from astep import AstepRun as Run  # Name TBC
+async def main(args):
+    from astropixrun import AstropixRun as Run
 
-    arun = Run(chipversion=3)
+    arun = Run(args.fpgaxml)
 
     logger.info("Opening FPGA")
 
-    # Open Board, Gecco or CMOD UART
-    # await arun.open_fpga(cmod=True, uart=True) #CMOD
-    await arun.open_fpga(cmod=False, uart=False)  # Gecco
+    # Open connexion to FPGA board
+    await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
 
     logger.info("FPGA Opened")
 
     await arun.fpga_configure_clocks()
-    await arun.fpga_configure_autoread_keepalive(4)
-    arun.load_yaml(args.yaml,1, args.chipsPerRow)
+    arun.load_yaml(args.yaml, args.chipsPerRow)
+    await arun.fpga_configure_autoread_keepalive()
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
@@ -237,13 +236,47 @@ async def newmain(args):
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
     await arun.buffer_flush()
-    await arun.chips_enable_readout(autoread=False)
+    await arun.chips_enable_readout()
+
     # Main loop here
+    if args.runTime is not None:
+        end_time = time.time() + (args.runTime * 60.0)
+    else:
+        end_time = float("inf")
+    run = time.time() < end_time
+    ofile = open("{}.bin".format(args.outputPrefix), "wb")
+
+    while run:
+        try:
+            if args.noAutoread: # Manual readout
+                for layer in layerlst:
+                    await boardDriver.writeSPIBytesToLane(
+                        lane=layer, bytes=[0x00] * 255
+                    )
+            # Read data
+            if args.readout is None:
+                task = asyncio.create_task(getBuffer(boardDriver))
+            else:
+                task = asyncio.create_task(get_readout(boardDriver, args.readout))
+            await task
+            buff, readout = task.result()
+            # Output data
+            if buff > 0:
+                ofile.write(readout)
+            print(f"  {buff:04d}  ", end="\r")
+            # Check time
+            loopTime = time.time()
+            run = loopTime < end_time
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while in main loop - exiting.")
+            run = False
+
     await arun.chips_disable_readout()
     await arun.fpga_close_connection()
+    ofile.close()
 
 
-async def main(args):
+async def oldmain(args):
     # Welcome to the main (and only) function of this script!
     print(args)  # Soon to be removed
     logger.debug("Start main()")
@@ -276,19 +309,19 @@ async def main(args):
     await boardDriver.configureLayerSPIDivider(20, flush=True)
     await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)  # 8
     logger.debug("Instanciate ASIC drivers ...")
+#    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
+#    ymlpath = [
+#        os.getcwd()
+#        + pathdelim
+#        + "scripts"
+#        + pathdelim
+#        + "config"
+#        + pathdelim
+#        + y
+#        + ".yml"
+#        for y in args.yaml
+#    ]  # Define YAML path variables
     # Configure chips in memory
-    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-    ymlpath = [
-        os.getcwd()
-        + pathdelim
-        + "scripts"
-        + pathdelim
-        + "config"
-        + pathdelim
-        + y
-        + ".yml"
-        for y in args.yaml
-    ]  # Define YAML path variables
     try:
         for layer, (nchips, yml) in enumerate(zip(args.chipsPerRow, ymlpath)):
             boardDriver.setupASIC(
@@ -528,6 +561,17 @@ if __name__ == "__main__":
 
     # Options related to Setup / Configuration of system
     parser.add_argument(
+        "-x",
+        "--fpgaxml",
+        action="store",
+        required=False,
+        type=str,
+        default="gecco",
+        nargs=1,
+        help="filepath (in scripts/config/ directory) .xml file containing fpga configuration. \
+                                Default: config/gecco.xml (default parameters for the Gecco board)",
+    )
+    parser.add_argument(
         "-y",
         "--yaml",
         action="store",
@@ -684,6 +728,22 @@ if __name__ == "__main__":
         args.readout = None
     elif args.readout < 0 or args.readout > 4098:
         args.readout = 4096
+
+    # Sanitizing args.yaml
+    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
+    args.yaml = [
+        os.getcwd()
+        + pathdelim
+        + "scripts"
+        + pathdelim
+        + "config"
+        + pathdelim
+        + y
+        + ".yml"
+        for y in args.yaml
+    ]  # Define YAML path variables
+    for y in args.yaml:
+        assert os.path.exists(y) , f"Config File {y} was not found, pass the name of a config file from the scripts/config folder"
 
     try:
         asyncio.run(main(args))

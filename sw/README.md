@@ -30,7 +30,7 @@ Software in this 'sw' repository enables communication with hardware, chip confi
         - **gecco** - hardcoded scripts for test running with GECCO/NEXYS FPGA
 - **ui_control_v1** - source and executable code for GECCO GUI
     - WIP
-- **astep.py** - wrapper for backend in 'drivers', intended to streamline user experience
+- **astropix.py** - wrapper for backend in 'drivers', intended to streamline user experience
 - **requirements.txt** - Python requirements
 
 ## Run Scripts
