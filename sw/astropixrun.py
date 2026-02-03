@@ -62,7 +62,8 @@ class AstropixRun:
                 self.boardDriver = drivers.boards.getGeccoFTDIDriver()
             else:
                 self.boardDriver.getGeccoDriver()
-        raise RuntimeError(f"Unsupported or unrecognized protocol {self.config["protocol"]} or FPGA board {self.config["fpga"]}.")
+        else:
+            raise RuntimeError(f"""Unsupported or unrecognized protocol {self.config["protocol"]} or FPGA board {self.config["fpga"]}.""")
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -114,7 +115,7 @@ class AstropixRun:
         if nchips is not None:
             pass #nchips is already set, priority to script-provided values
         elif "autoread_keepalive" in self.config.keys():
-            nchips = int(self.config["autoread_keepalive"]
+            nchips = int(self.config["autoread_keepalive"])
         elif len(self.boardDriver.asics) > 0:
             nchips = self.get_nchips()
         else:
@@ -165,8 +166,8 @@ class AstropixRun:
             for y, nchips, lane in zip(yaml, chipsPerLane, lanes):
                 ## Init asic
                 self.boardDriver.setupASIC(
-                    version=self.chipversion,
-                    lanes=lane,
+                    version=self.config["chipversion"],
+                    lane=lane,
                     chipsPerLane=nchips,
                     configFile=y,
                 )
@@ -252,7 +253,7 @@ class AstropixRun:
         :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
         if autoread is None: autoread = self.config["autoread"]==True
-        if layerlst is None: layerlst = self.asics.keys()
+        if layerlst is None: layerlst = self.boardDriver.asics.keys()
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
         elif isinstance(self.boardDriver, CMODBoard):
@@ -279,7 +280,7 @@ class AstropixRun:
                 await self.chips_setID(layer)
             await self.boardDriver.layersDeselectSPI(flush=True)  # Unset CS
             # Configure chips in parallel
-            for chip in range(self.cfg_nchips()):
+            for chip in range(self.get_nchips()):
                 await self.boardDriver.layersSelectSPI(flush=True)  # Set CS
                 for layer in self.boardDriver.asics.keys():
                     if chip < self.boardDriver.asics[layer].num_chips:
@@ -370,7 +371,7 @@ class AstropixRun:
     async def update_pixThreshold(self, layer: int, chip: int, vThresh: int):
         # vThresh = comparator threshold provided in mV
         dacThresh = self.get_internal_vdac(vThresh / 1000.0)  # convert from mV to V
-        dacBL = self.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
+        dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
         await self.update_asic_config(
             layer, chip, vdac_cfg={"thpix": dacBL + dacThresh}
         )
@@ -406,7 +407,7 @@ class AstropixRun:
 
         # From nicholas's beam_test.py:
         # 1=thpmos (comparator threshold voltage), 3 = Vcasc2, 4=BL, 7=Vminuspix, 8=Thpix
-        if self.chipversion == 2:
+        if self.config["chipversion"] == 2:
             default_vdac = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
         else:  # increase thpmos for v3 pmos pixels
             default_vdac = (8, [1.1, 0, 1.1, 1, 0, 0, 1, 1.100])
@@ -445,7 +446,7 @@ class AstropixRun:
         self,
         layer: int,
         chip: int,
-        inj_voltage: float = 0.0,
+        inj_voltage: float|None = None,
         inj_period: int = 100,
         clkdiv: int = 100,
         initdelay: int = 100,
@@ -470,7 +471,7 @@ class AstropixRun:
         dac_config:tuple[int, list[float]]: injdac settings. Must be fully specified if set.
         onchip: bool (generate signal on chip or on GECCO card)
         """
-        if is_mV:  # Needs conversion to vdac units
+        if inj_voltage is not None and is_mV:  # Needs conversion to vdac units
             inj_voltage = inj_voltage / 1000.0
 
         self.injector = self.boardDriver.geccoGetInjectionBoard()
@@ -497,7 +498,8 @@ class AstropixRun:
             logger.info("Injection: Configured to use GECCO card")
         else:
             # Injection provided through integrated features on chip
-            # print("SET INJ WITH REGISTERS")
+            if inj_voltage is not None:
+                self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int(inj_voltage * 1024 / 1.8)  # 1.8 V coded on 10 bits
             await self.boardDriver.ioSetInjectionToChip(enable=True, flush=True)
             logger.info("Injection: Configured to use onchip circuit")
 
@@ -604,30 +606,30 @@ class AstropixRun:
     def get_log_header(self, layer: int, chip: int):
         vdac_str = ""
         digitalconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["digitalconfig"]:
-            digitalconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["digitalconfig"]:
+            digitalconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "digitalconfig"
             ][key][1]
         biasconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["biasconfig"]:
-            biasconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["biasconfig"]:
+            biasconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "biasconfig"
             ][key][1]
         idacconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["idacs"]:
-            idacconfig[key] = self.asics[layer].asic_config[f"config_{chip}"]["idacs"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["idacs"]:
+            idacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["idacs"][
                 key
             ][1]
-        if self.chipversion > 2:
+        if self.config["chipversion"] > 2:
             vdacconfig = {}
-            for key in self.asics[layer].asic_config[f"config_{chip}"]["vdacs"]:
-                vdacconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+            for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]:
+                vdacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                     "vdacs"
                 ][key][1]
             vdac_str = f"vDAC: {vdacconfig}\n"
         arrayconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["recconfig"]:
-            arrayconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["recconfig"]:
+            arrayconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "recconfig"
             ][key][1]
 
@@ -652,6 +654,11 @@ class AstropixRun:
     async def get_readout(self, counts: int = 4096):
         bufferSize = await self.boardDriver.readoutGetBufferSize()
         readout = await self.boardDriver.readoutReadBytes(counts)
+        return bufferSize, readout
+    
+    async def get_buffer(self):
+        bufferSize = await self.boardDriver.readoutGetBufferSize()
+        readout = await self.boardDriver.readoutReadBytes(bufferSize)
         return bufferSize, readout
 
     # Print status register

@@ -215,23 +215,18 @@ def bin2csv(fprefix):
 
 
 async def main(args):
+    print(args)
     from astropixrun import AstropixRun as Run
-
     arun = Run(args.fpgaxml)
-
-    logger.info("Opening FPGA")
-
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
-
-    logger.info("FPGA Opened")
-
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
+        await arun.init_injection(*args.inject[:2], args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
@@ -239,25 +234,23 @@ async def main(args):
     await arun.chips_enable_readout()
 
     # Main loop here
-    if args.runTime is not None:
-        end_time = time.time() + (args.runTime * 60.0)
-    else:
-        end_time = float("inf")
+    end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
     run = time.time() < end_time
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
-
+    if args.inject: await arun.start_injection()
+    
     while run:
         try:
             if args.noAutoread: # Manual readout
                 for layer in layerlst:
-                    await boardDriver.writeSPIBytesToLane(
+                    await arun.boardDriver.writeSPIBytesToLane(
                         lane=layer, bytes=[0x00] * 255
                     )
             # Read data
             if args.readout is None:
-                task = asyncio.create_task(getBuffer(boardDriver))
+                task = asyncio.create_task(arun.get_buffer())
             else:
-                task = asyncio.create_task(get_readout(boardDriver, args.readout))
+                task = asyncio.create_task(arun.get_readout(args.readout))
             await task
             buff, readout = task.result()
             # Output data
@@ -272,6 +265,7 @@ async def main(args):
             run = False
 
     await arun.chips_disable_readout()
+    if args.inject: await arun.stop_injection()
     await arun.fpga_close_connection()
     ofile.close()
 
@@ -563,11 +557,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-x",
         "--fpgaxml",
-        action="store",
-        required=False,
         type=str,
         default="gecco",
-        nargs=1,
         help="filepath (in scripts/config/ directory) .xml file containing fpga configuration. \
                                 Default: config/gecco.xml (default parameters for the Gecco board)",
     )
@@ -729,8 +720,11 @@ if __name__ == "__main__":
     elif args.readout < 0 or args.readout > 4098:
         args.readout = 4096
 
+    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name    
+    # Sanitizing args.fpgaxml
+    args.fpgaxml = os.getcwd() + pathdelim + "scripts" + pathdelim + "config" + pathdelim + args.fpgaxml + ".xml"
+    assert os.path.exists(args.fpgaxml), f"FPGA config file {args.fpgaxml} not found"
     # Sanitizing args.yaml
-    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
     args.yaml = [
         os.getcwd()
         + pathdelim
@@ -744,6 +738,7 @@ if __name__ == "__main__":
     ]  # Define YAML path variables
     for y in args.yaml:
         assert os.path.exists(y) , f"Config File {y} was not found, pass the name of a config file from the scripts/config folder"
+
 
     try:
         asyncio.run(main(args))
