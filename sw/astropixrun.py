@@ -252,12 +252,12 @@ class AstropixRun:
         :param autoread: bool, default=None
         :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
-        if autoread is None: autoread = self.config["autoread"]==True
-        if layerlst is None: layerlst = self.boardDriver.asics.keys()
+        if autoread is None: autoread = self.config["autoread"]=="True"
+        self.layerlst = self.boardDriver.asics.keys() if layerlst is None else layerlst
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
         elif isinstance(self.boardDriver, CMODBoard):
-            await self.boardDriver.enableLayersReadout(layerlst, autoread, True)
+            await self.boardDriver.enableLayersReadout(self.layerlst, autoread, True)
         else:
             await self.boardDriver.enableLayersReadout()
 
@@ -474,12 +474,13 @@ class AstropixRun:
         if inj_voltage is not None and is_mV:  # Needs conversion to vdac units
             inj_voltage = inj_voltage / 1000.0
 
-        self.injector = self.boardDriver.geccoGetInjectionBoard()
-        self.injector.period = inj_period
-        self.injector.clkdiv = clkdiv
-        self.injector.initdelay = initdelay
-        self.injector.cycle = cycle
-        self.injector.pulsesperset = pulseperset
+        self.injector = self.boardDriver.getInjector()
+        self.injector.setPattern(inj_period, clkdiv, initdelay, cycle, pulseperset)
+        # self.injector.period = inj_period
+        # self.injector.clkdiv = clkdiv
+        # self.injector.initdelay = initdelay
+        # self.injector.cycle = cycle
+        # self.injector.pulsesperset = pulseperset
 
         if isinstance(self.boardDriver, GeccoCarrierBoard) and not onchip:
             # Injection Board is provided by the board Driver
@@ -496,7 +497,7 @@ class AstropixRun:
             self.injectorBoard.vsupply = self.vboard.vsupply
             await self.injectorBoard.update()
             logger.info("Injection: Configured to use GECCO card")
-        else:
+        else: #elif isinstance(self.boardDriver, CMODBoard):
             # Injection provided through integrated features on chip
             if inj_voltage is not None:
                 self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int(inj_voltage * 1024 / 1.8)  # 1.8 V coded on 10 bits
@@ -651,9 +652,15 @@ class AstropixRun:
         )
 
     # Read FPGA buffer and return buffer length and data stored within it
-    async def get_readout(self, counts: int = 4096):
+    async def get_readout(self, counts: int|None = None):
+        if self.config["autoread"] != "True":
+            for layer in self.layerlst:
+                await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         bufferSize = await self.boardDriver.readoutGetBufferSize()
-        readout = await self.boardDriver.readoutReadBytes(counts)
+        if counts is None:
+            readout = await self.boardDriver.readoutReadBytes(bufferSize)
+        else:
+            readout = await self.boardDriver.readoutReadBytes(counts)
         return bufferSize, readout
     
     async def get_buffer(self):

@@ -42,6 +42,9 @@ class GeccoCarrierBoard(BoardDriver):
 
     def geccoGetInjectionBoard(self):
         return self.getInjectionBoard(slot=3)
+    
+    def getInjector(self):#Needed for CMOD compatibility
+        return self.geccoGetInjectionBoard()
 
     async def ioSetInjectionToGeccoInjBoard(self, enable: bool, flush: bool = False):
         v = await self.rfg.read_io_ctrl()

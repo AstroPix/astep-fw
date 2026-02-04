@@ -226,31 +226,28 @@ async def main(args):
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
-        await arun.init_injection(*args.inject[:2], args.vinj)
+        await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj, clkdiv=300)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
+    print("Chips configured")
     await arun.buffer_flush()
+    print("buffer flushed")
     await arun.chips_enable_readout()
+    print("readout ready")
 
     # Main loop here
     end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
     run = time.time() < end_time
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
+    print("file ok")
     if args.inject: await arun.start_injection()
+    print("inject started")
     
     while run:
         try:
-            if args.noAutoread: # Manual readout
-                for layer in layerlst:
-                    await arun.boardDriver.writeSPIBytesToLane(
-                        lane=layer, bytes=[0x00] * 255
-                    )
             # Read data
-            if args.readout is None:
-                task = asyncio.create_task(arun.get_buffer())
-            else:
-                task = asyncio.create_task(arun.get_readout(args.readout))
+            task = asyncio.create_task(arun.get_readout(args.readout))
             await task
             buff, readout = task.result()
             # Output data
@@ -584,29 +581,29 @@ if __name__ == "__main__":
         nargs="+",
         help="Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4",
     )
-    parser.add_argument(
-        "--config-override",
-        dest="confOverride",
-        action="store_true",
-        help="Execute a special line of code that applies hard-coded configuration changes - do not use unless you have read the code and know what you are doing!",
-    )
+    # parser.add_argument(
+    #     "--config-override",
+    #     dest="confOverride",
+    #     action="store_true",
+    #     help="Execute a special line of code that applies hard-coded configuration changes - do not use unless you have read the code and know what you are doing!",
+    # )
 
     # Options related to Setup / Configuration of the chip in data collection run
-    parser.add_argument(
-        "-na",
-        "--noAutoread",
-        action="store_true",
-        required=False,
-        help="If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread",
-    )
-    parser.add_argument(
-        "-t",
-        "--threshold",
-        type=int,
-        action="store",
-        default=100,
-        help="Threshold voltage for digital ToT (in mV). DEFAULT: 100",
-    )
+    # parser.add_argument(
+    #     "-na",
+    #     "--noAutoread",
+    #     action="store_true",
+    #     required=False,
+    #     help="If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread",
+    # ) SUPPORTED IN FPGA XML CONFIG FILE ONLY
+    # parser.add_argument(
+    #     "-t",
+    #     "--threshold",
+    #     type=int,
+    #     action="store",
+    #     default=150,
+    #     help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
+    # )
     parser.add_argument(
         "-a",
         "--analog",
