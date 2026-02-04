@@ -49,7 +49,7 @@ class AstropixRun:
             if uart or self.config.find("protocol").attrib["value"] == "uart":
                 self.boardDriver = drivers.boards.getCMODUartDriver(self.config.find("port").attrib["value"])
             elif self.config.find("protocol").attrib["value"] == "spi":
-                raise NotImplementedError("CMOD/SPI not yet suppoted")
+                raise NotImplementedError("CMOD/SPI not yet supported")
                 #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config??)
             else:
                 self.boardDriver = drivers.boards.getCMODDriver()
@@ -450,14 +450,7 @@ class AstropixRun:
         layer: int,
         chip: int,
         inj_voltage: float|None = None,
-        inj_period: int = 100,
-        clkdiv: int = 100,
-        initdelay: int = 100,
-        cycle: float = 0,
-        pulseperset: int = 1,
         dac_config: tuple[int, list[float]] = None,
-        onchip: bool = True,
-        is_mV: bool = True,
     ):
         """
         Configure injections
@@ -466,26 +459,19 @@ class AstropixRun:
         chip: int - which chip in the daisy chain to inject into
         Optional Arguments:
         inj_voltage: float - Injection Voltage. Range from 0 to 1.8. If dac_config is set inj_voltage will be overwritten
-        inj_period: int
-        clkdiv: int
-        initdelay: int
-        cycle: float
-        pulseperset: int
         dac_config:tuple[int, list[float]]: injdac settings. Must be fully specified if set.
-        onchip: bool (generate signal on chip or on GECCO card)
         """
-        if inj_voltage is not None and is_mV:  # Needs conversion to vdac units
+        if inj_voltage is not None and self.config.find("injector").attrib["ismV"]=="True":  # Needs conversion to vdac units
             inj_voltage = inj_voltage / 1000.0
 
         self.injector = self.boardDriver.getInjector()
-        self.injector.setPattern(inj_period, clkdiv, initdelay, cycle, pulseperset)
-        # self.injector.period = inj_period
-        # self.injector.clkdiv = clkdiv
-        # self.injector.initdelay = initdelay
-        # self.injector.cycle = cycle
-        # self.injector.pulsesperset = pulseperset
+        self.injector.period = int(self.config.find("injector").attrib["period"])
+        self.injector.clkdiv = int(self.config.find("injector").attrib["clkdiv"])
+        self.injector.initdelay = int(self.config.find("injector").attrib["initdelay"])
+        self.injector.cycle = int(self.config.find("injector").attrib["cycle"])
+        self.injector.pulsesperset = int(self.config.find("injector").attrib["pulsesperset"])
 
-        if isinstance(self.boardDriver, GeccoCarrierBoard) and not onchip:
+        if isinstance(self.boardDriver, GeccoCarrierBoard) and self.config.find("injector").attrib["onchip"]=="False":
             # Injection Board is provided by the board Driver
             # The Injection Board provides an underlying Voltage Board
             await self.boardDriver.ioSetInjectionToGeccoInjBoard(
@@ -500,7 +486,7 @@ class AstropixRun:
             self.injectorBoard.vsupply = self.vboard.vsupply
             await self.injectorBoard.update()
             logger.info("Injection: Configured to use GECCO card")
-        else: #elif isinstance(self.boardDriver, CMODBoard):
+        else:
             # Injection provided through integrated features on chip
             if inj_voltage is not None:
                 self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int(inj_voltage * 1024 / 1.8)  # 1.8 V coded on 10 bits

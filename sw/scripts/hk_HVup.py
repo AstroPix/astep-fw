@@ -45,7 +45,7 @@ async def callHK(lsbFirst=True): # adding a setting that can change the byte ord
     await driver.close()
 
 
-async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
+async def setHV(lsbFirst=False,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
     Sends set voltage to TI DAC121S101 for setting HV bias
     Input is two bytes

@@ -215,9 +215,8 @@ def bin2csv(fprefix):
 
 
 async def main(args):
-    print(args)
-    from astropixrun import AstropixRun as Run
-    arun = Run(args.fpgaxml)
+    from astropixrun import AstropixRun
+    arun = AstropixRun(args.fpgaxml)
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
     await arun.fpga_configure_clocks()
@@ -226,37 +225,32 @@ async def main(args):
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
-        await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj, clkdiv=300)
+        await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
-    print("Chips configured")
     await arun.buffer_flush()
-    print("buffer flushed")
     await arun.chips_enable_readout()
-    print("readout ready")
 
     # Main loop here
     end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
     run = time.time() < end_time
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
-    print("file ok")
     if args.inject: await arun.start_injection()
-    print("inject started")
     
     while run:
         try:
             # Read data
-            task = asyncio.create_task(arun.get_readout(args.readout))
-            await task
-            buff, readout = task.result()
+            # task = asyncio.create_task(arun.get_readout(args.readout))
+            # await task
+            # buff, readout = task.result()
+            buff, readout = await arun.get_readout(args.readout)
             # Output data
             if buff > 0:
                 ofile.write(readout)
             print(f"  {buff:04d}  ", end="\r")
             # Check time
-            loopTime = time.time()
-            run = loopTime < end_time
+            run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while in main loop - exiting.")
             run = False
