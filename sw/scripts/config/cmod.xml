@@ -2,8 +2,8 @@
 <fpga_config>
   <SR value="False"/>
   <chipversion value="3"/>
-  <fpga value="gecco"/>
-  <protocol value="ftdi"/>
+  <fpga value="cmod"/>
+  <protocol value="uart"/>
   <port value="COM6"/>
   <FPGATSfreq value="1000000"/>
   <useTLU value="False"/>
@@ -11,5 +11,6 @@
   <RSTdelay value="0.5"/>
   <autoread value="True"/>
   <autoread_keepalive value="1"/>
-  <injector period="100" clkdiv="100" initdelay="100" cycle="0" pulseperset="1"/>
+  <injector period="100" clkdiv="300" initdelay="100" cycle="0" pulseperset="1"/>
+  <housekeeping SPIfrequency="10000000" lsb="False">
 </fpga_config>

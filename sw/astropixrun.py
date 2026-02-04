@@ -38,32 +38,35 @@ class AstropixRun:
         """
         Initalizes AstropixRun object from xml config file
         """
-        self.config = ET.parse(fpgaxml).getroot().attrib
-        self.config["chipversion"] = int(self.config["chipversion"])
-        self.config["SR"] = self.config["SR"]=="True"  # define how to configure. If True, shift registers. If False, SPI
+        self.config = ET.parse(fpgaxml).getroot()
+        self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
+        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI
 
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
-        if cmod or self.config["fpga"] == "cmod":
-            if uart or self.config["protocol"] == "uart":
-                self.boardDriver = drivers.boards.getCMODUartDriver(self.config["port"])
-            elif self.config["protocol"] == "spi":
+        if cmod or self.config.find("fpga").attrib["value"] == "cmod":
+            if uart or self.config.find("protocol").attrib["value"] == "uart":
+                self.boardDriver = drivers.boards.getCMODUartDriver(self.config.find("port").attrib["value"])
+            elif self.config.find("protocol").attrib["value"] == "spi":
                 raise NotImplementedError("CMOD/SPI not yet suppoted")
-                #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config["port"])
+                #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config??)
             else:
                 self.boardDriver = drivers.boards.getCMODDriver()
-        elif self.config["fpga"] == "gecco":
-            if self.config["protocol"] == "uart":
+        elif self.config.find("fpga").attrib["value"] == "gecco":
+            if self.config.find("protocol").attrib["value"] == "uart":
                 self.boardDriver = drivers.boards.getGeccoUARTDriver(
                     drivers.astep.serial.getFirstCOMPort()
                 )
-            elif self.config["protocol"] == "ftdi":
+            elif self.config.find("protocol").attrib["value"] == "ftdi":
                 self.boardDriver = drivers.boards.getGeccoFTDIDriver()
             else:
                 self.boardDriver.getGeccoDriver()
         else:
-            raise RuntimeError(f"""Unsupported or unrecognized protocol {self.config["protocol"]} or FPGA board {self.config["fpga"]}.""")
+            raise RuntimeError(f"""Unsupported or unrecognized protocol \
+                                  {self.config.find("protocol").attrib["value"]} \
+                                  or FPGA board \
+                                  {self.config.find("fpga").attrib["value"]}.""")
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -75,7 +78,7 @@ class AstropixRun:
     async def fpga_configure_chipversion(self):
         """Configure chip version"""
         await self.boardDriver.rfg.write_chip_version(
-            value=self.config["chipversion"], flush=True
+            value=self.config.find("chipversion").attrib["value"], flush=True
         )
 
     async def fpga_configure_clocks(self, flush: bool = True):
@@ -86,13 +89,13 @@ class AstropixRun:
         await self.boardDriver.setTimestampClock(enable=True, flush=flush)
         # Setup FPGA timestamps
         await self.boardDriver.layersConfigFPGATimestampFrequency(
-            targetFrequencyHz=int(self.config["FPGATSfreq"]), flush=flush
+            targetFrequencyHz=int(self.config.find("FPGATSfreq").attrib["value"]), flush=flush
         )
 
         await self.boardDriver.layersConfigFPGATimestamp(
             enable=True,
             use_divider=True,
-            use_tlu=self.config["useTLU"]=="True",
+            use_tlu=self.config.find("useTLU").attrib["value"]=="True",
             flush=flush,
         )
         # await self.boardDriver.layersConfigFPGATimestamp(
@@ -103,7 +106,7 @@ class AstropixRun:
         #    flush=flush,
         # )
         # Configure SPI readout
-        await self.boardDriver.configureLayerSPIFrequency(int(self.config["SPIfreq"]), flush=flush)
+        await self.boardDriver.configureLayerSPIFrequency(int(self.config.find("SPIfreq").attrib["value"]), flush=flush)
 
     async def fpga_configure_autoread_keepalive(
         self, nchips: int | None = None, flush=False
@@ -114,8 +117,8 @@ class AstropixRun:
         """
         if nchips is not None:
             pass #nchips is already set, priority to script-provided values
-        elif "autoread_keepalive" in self.config.keys():
-            nchips = int(self.config["autoread_keepalive"])
+        elif self.config.find("autoread_keepalive") is not None:
+            nchips = int(self.config.find("autoread_keepalive").attrib["value"])
         elif len(self.boardDriver.asics) > 0:
             nchips = self.get_nchips()
         else:
@@ -166,7 +169,7 @@ class AstropixRun:
             for y, nchips, lane in zip(yaml, chipsPerLane, lanes):
                 ## Init asic
                 self.boardDriver.setupASIC(
-                    version=self.config["chipversion"],
+                    version=self.config.find("chipversion").attrib["value"],
                     lane=lane,
                     chipsPerLane=nchips,
                     configFile=y,
@@ -232,7 +235,7 @@ class AstropixRun:
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
-        await self.boardDriver.resetLayers(float(self.config["RSTdelay"]))
+        await self.boardDriver.resetLayers(float(self.config.find("RSTdelay").attrib["value"]))
 
     async def chips_hold(self, hold: bool):
         """ """
@@ -252,7 +255,7 @@ class AstropixRun:
         :param autoread: bool, default=None
         :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
-        if autoread is None: autoread = self.config["autoread"]=="True"
+        if autoread is None: autoread = self.config.find("autoread").attrib["value"]=="True"
         self.layerlst = self.boardDriver.asics.keys() if layerlst is None else layerlst
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
@@ -270,7 +273,7 @@ class AstropixRun:
     # The method to write data to the asic.
     async def chips_setcfg(self):
         """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
-        if self.config["SR"]:
+        if self.config.find("SR").attrib["value"]:
             for layer in self.boardDriver.asics.keys():
                 await self.boardDriver.writeSRAsicConfig(lane=layer)
         else:
@@ -407,7 +410,7 @@ class AstropixRun:
 
         # From nicholas's beam_test.py:
         # 1=thpmos (comparator threshold voltage), 3 = Vcasc2, 4=BL, 7=Vminuspix, 8=Thpix
-        if self.config["chipversion"] == 2:
+        if self.config.find("chipversion").attrib["value"] == 2:
             default_vdac = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
         else:  # increase thpmos for v3 pmos pixels
             default_vdac = (8, [1.1, 0, 1.1, 1, 0, 0, 1, 1.100])
@@ -621,7 +624,7 @@ class AstropixRun:
             idacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["idacs"][
                 key
             ][1]
-        if self.config["chipversion"] > 2:
+        if self.config.find("chipversion").attrib["value"] > 2:
             vdacconfig = {}
             for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]:
                 vdacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
@@ -653,7 +656,7 @@ class AstropixRun:
 
     # Read FPGA buffer and return buffer length and data stored within it
     async def get_readout(self, counts: int|None = None):
-        if self.config["autoread"] != "True":
+        if self.config.find("autoread").attrib["value"] != "True":
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         bufferSize = await self.boardDriver.readoutGetBufferSize()
