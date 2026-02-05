@@ -103,9 +103,9 @@ module spi_axis_if_v2 #( parameter QSPI = 0) (
 
     // This is a bit confusing, to output on posedge the logic runs during the negedge state
     wire        mosi_output = !stall_module && ( (cpha == 0 && cpol ==0  && spi_clock_state == A) ||
-                                (cpha == 0 && cpol == 1  && spi_clock_state == B) ||
+                                (cpha == 0 && cpol == 1  && spi_clock_state == A) ||
                                (cpha == 1 && cpol ==0  && spi_clock_state == B) ||
-                               (cpha == 1 && cpol ==1  && spi_clock_state == A) );
+                               (cpha == 1 && cpol ==1  && spi_clock_state == B) );
     wire        miso_sample = !stall_module && spi_clock_state != IDLE && !mosi_output;
 
     wire        mosi_can_take_next = (mosi_bit == 'd7 && spi_clock_state == B) ||spi_clock_state == IDLE ;
