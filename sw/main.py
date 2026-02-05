@@ -63,13 +63,14 @@ async def callHK(boardDriver, lsbFirst=False):
     ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 4MHz.
     ## DAC Datasheet claims < 30 MHz works
     await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
+    await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
     
     ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this setp
     await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-    
+
     ## Loop over ADC Settings
     for chan in range(0,8):
-        bits = format(chan<<4,'08b')
+        bits = format(chan<<3,'08b')
         if lsbFirst == True:
             byte1 = int(bits[::-1],2)
         else:
@@ -78,13 +79,14 @@ async def callHK(boardDriver, lsbFirst=False):
         print('CHANNEL ', chan)
 
         #read same channel a few extra times to confirm value comes through
-        for i in range(0,3):
+        for _ in range(0,3):
 
             await boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
             adcBytesCount = await boardDriver.houseKeeping.getADCBytesCount()
             adcBytes = await boardDriver.houseKeeping.readADCBytes(adcBytesCount)
             adcBits = BitArray(bytes=adcBytes)
             
+
             #reverse bit order and swap bytes if needed
             if lsbFirst == True:
                 adcBits.reverse()

@@ -45,7 +45,7 @@ async def callHK(lsbFirst=True): # adding a setting that can change the byte ord
     await driver.close()
 
 
-async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
+async def setHV(lsbFirst=False,setVoltage=0): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
     Sends set voltage to TI DAC121S101 for setting HV bias
     Input is two bytes
@@ -67,6 +67,7 @@ async def setHV(lsbFirst=True,setVoltage=0): # adding a setting that can change 
     ## Open UART Driver for CMOD
     driver = drivers.boards.getCMODUartDriver("COM6")
     await driver.open() #does the driver need to be closed between reads? 
+    await driver.houseKeeping.configureSPI(adc=0,dac=1)
     await driver.houseKeeping.selectSPI(adc=0,dac=1)
 
     #defaulting with Power-down with Hi-Z at the moment
