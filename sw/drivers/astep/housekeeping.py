@@ -88,18 +88,18 @@ class Housekeeping():
         # First Change the CPOL/CPHA configuration, then after a little wait select the Chip
         # Reason is that if all bits change at once, the clock polarity will change after chip select is low, creating an edge that will be wrongly interpreted
 
-        # For SPI MSB First, bit 4 must be raised: | RSVD |spi_msbfirst |spi_cpha |spi_cpol |select_dac |select_adc |
-        if msbfirst is True:
-           regval = 16
+        # For SPI MSB First, bit 4 must be raised: | RSVD*3? |spi_msbfirst |spi_cpha |spi_cpol |select_dac |select_adc |
+        if msbfirst:
+            regval = 1<<4
         else:
             regval = 0
 
         # Change CPOL/CPHA
-        # For ADC: CPOL=1, CPHA=0 , msb first- Output on falling edge, capture on rising edge
+        # For ADC: CPOL=1, CPHA=1 , msb first- Output on falling edge, capture on rising edge
         # For DAC: CPOL=0, CPHA=1  - Output on rising edge, capture on Falling edge
         
-        if adc is True:
-            regval |= (1 << 2) | (0 << 3) | (1 << 4)
+        if adc:
+            regval |= (1 << 2) | (1 << 3)
         else:
             regval |= (0 << 2) | (1 << 3)
 
@@ -109,14 +109,12 @@ class Housekeeping():
         """Selects ADC/DAC after configuration of CPOL/CPHA of SPI master accordingly"""
         assert not(adc and dac),"ADC and DAC cannot be selected at the same time"
 
-        # First Change the CPOL/CPHA configuration, then after a little wait select the Chip
-        # Reason is that if all bits change at once, the clock polarity will change after chip select is low, creating an edge that will be wrongly interpreted
-
-        # Change CPOL/CPHA
-        await self.configureSPI(adc,dac,msbfirst)
-
-        # Read register and turn on ADC/DAC
+        # Read register
         regval = await self.rfg.read_hk_ctrl()
-        regval |= adc | (dac << 1)
+        
+        # Confirm no prior on-states saved
+        regval &= ~1 & ~(1 << 1)
 
+        # Modify enable and write
+        regval |= adc | (dac << 1)
         await self.rfg.write_hk_ctrl(regval,True)
