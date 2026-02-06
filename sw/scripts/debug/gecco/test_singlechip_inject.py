@@ -121,7 +121,7 @@ async def main():
     if len(bytes)>0:
        print(f"A: {binascii.hexlify(bytes).decode()}")
     #    astro.decode_readout(bytes,10)
-    #    astro.decode_readout(bytes,13)
+       astro.decode_readout(bytes,14)
     await astro.print_status_reg()
     await astro.buffer_flush()
     logger.info(f"Buffer size={await driver.readoutGetBufferSize()}")
