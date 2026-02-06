@@ -52,7 +52,7 @@ class AstepRun:
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
         if cmod and uart:
             # self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM6")
+            self.boardDriver = drivers.boards.getCMODUartDriver("COM3")
         elif cmod and not uart:
             self.boardDriver = drivers.boards.getCMODDriver()
         elif not cmod and uart:
@@ -681,7 +681,10 @@ class AstepRun:
     ############################ Decoder ##############################
     # Send data for decoding from raw
     def decode_readout(self, readout: bytearray, i: int, printer: bool = True):
-        return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+        if self.chipversion==4:
+            return drivers.astropix.decode.Decode().decode_readout_v4(logger, readout, i, printer)
+        else:
+            return drivers.astropix.decode.Decode().decode_readout(logger, readout, i, printer)
 
     ################## Housekeeping ############################
 
