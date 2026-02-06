@@ -684,7 +684,10 @@ class AstropixRun:
     ############################ Decoder ##############################
     # Send data for decoding from raw
     def decode_readout(self, readout: bytearray, i: int, printer: bool = True):
-        return drivers.astropix.decode.decode_readout(self, logger, readout, i, printer)
+        if self.chipversion==4:
+            return drivers.astropix.decode.Decode().decode_readout_v4(logger, readout, i, printer)
+        else:
+            return drivers.astropix.decode.Decode().decode_readout(logger, readout, i, printer)
 
     ################## Housekeeping ############################
 

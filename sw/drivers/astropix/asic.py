@@ -570,6 +570,14 @@ class Asic:
         logger.debug("Length: %d\n Data (%db): %s\n", len(data), len(config), config)
         return data
 
+    def ram_set_all(self, value:int, layer: int = 0, row: int = 0):
+        bits_per_field = 5
+
+        all_values=0
+        for _ in range(self.num_cols):
+            all_values=(all_values << bits_per_field) | value
+
+        self.asic_tdac_config[f"tdac_config_{layer}"][f"row{row}"] = [self.num_cols*bits_per_field, all_values]
     ##################################
     ## OLD ORIGINAL CODE WHERE THE ASIC MODEL also Wrote its config via RFG
     ## NOW Methods above generate the Bytes and bits sequences for SPI or SR config and the Board Driver writes them to the correct register in the firmware
