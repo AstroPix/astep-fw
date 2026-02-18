@@ -60,16 +60,16 @@ async def callHK(boardDriver, lsbFirst=False):
     Shift register input style requires bytes to be read in left to right. May be changed in future versions
     """
     ## Configure Housekeeping SPI Frequency.
-    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 4MHz.
+    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz.
     ## DAC Datasheet claims < 30 MHz works
     await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
     await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
     
-    ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this setp
+    ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
     await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
 
     ## Loop over ADC Settings
-    for chan in range(0,8):
+    for chan in range(8):
         bits = format(chan<<3,'08b')
         if lsbFirst == True:
             byte1 = int(bits[::-1],2)
@@ -79,7 +79,7 @@ async def callHK(boardDriver, lsbFirst=False):
         print('CHANNEL ', chan)
 
         #read same channel a few extra times to confirm value comes through
-        for _ in range(0,3):
+        for _ in range(3):
 
             await boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
             adcBytesCount = await boardDriver.houseKeeping.getADCBytesCount()
@@ -213,7 +213,7 @@ def bin2csv(fprefix):
 
 
 #######################################################
-#################### MAIN FUNCTION ####################
+#################### MAIN FUNCTION ####################
 
 
 async def main(args):
@@ -274,7 +274,7 @@ async def oldmain(args):
     logger.info("Opened FPGA, testing...")
     try:
         fwid = await boardDriver.readFirmwareID()
-        logger.debug(f"FW ID: {fwid}")
+        logger.debug(f"FWID: {fwid}")
     except Exception:
         raise RuntimeError("Could not read or write from astropix!")
     logger.info("FPGA test successful.")

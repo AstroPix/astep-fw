@@ -78,7 +78,6 @@ async def setHV(lsbFirst=False,setVoltage=0): # adding a setting that can change
     else:
         # Turn voltage input into bits
         bytess = format(int((setVoltage/3.3)*2**12-1),'016b')
-        print(bytess)
         if lsbFirst==True:
             byte1 = int(bytess[0:8][::-1],2) #hex()
             byte2 = int(bytess[8:16][::-1],2)
