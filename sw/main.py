@@ -96,42 +96,6 @@ async def callHK(boardDriver, lsbFirst=False):
 
     await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
 
-# async def buffer_flush(boardDriver, layerlst = range(3)):
-#     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
-#     # Flush data from sensor
-#     logger.info("Flush chip before data collection")
-#     # Deassert hold
-#     await boardDriver.holdLayers(hold=False, flush=True)
-#     # Flush chips and SPI lines
-#     interruptn = [1 for i in layerlst]
-#     for layer in layerlst:
-#         await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
-#         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-#     # Keep flushing until interrupt is high
-#     interupt_counter=0
-#     while 0 in interruptn and interupt_counter<20:
-#         logger.info("interrupt low")
-#         #logger.info(interruptn)
-#         for layer, i in enumerate(interruptn):
-#             if i == 0:#if interrupt low
-#                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-#         nmbBytes = await boardDriver.readoutGetBufferSize()
-#         if nmbBytes > 0:
-#             await boardDriver.readoutReadBytes(4096)
-#         interruptn = [1 for i in layerlst]
-#         for layer in layerlst:
-#             #interruptn[layer] = await boardDriver.getLayerStatus(layer)
-#             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-#         interupt_counter+=1
-#         logger.info(f"Buffer size = {nmbBytes} B")
-#         #time.sleep(1)
-#     # Now all interrupts are high, empty FPGA buffer
-#     await(boardDriver.readoutReadBytes(4098))
-#     # Reassert hold to be safe
-#     await boardDriver.holdLayers(hold=True, flush=True)
-#     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
-#     await boardDriver.resetLayerStatCounters(layer)
-
 
 async def get_readout(boardDriver, counts: int = 4096):
     bufferSize = await boardDriver.readoutGetBufferSize()
@@ -176,41 +140,6 @@ class myhack:
         self.sampleclock_period_ns = 10
 
 
-def bin2csv(fprefix):
-    with open("{}.bin".format(fprefix), "rb") as ofile:
-        datalst = []
-        i = 0
-        while data := ofile.read(4096):
-            datalst.append(
-                drivers.astropix.decode.decode_readout(
-                    myhack(), logger, data, i=i, printer=False
-                )
-            )
-            # logger.info(binascii.hexlify(data))
-            i += 1
-    if len(datalst) > 0:
-        csvframe = [
-            "readout",
-            "layer",
-            "chipID",
-            "payload",
-            "location",
-            "isCol",
-            "timestamp",
-            "tot_msb",
-            "tot_lsb",
-            "tot_total",
-            "tot_us",
-            "fpga_ts",
-        ]
-        df = pd.concat(datalst)
-        df.columns = csvframe
-        df.to_csv(fprefix + ".csv")
-    else:
-        logger.warning(
-            "csv file not created because no data is present in binary file."
-        )
-
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -224,6 +153,7 @@ async def main(args):
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
+    await arun.init_voltages(vthreshold=args.threshold)
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
@@ -263,246 +193,11 @@ async def main(args):
     ofile.close()
 
 
-async def oldmain(args):
-    # Welcome to the main (and only) function of this script!
-    print(args)  # Soon to be removed
-    logger.debug("Start main()")
-    # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
-    logger.debug(f"boardDriver instanciated: {boardDriver}")
-    await boardDriver.open()
-    logger.info("Opened FPGA, testing...")
-    try:
-        fwid = await boardDriver.readFirmwareID()
-        logger.debug(f"FW ID: {fwid}")
-    except Exception:
-        raise RuntimeError("Could not read or write from astropix!")
-    logger.info("FPGA test successful.")
-    logger.debug("Set sensor clocks.")
-    await boardDriver.enableSensorClocks(flush=True)
-    # Setup FPGA timestamps
-    await boardDriver.layersConfigFPGATimestampFrequency(
-        targetFrequencyHz=1000000, flush=True
-    )
-    await boardDriver.layersConfigFPGATimestamp(
-        enable=True,
-        forced_value=False,
-        use_divider=True,
-        use_tlu=False,
-        flush=True,
-    )
-
-    logger.debug("Configure SPI readout")
-    await boardDriver.configureLayerSPIDivider(20, flush=True)
-    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)  # 8
-    logger.debug("Instanciate ASIC drivers ...")
-#    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-#    ymlpath = [
-#        os.getcwd()
-#        + pathdelim
-#        + "scripts"
-#        + pathdelim
-#        + "config"
-#        + pathdelim
-#        + y
-#        + ".yml"
-#        for y in args.yaml
-#    ]  # Define YAML path variables
-    # Configure chips in memory
-    try:
-        for layer, (nchips, yml) in enumerate(zip(args.chipsPerRow, ymlpath)):
-            boardDriver.setupASIC(
-                version=3, lane=layer, chipsPerLane=nchips, configFile=yml
-            )
-    except FileNotFoundError as e:
-        logger.error(
-            f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
-        )
-        raise e
-
-    # Set multi-pix injection chip
-    if args.confOverride:
-        boardDriver.asics[1].asic_config["config_3"] = boardDriver.asics[1].asic_config[
-            "config_4"
-        ]
-
-    logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
-    # Setup / configure injection
-    if args.inject:
-        logger.debug("Enable injection pixel")
-        try:
-            boardDriver.asics[args.inject[0]].enable_inj_col(
-                args.inject[1], args.inject[3]
-            )
-            boardDriver.asics[args.inject[0]].enable_inj_row(
-                args.inject[1], args.inject[2]
-            )
-            boardDriver.asics[args.inject[0]].enable_pixel(
-                chip=args.inject[1],
-                col=args.inject[3],
-                row=args.inject[2],
-            )
-            logger.debug("Set injection voltage")
-            # Priority to command line, defaults to yaml - already in vdac units
-            if args.vinj is not None:
-                boardDriver.asics[args.inject[0]].asic_config[
-                    f"config_{args.inject[1]}"
-                ]["vdacs"]["vinj"][1] = int(
-                    args.vinj / 1000 * 1024 / 1.8
-                )  # 1.8 V coded on 10 bits
-            injector = boardDriver.getInjector()
-            injector.setPattern(100, 300, 100, 0, 1)  # Default set of parameters
-            await boardDriver.ioSetInjectionToChip(
-                enable=True, flush=True
-            )  # Routes injection pattern to on-chip injector
-        except (KeyError, IndexError):
-            logger.error(
-                f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection."
-            )
-            args.inject = None
-    # Setup / configure analog
-    if args.analog:
-        logger.debug("enable analog")
-        boardDriver.asics[args.analog[0]].enable_ampout_col(
-            args.analog[1], args.analog[2], inplace=False
-        )
-
-    await printStatus(boardDriver)
-    for layer in range(3):
-        await boardDriver.zeroLayerWrongLength(layer, flush=True)
-
-    layerlst = range(len(args.yaml))
-    await boardDriver.disableLayersReadout(
-        flush=True
-    )  # Hold, disableMISO, disableAutoread, CS=inactive
-    await boardDriver.resetLayersFull()  # Toggle RST
-
-    # Set chip IDs
-    await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-    for layer in layerlst:
-        #await boardDriver.asics[layer].writeSPIRoutingFrame(0)
-        await boardDriver.writeRoutingFrame(lane=layer, firstChipID=0)
-    await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-
-    for i in range(args.chipsPerRow[layer]):
-        await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-        for layer in layerlst:
-            if i < args.chipsPerRow[layer]:
-                await boardDriver.writeSPIAsicConfig(lane=layer,targetChip=i)
-        await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-    # Flush old data
-    # await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(
-        boardDriver, layerlst
-    )  # Exit with hold active and manages chipselect itself
-    # await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-
-    # Final setup
-    if args.inject:
-        await injector.start()
-        dataStream_lst = []
-        bufferLength_lst = []
-    else:
-        ofile = open("{}.bin".format(args.outputPrefix), "wb")
-    if args.runTime is not None:
-        end_time = time.time() + (args.runTime * 60.0)
-    else:
-        end_time = float("inf")
-
-    # Enable readout
-    await boardDriver.enableLayersReadout(
-        layerlst, autoread=not (args.noAutoread), flush=True
-    )
-
-    # Main loop
-    lastLoopTime = 0
-    run = time.time() < end_time
-    while run:
-        try:
-            if args.noAutoread:
-                for layer in layerlst:
-                    await boardDriver.writeSPIBytesToLane(
-                        lane=layer, bytes=[0x00] * 255
-                    )
-            # Read data
-            if args.readout is None:
-                task = asyncio.create_task(getBuffer(boardDriver))
-            else:
-                task = asyncio.create_task(get_readout(boardDriver, args.readout))
-            await task
-            buff, readout = task.result()
-            if args.inject:
-                # Store data
-                dataStream_lst.append(readout)
-                bufferLength_lst.append(buff)
-                await printStatus(boardDriver, time.time() - end_time, buff=buff)
-            else:
-                if buff > 0:
-                    ofile.write(readout)
-                # logger.info(binascii.hexlify(readout))
-                # await printStatus(boardDriver, time.time()-end_time, buff=buff)
-            print(f"  {buff:04d}  ", end="\r")
-            # logger.info(binascii.hexlify(readout[:buff]))
-            
-            # Check time
-            loopTime = time.time()
-            run = loopTime < end_time
-
-            #Output Housekeeping
-            if loopTime-lastLoopTime > 1:
-                lastLoopTime = loopTime
-                await callHK(boardDriver)
-
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while in main loop - exiting.")
-            run = False
-    await printStatus(boardDriver, time.time() - end_time)
-    # Pause readout
-    await boardDriver.disableLayersReadout(flush=True)
-
-    # End injection
-    if args.inject:
-        await injector.stop()
-    else:
-        ofile.close()
-
-    # End connection
-    await boardDriver.close()
-
-    # Process data
-    if args.inject:
-        print(len(bufferLength_lst), max(bufferLength_lst))
-        dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(
-            myhack(), logger, dataStream, i=0, printer=False
-        )
-        if len(df) > 0:
-            csvframe = [
-                "readout",
-                "layer",
-                "chipID",
-                "payload",
-                "location",
-                "isCol",
-                "timestamp",
-                "tot_msb",
-                "tot_lsb",
-                "tot_total",
-                "tot_us",
-                "fpga_ts",
-            ]
-            df.columns = csvframe
-            df.to_csv(args.outputPrefix + ".csv")
-        else:
-            logger.warning("No data written to disk because none have been received.")
-    else:
-        bin2csv(args.outputPrefix)
-
-
 #######################################################
 #################### TOP LEVEL ########################
 
 if __name__ == "__main__":
+    start_time = time.strftime("%Y%m%d-%H%M%S")
     parser = argparse.ArgumentParser(
         description="Test program to run the A-STEP test bench.",
         formatter_class=argparse.RawTextHelpFormatter,  # allow formatting of the epilog
@@ -514,8 +209,8 @@ if __name__ == "__main__":
         "-o",
         "--outputPrefix",
         type=str,
-        default="{0}{2}data{2}{1}".format(
-            os.getcwd(), time.strftime("%Y%m%d-%H%M%S"), os.path.sep
+        default="{0}{1}data{1}".format(
+            os.getcwd(), os.path.sep
         ),
         help="Path to and beginning of the name of the data file(s) and log file, default: data/YYYYMMDD-HHMMSS",
     )
@@ -592,14 +287,14 @@ if __name__ == "__main__":
     #     required=False,
     #     help="If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread",
     # ) SUPPORTED IN FPGA XML CONFIG FILE ONLY
-    # parser.add_argument(
-    #     "-t",
-    #     "--threshold",
-    #     type=int,
-    #     action="store",
-    #     default=150,
-    #     help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
-    # )
+    parser.add_argument(
+        "-t",
+        "--threshold",
+        type=int,
+        action="store",
+        default=150,
+        help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
+    )
     parser.add_argument(
         "-a",
         "--analog",
@@ -634,6 +329,11 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.outputPrefix==f"{os.getcwd()}{os.path.sep}data{os.path.sep}":
+        args.outputPrefix=args.outputPrefix+start_time
+    else:
+        args.outputPrefix=f"{args.outputPrefix}_{start_time}"
 
     # Define the loglevel
     ll = args.loglevel
