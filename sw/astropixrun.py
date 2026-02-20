@@ -377,7 +377,7 @@ class AstropixRun:
     async def update_pixThreshold(self,  vThresh: int, layer: int = 0, chip: int = 0):
         # vThresh = comparator threshold provided in mV
         if self.config.find("fpga").attrib["value"]=="gecco":
-            self.init_voltages(vthreshold=vThresh)
+            self.init_voltages(layer=layer, chip=chip, vthreshold=vThresh)
         else:
             dacThresh = self.get_internal_vdac(vThresh / 1000.0)  # convert from mV to V
             dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
@@ -389,6 +389,8 @@ class AstropixRun:
     # initialize voltages with GECCO HW (voltagecard)
     async def init_voltages(
         self,
+        layer: int = 0,
+        chip: int = 0,
         vcal: float = 0.989,
         vsupply: float = 2.7,
         vthreshold: float | None  = None,
@@ -418,8 +420,8 @@ class AstropixRun:
         # From nicholas's beam_test.py:
         # 1=thpmos (comparator threshold voltage), 3 = Vcasc2, 4=BL, 7=Vminuspix, 8=Thpix
         try:
-            volt_slot = self.asic.asic_configcards['voltagecard']['pos']
-            default_vdac = (len(self.asic.asic_configcards['voltagecard']['dacs']), self.asic.asic_configcards['voltagecard']['dacs'])
+            volt_slot = self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['pos']
+            default_vdac = (len(self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['dacs']), self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['dacs'])
         except KeyError: #values not included in yml
             volt_slot = 4
             if self.config.find("chipversion").attrib["value"] == 2:
