@@ -153,7 +153,7 @@ async def main(args):
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
-    await arun.init_voltages(vthreshold=args.threshold)
+    await arun.update_pixThreshold(vthreshold=args.threshold)
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
@@ -529,7 +529,7 @@ if __name__ == "__main__":
         "--threshold",
         type=int,
         action="store",
-        default=150,
+        default=None,
         help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
     )
     parser.add_argument(

@@ -179,6 +179,7 @@ class AstropixRun:
                 "Config File %s was not found, pass the name of a config file from the scripts/config folder", ymlpath
             )
             raise e
+        self.layerlst = self.boardDriver.asics.keys()
         # except Exception as e:
         #     logger.error("An error occured while setting up the asics")
         #     raise e
@@ -256,11 +257,11 @@ class AstropixRun:
         :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
         if autoread is None: autoread = self.config.find("autoread").attrib["value"]=="True"
-        self.layerlst = self.boardDriver.asics.keys() if layerlst is None else layerlst
+        if layerlst is None: layerlst=self.layerlst
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
         elif isinstance(self.boardDriver, CMODBoard):
-            await self.boardDriver.enableLayersReadout(self.layerlst, autoread, True)
+            await self.boardDriver.enableLayersReadout(layerlst, autoread, True)
         else:
             await self.boardDriver.enableLayersReadout()
 
@@ -374,17 +375,20 @@ class AstropixRun:
         return int(v_in * 2**nbits / v_ref)
 
     # Change a pixel threshold value in the global dictionary of configs
-    async def update_pixThreshold(self,  vThresh: int, layer: int = 0, chip: int = 0):
+    async def update_pixThreshold(self,  vthreshold: int, layer: int|None = None, chip: int|None = None):
         # vThresh = comparator threshold provided in mV
         if self.config.find("fpga").attrib["value"]=="gecco":
-            self.init_voltages(layer=layer, chip=chip, vthreshold=vThresh)
-        else:
-            dacThresh = self.get_internal_vdac(vThresh / 1000.0)  # convert from mV to V
-            dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
-            self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["thpix"][1] = dacBL + dacThresh
-            # await self.update_asic_config(
-            #     layer, chip, vdac_cfg={"thpix": dacBL + dacThresh}
-            # )
+            self.init_voltages(layer=layer, chip=chip, vthreshold=vthreshold)
+        elif vthreshold is not None:
+            dacThresh = self.get_internal_vdac(vthreshold / 1000.0)  # convert from mV to V
+            if layer is None or chip is None:
+                for layer in self.layerlst:
+                    for chip in range(self.boardDriver.asics[layer]._num_chips):
+                        dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
+                        self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["thpix"][1] = dacBL + dacThresh
+            else:
+                dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
+                self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["thpix"][1] = dacBL + dacThresh
 
     # initialize voltages with GECCO HW (voltagecard)
     async def init_voltages(
