@@ -37,8 +37,8 @@ class GeccoCarrierBoard(BoardDriver):
         self.rfg.withFTDIIO("Device A", rfg.io.ftdi.FLAG_LIST_DESCRIPTOR)
         return self
 
-    def geccoGetVoltageBoard(self):
-        return self.getVoltageBoard(slot=4)
+    def geccoGetVoltageBoard(self, volt_slot: int = 4):
+        return self.getVoltageBoard(slot=volt_slot)
 
     def geccoGetInjectionBoard(self):
         return self.getInjectionBoard(slot=3)

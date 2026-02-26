@@ -96,42 +96,6 @@ async def callHK(boardDriver, lsbFirst=False):
 
     await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
 
-# async def buffer_flush(boardDriver, layerlst = range(3)):
-#     """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
-#     # Flush data from sensor
-#     logger.info("Flush chip before data collection")
-#     # Deassert hold
-#     await boardDriver.holdLayers(hold=False, flush=True)
-#     # Flush chips and SPI lines
-#     interruptn = [1 for i in layerlst]
-#     for layer in layerlst:
-#         await boardDriver.writeLayerBytes(layer=layer, bytes=[0x00]*128, flush=True)
-#         interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-#     # Keep flushing until interrupt is high
-#     interupt_counter=0
-#     while 0 in interruptn and interupt_counter<20:
-#         logger.info("interrupt low")
-#         #logger.info(interruptn)
-#         for layer, i in enumerate(interruptn):
-#             if i == 0:#if interrupt low
-#                 await boardDriver.writeLayerBytes(layer = layer, bytes = [0x00] * 128, flush=True)
-#         nmbBytes = await boardDriver.readoutGetBufferSize()
-#         if nmbBytes > 0:
-#             await boardDriver.readoutReadBytes(4096)
-#         interruptn = [1 for i in layerlst]
-#         for layer in layerlst:
-#             #interruptn[layer] = await boardDriver.getLayerStatus(layer)
-#             interruptn[layer] &= await boardDriver.getLayerStatus(layer)
-#         interupt_counter+=1
-#         logger.info(f"Buffer size = {nmbBytes} B")
-#         #time.sleep(1)
-#     # Now all interrupts are high, empty FPGA buffer
-#     await(boardDriver.readoutReadBytes(4098))
-#     # Reassert hold to be safe
-#     await boardDriver.holdLayers(hold=True, flush=True)
-#     logger.info("interrupt recovered, ready to collect data, resetting stat counters")
-#     await boardDriver.resetLayerStatCounters(layer)
-
 
 async def get_readout(boardDriver, counts: int = 4096):
     bufferSize = await boardDriver.readoutGetBufferSize()
@@ -176,41 +140,6 @@ class myhack:
         self.sampleclock_period_ns = 10
 
 
-def bin2csv(fprefix):
-    with open("{}.bin".format(fprefix), "rb") as ofile:
-        datalst = []
-        i = 0
-        while data := ofile.read(4096):
-            datalst.append(
-                drivers.astropix.decode.decode_readout(
-                    myhack(), logger, data, i=i, printer=False
-                )
-            )
-            # logger.info(binascii.hexlify(data))
-            i += 1
-    if len(datalst) > 0:
-        csvframe = [
-            "readout",
-            "layer",
-            "chipID",
-            "payload",
-            "location",
-            "isCol",
-            "timestamp",
-            "tot_msb",
-            "tot_lsb",
-            "tot_total",
-            "tot_us",
-            "fpga_ts",
-        ]
-        df = pd.concat(datalst)
-        df.columns = csvframe
-        df.to_csv(fprefix + ".csv")
-    else:
-        logger.warning(
-            "csv file not created because no data is present in binary file."
-        )
-
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -224,6 +153,7 @@ async def main(args):
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
+    await arun.init_voltages(vthreshold=args.threshold)
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
@@ -504,6 +434,7 @@ async def oldmain(args):
 #################### TOP LEVEL ########################
 
 if __name__ == "__main__":
+    start_time = time.strftime("%Y%m%d-%H%M%S")
     parser = argparse.ArgumentParser(
         description="Test program to run the A-STEP test bench.",
         formatter_class=argparse.RawTextHelpFormatter,  # allow formatting of the epilog
@@ -515,8 +446,8 @@ if __name__ == "__main__":
         "-o",
         "--outputPrefix",
         type=str,
-        default="{0}{2}data{2}{1}".format(
-            os.getcwd(), time.strftime("%Y%m%d-%H%M%S"), os.path.sep
+        default="{0}{1}data{1}".format(
+            os.getcwd(), os.path.sep
         ),
         help="Path to and beginning of the name of the data file(s) and log file, default: data/YYYYMMDD-HHMMSS",
     )
@@ -593,14 +524,14 @@ if __name__ == "__main__":
     #     required=False,
     #     help="If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread",
     # ) SUPPORTED IN FPGA XML CONFIG FILE ONLY
-    # parser.add_argument(
-    #     "-t",
-    #     "--threshold",
-    #     type=int,
-    #     action="store",
-    #     default=150,
-    #     help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
-    # )
+    parser.add_argument(
+        "-t",
+        "--threshold",
+        type=int,
+        action="store",
+        default=150,
+        help="Threshold voltage for digital ToT (in mV). DEFAULT: 150",
+    )
     parser.add_argument(
         "-a",
         "--analog",
@@ -635,6 +566,11 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.outputPrefix==f"{os.getcwd()}{os.path.sep}data{os.path.sep}":
+        args.outputPrefix=args.outputPrefix+start_time
+    else:
+        args.outputPrefix=f"{args.outputPrefix}_{start_time}"
 
     # Define the loglevel
     ll = args.loglevel
