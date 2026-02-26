@@ -250,6 +250,7 @@ async def main(args):
             # Output data
             if buff > 0:
                 ofile.write(readout)
+            #await printStatus(arun.boardDriver, time.time() - end_time, buff=buff)
             print(f"  {buff:04d}  ", end="\r")
             # Check time
             run = time.time() < end_time
