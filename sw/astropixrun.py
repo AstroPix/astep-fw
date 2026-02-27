@@ -378,7 +378,7 @@ class AstropixRun:
     async def update_pixThreshold(self,  vthreshold: int, layer: int|None = None, chip: int|None = None):
         # vThresh = comparator threshold provided in mV
         if self.config.find("fpga").attrib["value"]=="gecco":
-            self.init_voltages(layer=layer, chip=chip, vthreshold=vthreshold)
+            await self.init_voltages(layer=layer, chip=chip, vthreshold=vthreshold)
         elif vthreshold is not None:
             dacThresh = self.get_internal_vdac(vthreshold / 1000.0)  # convert from mV to V
             if layer is None or chip is None:
