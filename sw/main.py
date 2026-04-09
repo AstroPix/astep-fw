@@ -160,6 +160,7 @@ async def main(args):
         await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
+    print(arun.boardDriver.asics[0].asic_config['config_0']["vdacs"]["thpix"])
     await arun.chips_reset_configure()
     await arun.buffer_flush()
     await arun.chips_enable_readout()
