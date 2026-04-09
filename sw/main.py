@@ -33,7 +33,7 @@ async def callHK(boardDriver, lsbFirst=False):
     Shift register input style requires bytes to be read in left to right. May be changed in future versions
     """
     ## Configure Housekeeping SPI Frequency.
-    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz.
+    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz. #DV Check this I actually think it defaults to 4MHz
     ## DAC Datasheet claims < 30 MHz works
     await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
     await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
@@ -94,11 +94,18 @@ async def main(args):
     await arun.buffer_flush()
     await arun.chips_enable_readout()
 
+    # Configure housekeeping
+    await arun.config_hk()
+
     # Main loop here
     end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
     run = time.time() < end_time
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     if args.inject: await arun.start_injection()
+
+    # Begin housekeeping
+    hk_timeout = 1 if args.hkloop is None else int(args.hkloop)
+    hktask = asyncio.create_task(arun.housekeeping(hk_timeout))
     
     while run:
         try:
@@ -116,6 +123,7 @@ async def main(args):
 
     await arun.chips_disable_readout()
     if args.inject: await arun.stop_injection()
+    hktask.cancel()
     await arun.fpga_close_connection()
     ofile.close()
 
@@ -239,6 +247,16 @@ if __name__ == "__main__":
         default=None,
         type=int,
         help="Specify injection voltage (in mV). DEFAULT: value in config ",
+    )
+
+    # Options related to housekeeping
+    parser.add_argument(
+        "-hk",
+        "--hkloop",
+        action="store",
+        default=None,
+        type=int,
+        help="Set cadence of housekeeping loop output in seconds. Default: 1s",
     )
 
     args = parser.parse_args()
