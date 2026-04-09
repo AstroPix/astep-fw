@@ -4,50 +4,23 @@ Test program to run the A-STEP test bench.
 Author: Adrien Laviron, adrien.laviron@nasa.gov
 """
 
-# Needed modules. They all import their own suppourt libraries,
-# and eventually there will be a list of which ones are needed to run
 import argparse
 import asyncio
-import binascii
 from bitstring import BitArray
-
-# Logging stuff
-import logging
-import math
 import os
 import sys
 import time
 
-import pandas as pd
-from tqdm import tqdm
+# Logging stuff
+import logging
 
-import drivers.astep.serial
-import drivers.astropix.decode
-import drivers.boards
+# AstroPix drivers
+from astropixrun import AstropixRun
 
-async def buffer_flush(boardDriver, layerlst=range(3)):
-    """This method flushes data from SPI lanes then from FPGA buffer, and resets counters"""
-    logger.info("Flush chips before data collection")
-    await boardDriver.holdLayers(hold=False, flush=True)
-    for layer in layerlst:
-        interrupt_counter = 0
-        interrupt = await boardDriver.getLayerStatus(layer)
-        while interrupt & 1 == 0 and interrupt_counter < 20:
-            logger.info("interrupt low")
-            await boardDriver.layersSelectSPI(flush=True)
-            await boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 128)
-            await boardDriver.layersDeselectSPI(flush=True)
-            # time.sleep(.1)
-            # Let's not bother emptying the FPGA buffer, at this point it can overflow, and this data is trashed anyways since disableMISO in probably True
-            interrupt_counter += 1
-            interrupt = await boardDriver.getLayerStatus(layer)
-            # logger.info(f"layer {layer} int={interrupt} ({interrupt_counter}/20)")
-    # Reassert hold to be safe
-    await boardDriver.holdLayers(hold=True, flush=True)
-    # Now all interrupts are high, empty FPGA buffer
-    logger.info("Flush FPGA buffer before data collection")
-    await boardDriver.readoutReadBytes(4098)
-    await boardDriver.resetLayerStatCounters(layer)
+#import drivers.astep.serial
+#import drivers.astropix.decode
+#import drivers.boards
+
 
 async def callHK(boardDriver, lsbFirst=False):
     """
@@ -97,48 +70,6 @@ async def callHK(boardDriver, lsbFirst=False):
     await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
 
 
-async def get_readout(boardDriver, counts: int = 4096):
-    bufferSize = await boardDriver.readoutGetBufferSize()
-    readout = await boardDriver.readoutReadBytes(counts)
-    return bufferSize, readout
-
-
-async def getBuffer(boardDriver):
-    bufferSize = await boardDriver.readoutGetBufferSize()
-    readout = await boardDriver.readoutReadBytes(bufferSize)
-    return bufferSize, readout
-
-
-# Parse raw data readouts to remove railing. Moved to postprocessing method to avoid SW slowdown when using autoread
-def dataParse_autoread(data_lst, buffer_lst, bitfile: str = None):
-    allData = b""
-    for i, buff in enumerate(buffer_lst):
-        if buff > 0:
-            readout_data = data_lst[i][:buff]
-            # logger.info(binascii.hexlify(readout_data))
-            allData += readout_data
-            if bitfile:
-                bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
-    ## DAN - could also return buffer index to keep track of whether multiple hits occur in the same readout. Would need to propagate forward
-    return allData
-
-
-async def printStatus(boardDriver, time=0.0, buff=0):
-    status = [await boardDriver.getLayerStatus(layer) for layer in range(3)]
-    ctrl = [await boardDriver.getLayerControl(layer) for layer in range(3)]
-    wrongl = [await boardDriver.getLayerWrongLength(layer) for layer in range(3)]
-    logger.info(
-        "[{time:04.2} s] buff={0:04d} status: 0={1[0]:02b}-{2[0]:06b}-{3[0]:04d} 1={1[1]:02b}-{2[1]:06b}-{3[1]:04d} 2={1[2]:02b}-{2[2]:06b}-{3[2]:04d}".format(
-            buff, status, ctrl, wrongl, time=time
-        )
-    )
-
-
-# Needed to decode data
-class myhack:
-    def __init__(self):
-        self.sampleclock_period_ns = 10
-
 
 
 #######################################################
@@ -146,7 +77,6 @@ class myhack:
 
 
 async def main(args):
-    from astropixrun import AstropixRun
     arun = AstropixRun(args.fpgaxml)
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
@@ -160,7 +90,6 @@ async def main(args):
         await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
-    print(arun.boardDriver.asics[0].asic_config['config_0']["vdacs"]["thpix"])
     await arun.chips_reset_configure()
     await arun.buffer_flush()
     await arun.chips_enable_readout()
@@ -174,14 +103,10 @@ async def main(args):
     while run:
         try:
             # Read data
-            # task = asyncio.create_task(arun.get_readout(args.readout))
-            # await task
-            # buff, readout = task.result()
             buff, readout = await arun.get_readout(args.readout)
             # Output data
             if buff > 0:
                 ofile.write(readout)
-            #await printStatus(arun.boardDriver, time.time() - end_time, buff=buff)
             print(f"  {buff:04d}  ", end="\r")
             # Check time
             run = time.time() < end_time
@@ -194,241 +119,6 @@ async def main(args):
     await arun.fpga_close_connection()
     ofile.close()
 
-
-async def oldmain(args):
-    # Welcome to the main (and only) function of this script!
-    print(args)  # Soon to be removed
-    logger.debug("Start main()")
-    # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
-    logger.debug(f"boardDriver instanciated: {boardDriver}")
-    await boardDriver.open()
-    logger.info("Opened FPGA, testing...")
-    try:
-        fwid = await boardDriver.readFirmwareID()
-        logger.debug(f"FWID: {fwid}")
-    except Exception:
-        raise RuntimeError("Could not read or write from astropix!")
-    logger.info("FPGA test successful.")
-    logger.debug("Set sensor clocks.")
-    await boardDriver.enableSensorClocks(flush=True)
-    # Setup FPGA timestamps
-    await boardDriver.layersConfigFPGATimestampFrequency(
-        targetFrequencyHz=1000000, flush=True
-    )
-    await boardDriver.layersConfigFPGATimestamp(
-        enable=True,
-        forced_value=False,
-        use_divider=True,
-        use_tlu=False,
-        flush=True,
-    )
-
-    logger.debug("Configure SPI readout")
-    await boardDriver.configureLayerSPIDivider(20, flush=True)
-    await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)  # 8
-    logger.debug("Instanciate ASIC drivers ...")
-#    pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-#    ymlpath = [
-#        os.getcwd()
-#        + pathdelim
-#        + "scripts"
-#        + pathdelim
-#        + "config"
-#        + pathdelim
-#        + y
-#        + ".yml"
-#        for y in args.yaml
-#    ]  # Define YAML path variables
-    # Configure chips in memory
-    try:
-        for layer, (nchips, yml) in enumerate(zip(args.chipsPerRow, ymlpath)):
-            boardDriver.setupASIC(
-                version=3, lane=layer, chipsPerLane=nchips, configFile=yml
-            )
-    except FileNotFoundError as e:
-        logger.error(
-            f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
-        )
-        raise e
-
-    # Set multi-pix injection chip
-    if args.confOverride:
-        boardDriver.asics[1].asic_config["config_3"] = boardDriver.asics[1].asic_config[
-            "config_4"
-        ]
-
-    logger.info(f"{len(boardDriver.asics)} ASIC drivers instanciated.")
-    # Setup / configure injection
-    if args.inject:
-        logger.debug("Enable injection pixel")
-        try:
-            boardDriver.asics[args.inject[0]].enable_inj_col(
-                args.inject[1], args.inject[3]
-            )
-            boardDriver.asics[args.inject[0]].enable_inj_row(
-                args.inject[1], args.inject[2]
-            )
-            boardDriver.asics[args.inject[0]].enable_pixel(
-                chip=args.inject[1],
-                col=args.inject[3],
-                row=args.inject[2],
-            )
-            logger.debug("Set injection voltage")
-            # Priority to command line, defaults to yaml - already in vdac units
-            if args.vinj is not None:
-                boardDriver.asics[args.inject[0]].asic_config[
-                    f"config_{args.inject[1]}"
-                ]["vdacs"]["vinj"][1] = int(
-                    args.vinj / 1000 * 1024 / 1.8
-                )  # 1.8 V coded on 10 bits
-            injector = boardDriver.getInjector()
-            injector.setPattern(100, 300, 100, 0, 1)  # Default set of parameters
-            await boardDriver.ioSetInjectionToChip(
-                enable=True, flush=True
-            )  # Routes injection pattern to on-chip injector
-        except (KeyError, IndexError):
-            logger.error(
-                f"Injection arguments layer={args.inject[0]}, chip={args.inject[1]} invalid. Cannot initialize injection."
-            )
-            args.inject = None
-    # Setup / configure analog
-    if args.analog:
-        logger.debug("enable analog")
-        boardDriver.asics[args.analog[0]].enable_ampout_col(
-            args.analog[1], args.analog[2], inplace=False
-        )
-
-    await printStatus(boardDriver)
-    for layer in range(3):
-        await boardDriver.zeroLayerWrongLength(layer, flush=True)
-
-    layerlst = range(len(args.yaml))
-    await boardDriver.disableLayersReadout(
-        flush=True
-    )  # Hold, disableMISO, disableAutoread, CS=inactive
-    await boardDriver.resetLayersFull()  # Toggle RST
-
-    # Set chip IDs
-    await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-    for layer in layerlst:
-        #await boardDriver.asics[layer].writeSPIRoutingFrame(0)
-        await boardDriver.writeRoutingFrame(lane=layer, firstChipID=0)
-    await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-
-    for i in range(args.chipsPerRow[layer]):
-        await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
-        for layer in layerlst:
-            if i < args.chipsPerRow[layer]:
-                await boardDriver.writeSPIAsicConfig(lane=layer,targetChip=i)
-        await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-    # Flush old data
-    # await boardDriver.layersSelectSPI(flush=True)#Set chipSelect
-    await buffer_flush(
-        boardDriver, layerlst
-    )  # Exit with hold active and manages chipselect itself
-    # await boardDriver.layersDeselectSPI(flush=True)#Unset chipSelect
-
-    # Final setup
-    if args.inject:
-        await injector.start()
-        dataStream_lst = []
-        bufferLength_lst = []
-    else:
-        ofile = open("{}.bin".format(args.outputPrefix), "wb")
-    if args.runTime is not None:
-        end_time = time.time() + (args.runTime * 60.0)
-    else:
-        end_time = float("inf")
-
-    # Enable readout
-    await boardDriver.enableLayersReadout(
-        layerlst, autoread=not (args.noAutoread), flush=True
-    )
-
-    # Main loop
-    lastLoopTime = 0
-    run = time.time() < end_time
-    while run:
-        try:
-            if args.noAutoread:
-                for layer in layerlst:
-                    await boardDriver.writeSPIBytesToLane(
-                        lane=layer, bytes=[0x00] * 255
-                    )
-            # Read data
-            if args.readout is None:
-                task = asyncio.create_task(getBuffer(boardDriver))
-            else:
-                task = asyncio.create_task(get_readout(boardDriver, args.readout))
-            await task
-            buff, readout = task.result()
-            if args.inject:
-                # Store data
-                dataStream_lst.append(readout)
-                bufferLength_lst.append(buff)
-                await printStatus(boardDriver, time.time() - end_time, buff=buff)
-            else:
-                if buff > 0:
-                    ofile.write(readout)
-                # logger.info(binascii.hexlify(readout))
-                # await printStatus(boardDriver, time.time()-end_time, buff=buff)
-            print(f"  {buff:04d}  ", end="\r")
-            # logger.info(binascii.hexlify(readout[:buff]))
-            
-            # Check time
-            loopTime = time.time()
-            run = loopTime < end_time
-
-            #Output Housekeeping
-            if loopTime-lastLoopTime > 1:
-                lastLoopTime = loopTime
-                await callHK(boardDriver)
-
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while in main loop - exiting.")
-            run = False
-    await printStatus(boardDriver, time.time() - end_time)
-    # Pause readout
-    await boardDriver.disableLayersReadout(flush=True)
-
-    # End injection
-    if args.inject:
-        await injector.stop()
-    else:
-        ofile.close()
-
-    # End connection
-    await boardDriver.close()
-
-    # Process data
-    if args.inject:
-        print(len(bufferLength_lst), max(bufferLength_lst))
-        dataStream = dataParse_autoread(dataStream_lst, bufferLength_lst, None)
-        df = drivers.astropix.decode.decode_readout(
-            myhack(), logger, dataStream, i=0, printer=False
-        )
-        if len(df) > 0:
-            csvframe = [
-                "readout",
-                "layer",
-                "chipID",
-                "payload",
-                "location",
-                "isCol",
-                "timestamp",
-                "tot_msb",
-                "tot_lsb",
-                "tot_total",
-                "tot_us",
-                "fpga_ts",
-            ]
-            df.columns = csvframe
-            df.to_csv(args.outputPrefix + ".csv")
-        else:
-            logger.warning("No data written to disk because none have been received.")
-    else:
-        bin2csv(args.outputPrefix)
 
 
 #######################################################
@@ -510,21 +200,6 @@ if __name__ == "__main__":
         nargs="+",
         help="Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4",
     )
-    # parser.add_argument(
-    #     "--config-override",
-    #     dest="confOverride",
-    #     action="store_true",
-    #     help="Execute a special line of code that applies hard-coded configuration changes - do not use unless you have read the code and know what you are doing!",
-    # )
-
-    # Options related to Setup / Configuration of the chip in data collection run
-    # parser.add_argument(
-    #     "-na",
-    #     "--noAutoread",
-    #     action="store_true",
-    #     required=False,
-    #     help="If passed, does not enable autoread features off chip. If not passed, read data with autoread. Default: autoread",
-    # ) SUPPORTED IN FPGA XML CONFIG FILE ONLY
     parser.add_argument(
         "-t",
         "--threshold",
