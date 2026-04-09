@@ -9,12 +9,14 @@ Updates: Adrien Laviron, adrien.laviron@nasa.gov
 # Needed modules. They all import their own suppourt libraries,
 # and eventually there will be a list of which ones are needed to run
 import binascii
+from bitstring import BitArray
 
 # Logging stuff
 import logging
 import os
 import sys
 import time
+import asyncio
 import xml.etree.ElementTree as ET
 
 import pandas as pd
@@ -711,6 +713,49 @@ class AstropixRun:
             return drivers.astropix.decode.Decode().decode_readout(logger, readout, i, printer)
 
     ################## Housekeeping ############################
+
+    async def config_hk(self, flush: bool = True):
+        await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=flush)
+        await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)
+    
+    async def housekeeping(self, hk_timeout: int = 1, msbfirst: bool = True, printer: bool = True):
+        while True:
+        
+            # FPGA Digital Housekeeping
+            ########################################################
+
+            # ADC Housekeeping
+            ########################################################
+            await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+            ## Loop over ADC Settings
+            for chan in range(8):
+                print(chan)
+                bits = format(chan<<3,'08b')
+                if msbfirst == False:
+                    byte1 = int(bits[::-1],2)
+                else:
+                    byte1 = int(bits,2)
+
+                #read same channel a few extra times to confirm value comes through
+                for _ in range(4):
+                    await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
+                    
+                    adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+                    print(adcBytesCount)
+                    adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+                    print(adcBytes[:2])
+                    adcBits = BitArray(bytes=adcBytes[:2])
+                    
+                    #reverse bit order and swap bytes if needed
+                    if msbfirst == False:
+                        adcBits.reverse()
+                        adcBits.byteswap()
+
+                    print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
+
+            await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+            await asyncio.sleep(hk_timeout)
 
     async def every(__seconds: float, func, *args, **kwargs):
         # scheduler
