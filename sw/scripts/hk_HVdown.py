@@ -6,8 +6,15 @@ import asyncio
 import drivers.boards
 import drivers.astropix.asic
 
+
+from tqdm import tqdm
+
 import time
 import binascii
+
+def wait_progress(seconds: int):
+    for _ in tqdm(range(seconds), desc=f"Wait {seconds} s"):
+        time.sleep(1)
 
 async def callHK(lsbFirst=True): # adding a setting that can change the byte ordering in the future if we ever fix/change this
     """
@@ -114,4 +121,5 @@ async def main(ramp):
 
 if __name__ == "__main__":
     asyncio.run(main("down"))
+    wait_progress(5)
     #asyncio.run(callHK())
