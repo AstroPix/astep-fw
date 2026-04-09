@@ -231,6 +231,7 @@ class BoardDriver:
         configFile: str | None = None,
     ):
         """Configure one or multiple lanes with a single config file
+            THIS IS OBVIOUSLY A BAD IDEA, DO NOT USE IF YOU DON’T KNOW WHAT YOU ARE DOING
 
         Args:
             version: int, AstroPix chip version
@@ -283,7 +284,7 @@ class BoardDriver:
     async def writeRoutingFrame(self, lane: int = 0, firstChipID: int = 0):
         spiBytes = self.getAsic(lane).getRoutingFrame(
             firstChipID=firstChipID,
-            paddingBytes=((self.asics[lane].num_chips - 1) * 2 + 2),
+            paddingBytes=(self.asics[lane].num_chips * 2),
         )
 
         await self.writeSPIBytesToLane(lane=lane, bytes=spiBytes)

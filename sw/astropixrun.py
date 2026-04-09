@@ -15,6 +15,7 @@ import logging
 import os
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 import pandas as pd
 from tqdm import tqdm
@@ -29,38 +30,43 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 
-class AstepRun:
+class AstropixRun:
     # Init just opens the chip and gets the handle. After this runs
     # asic_config also needs to be called to set it up. Seperating these
     # allows for simpler specifying of values.
-    def __init__(self, chipversion=3, clock_period_ns=None, SR: bool = False):
+    def __init__(self, fpgaxml):
         """
-        Initalizes astropix object.
-        No required arguments
-        Optional:
-        clock_period_ns:int - period of main clock in ns
-        SR:bool - if True, configure with shift registers. If False, configure with SPI
+        Initalizes AstropixRun object from xml config file
         """
-        if clock_period_ns is None:
-            clock_period_ns = 10 if chipversion == 3 else 25
-        self.sampleclock_period_ns = clock_period_ns
-        self.chipversion = chipversion
-        self.SR = SR  # define how to configure. If True, shift registers. If False, SPI
+        self.config = ET.parse(fpgaxml).getroot()
+        self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
+        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI
 
     ##################### FPGA INTERACTIONS #########################
-    async def open_fpga(self, cmod: bool, uart: bool):
+    async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
         """Create the Board Driver, open a connection to the hardware and performs a read test"""
-        if cmod and uart:
-            # self.boardDriver = drivers.boards.getCMODUartDriver() # Automatically find the correct port - TBC
-            self.boardDriver = drivers.boards.getCMODUartDriver("COM3")
-        elif cmod and not uart:
-            self.boardDriver = drivers.boards.getCMODDriver()
-        elif not cmod and uart:
-            self.boardDriver = drivers.boards.getGeccoUARTDriver(
-                drivers.astep.serial.getFirstCOMPort()
-            )
-        elif not cmod and not uart:
-            self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+        if cmod or self.config.find("fpga").attrib["value"] == "cmod":
+            if uart or self.config.find("protocol").attrib["value"] == "uart":
+                self.boardDriver = drivers.boards.getCMODUartDriver(self.config.find("port").attrib["value"])
+            elif self.config.find("protocol").attrib["value"] == "spi":
+                raise NotImplementedError("CMOD/SPI not yet supported")
+                #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config??)
+            else:
+                self.boardDriver = drivers.boards.getCMODDriver()
+        elif self.config.find("fpga").attrib["value"] == "gecco":
+            if self.config.find("protocol").attrib["value"] == "uart":
+                self.boardDriver = drivers.boards.getGeccoUARTDriver(
+                    drivers.astep.serial.getFirstCOMPort()
+                )
+            elif self.config.find("protocol").attrib["value"] == "ftdi":
+                self.boardDriver = drivers.boards.getGeccoFTDIDriver()
+            else:
+                self.boardDriver.getGeccoDriver()
+        else:
+            raise RuntimeError(f"""Unsupported or unrecognized protocol \
+                                  {self.config.find("protocol").attrib["value"]} \
+                                  or FPGA board \
+                                  {self.config.find("fpga").attrib["value"]}.""")
 
         await self.boardDriver.open()
         logger.info("Opened FPGA, testing...")
@@ -72,16 +78,10 @@ class AstepRun:
     async def fpga_configure_chipversion(self):
         """Configure chip version"""
         await self.boardDriver.rfg.write_chip_version(
-            value=self.chipversion, flush=True
+            value=self.config.find("chipversion").attrib["value"], flush=True
         )
 
-    async def fpga_configure_clocks(
-        self,
-        FPGATSfreq: int = 1000000,
-        useTLU: bool = False,
-        SPIfreq: int = 1000000,
-        flush: bool = True,
-    ):
+    async def fpga_configure_clocks(self, flush: bool = True):
         """
         Configure FPGA TS clock (frequency and source), SPI clock frequency
         """
@@ -89,14 +89,14 @@ class AstepRun:
         await self.boardDriver.setTimestampClock(enable=True, flush=flush)
         # Setup FPGA timestamps
         await self.boardDriver.layersConfigFPGATimestampFrequency(
-            targetFrequencyHz=FPGATSfreq, flush=flush
+            targetFrequencyHz=int(self.config.find("FPGATSfreq").attrib["value"]), flush=flush
         )
 
         await self.boardDriver.layersConfigFPGATimestamp(
             enable=True,
             use_divider=True,
-            use_tlu=useTLU,
-            flush=True,
+            use_tlu=self.config.find("useTLU").attrib["value"]=="True",
+            flush=flush,
         )
         # await self.boardDriver.layersConfigFPGATimestamp(
         #    enable=True,
@@ -106,7 +106,7 @@ class AstepRun:
         #    flush=flush,
         # )
         # Configure SPI readout
-        await self.boardDriver.configureLayerSPIFrequency(SPIfreq, flush=flush)
+        await self.boardDriver.configureLayerSPIFrequency(int(self.config.find("SPIfreq").attrib["value"]), flush=flush)
 
     async def fpga_configure_autoread_keepalive(
         self, nchips: int | None = None, flush=False
@@ -115,14 +115,17 @@ class AstepRun:
         Compute number of bytes needed between interrupt high and end of data stream in autoread mode
         :param nchips: number of chips in the daisy chain, default=None to compute from the configurations files if alerady loaded.
         """
-        if nchips is None:
-            if len(self.boardDriver.asics) == 0:
-                logger.warning(
-                    "configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!"
-                )
-                nchips = 1
-            else:
-                nchips = self.get_nchips()
+        if nchips is not None:
+            pass #nchips is already set, priority to script-provided values
+        elif self.config.find("autoread_keepalive") is not None:
+            nchips = int(self.config.find("autoread_keepalive").attrib["value"])
+        elif len(self.boardDriver.asics) > 0:
+            nchips = self.get_nchips()
+        else:
+            logger.warning(
+                "configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!"
+            )
+            nchips = 1
         nbytes = 5 + nchips - 1
         await self.boardDriver.rfg.write_layers_cfg_nodata_continue(
             value=nbytes, flush=flush
@@ -141,45 +144,42 @@ class AstepRun:
     # For now we just stick to Asic
 
     # Method to initalize the asic. This is taking the place of asic.py.
-    def load_yaml(self, yaml, lanes:int = 1, chipsPerLane: int = 1):
+    def load_yaml(self, yaml:list, chipsPerLane: list, lanes: list|None = None):
         """
         Initalize the asic configuration. Must be called first
-        Positional arguments: None
-        Optional:
+        Positional arguments:
         yaml:list of str - Name of yml file(s) with configuration values (one file per bus)
         chipsPerRow:list of int - Number of arrays per SPI bus (one int per bus)
+        Optional:
+        lanes: list of lane numbers, default=None=range(n_lanes)
         """
-        
-        assert lanes >= 1 , "Cannot have less than one lane configured"
-        assert chipsPerLane >=1 , "Cannot have less than one chip per lane configured"
-        
-        # Define YAML path variables
+        if lanes is None: lanes = range(len(yaml))
+
+        # Define YAML path variables - INPUT SANITIZATION DONE IN MAIN.PY
         # If the provided yaml string is already a file, don't create the default path
-        pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
-        if os.path.exists(yaml) is False:
-            ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yml"
-        else:
-            ymlpath = yaml
-        
-        
-        assert os.path.exists(ymlpath) , f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
-        
+        #pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
+        #if os.path.exists(yaml) is False:
+        #    ymlpath = f"{os.getcwd()}{pathdelim}scripts{pathdelim}config{pathdelim}{yaml}.yml"
+        #else:
+        #    ymlpath = yaml
+        #assert os.path.exists(ymlpath) , f"Config File {ymlpath} was not found, pass the name of a config file from the scripts/config folder"
 
         # Get config values from YAML and set chip properties
         try:
-            #for lane in range(lanes):
+            for y, nchips, lane in zip(yaml, chipsPerLane, lanes):
                 ## Init asic
-            self.boardDriver.setupASICS(
-                version=self.chipversion,
-                lanes=lanes,
-                chipsPerLane=chipsPerLane,
-                configFile=ymlpath,
-            )
+                self.boardDriver.setupASIC(
+                    version=self.config.find("chipversion").attrib["value"],
+                    lane=lane,
+                    chipsPerLane=nchips,
+                    configFile=y,
+                )
         except FileNotFoundError as e:
             logger.error(
                 "Config File %s was not found, pass the name of a config file from the scripts/config folder", ymlpath
             )
             raise e
+        self.layerlst = self.boardDriver.asics.keys()
         # except Exception as e:
         #     logger.error("An error occured while setting up the asics")
         #     raise e
@@ -192,7 +192,7 @@ class AstepRun:
         #    logger.error(f"Configure file of unexpected form. Make sure proper entries (esp. config -> config_0) and try again")
         #    sys.exit(1)
 
-    def cfg_nchips(self):
+    def get_nchips(self):
         """
         Returns the maximum number of chips of all daisy chains
         """
@@ -236,7 +236,7 @@ class AstepRun:
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
-        await self.boardDriver.resetLayers(0.5)
+        await self.boardDriver.resetLayers(float(self.config.find("RSTdelay").attrib["value"]))
 
     async def chips_hold(self, hold: bool):
         """ """
@@ -250,12 +250,14 @@ class AstepRun:
         """ """
         await self.boardDriver.disableLayersReadout(True)
 
-    async def chips_enable_readout(self, autoread: bool, layerlst: list = [0]):
+    async def chips_enable_readout(self, autoread: bool|None = None, layerlst: list|None = None):
         """
         Enables data readout from the chips
-        :param autoread: bool
-        :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=[0]
+        :param autoread: bool, default=None
+        :Multi-lane setups (CMOD): param layerlst: list of int, layers for which to enable readout, default=None = all configured layers
         """
+        if autoread is None: autoread = self.config.find("autoread").attrib["value"]=="True"
+        if layerlst is None: layerlst=self.layerlst
         if isinstance(self.boardDriver, GeccoCarrierBoard):
             await self.boardDriver.enableLayersReadout(autoread, True)
         elif isinstance(self.boardDriver, CMODBoard):
@@ -272,9 +274,12 @@ class AstepRun:
     # The method to write data to the asic.
     async def chips_setcfg(self):
         """This method resets the chip then writes the configuration - After this method, ASIC will be in Hold with MISO disabled, user must setup for readout mode"""
-        if self.SR:
+        if self.config.find("SR").attrib["value"]:
             for layer in self.boardDriver.asics.keys():
                 await self.boardDriver.writeSRAsicConfig(lane=layer)
+            if self.config.find("chipversion").attrib["value"]==4:
+                self.boardDriver.asics[0].ram_set_all(0b00001)
+                await self.boardDriver.writeSRAsicConfig(tdac=True)
         else:
             # Set Chip ID
             await self.boardDriver.layersSelectSPI(flush=True)  # Set CS
@@ -282,7 +287,7 @@ class AstepRun:
                 await self.chips_setID(layer)
             await self.boardDriver.layersDeselectSPI(flush=True)  # Unset CS
             # Configure chips in parallel
-            for chip in range(self.cfg_nchips()):
+            for chip in range(self.get_nchips()):
                 await self.boardDriver.layersSelectSPI(flush=True)  # Set CS
                 for layer in self.boardDriver.asics.keys():
                     if chip < self.boardDriver.asics[layer].num_chips:
@@ -333,6 +338,9 @@ class AstepRun:
             )
 
     async def buffer_flush(self):
+        """
+        Flushes the data already present in chips digital periphery, then the FPGA buffer
+        """
         await self.chips_flush()
         buff = await self.boardDriver.readoutGetBufferSize()
         await self.boardDriver.readoutReadBytes(buff)
@@ -367,17 +375,26 @@ class AstepRun:
         return int(v_in * 2**nbits / v_ref)
 
     # Change a pixel threshold value in the global dictionary of configs
-    async def update_pixThreshold(self, layer: int, chip: int, vThresh: int):
+    async def update_pixThreshold(self,  vthreshold: int, layer: int|None = None, chip: int|None = None):
         # vThresh = comparator threshold provided in mV
-        dacThresh = self.get_internal_vdac(vThresh / 1000.0)  # convert from mV to V
-        dacBL = self.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
-        await self.update_asic_config(
-            layer, chip, vdac_cfg={"thpix": dacBL + dacThresh}
-        )
+        if self.config.find("fpga").attrib["value"]=="gecco":
+            await self.init_voltages(layer=layer, chip=chip, vthreshold=vthreshold)
+        elif vthreshold is not None:
+            dacThresh = self.get_internal_vdac(vthreshold / 1000.0)  # convert from mV to V
+            if layer is None or chip is None:
+                for layer in self.layerlst:
+                    for chip in range(self.boardDriver.asics[layer]._num_chips):
+                        dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
+                        self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["thpix"][1] = dacBL + dacThresh
+            else:
+                dacBL = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["blpix"][1]
+                self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["thpix"][1] = dacBL + dacThresh
 
     # initialize voltages with GECCO HW (voltagecard)
     async def init_voltages(
         self,
+        layer: int = 0,
+        chip: int = 0,
         vcal: float = 0.989,
         vsupply: float = 2.7,
         vthreshold: float | None  = None,
@@ -406,10 +423,18 @@ class AstepRun:
 
         # From nicholas's beam_test.py:
         # 1=thpmos (comparator threshold voltage), 3 = Vcasc2, 4=BL, 7=Vminuspix, 8=Thpix
-        if self.chipversion == 2:
-            default_vdac = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
-        else:  # increase thpmos for v3 pmos pixels
-            default_vdac = (8, [1.1, 0, 1.1, 1, 0, 0, 1, 1.100])
+        try:
+            volt_slot = self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['pos']
+            default_vdac = (len(self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['dacs']), self.boardDriver.asics[layer].asic_config['configcards']['voltagecard']['dacs'])
+        except KeyError: #values not included in yml
+            volt_slot = 4
+            if self.config.find("chipversion").attrib["value"] == 2:
+                default_vdac = (8, [0, 0, 1.1, 1, 0, 0, 1, 1.100])
+            elif self.config.find("chipversion").attrib["value"] == 4:
+                default_vdac = (8, [  0, 0, 1.1, 1, 0, 0, 0.8, 1.2]) # default for v4
+            else:  # increase thpmos for v3 pmos pixels
+                default_vdac = (8, [1.1, 0, 1.1, 1, 0, 0, 1,   1.100]) # default for v3
+            
 
         # used to ensure this has been called in the right order:
         self._voltages_exist = True
@@ -431,7 +456,7 @@ class AstepRun:
                 dacvals[1][-1] = vthreshold
 
         # Voltage Board is provided by the board Driver
-        self.vboard = self.boardDriver.geccoGetVoltageBoard()
+        self.vboard = self.boardDriver.geccoGetVoltageBoard(volt_slot=volt_slot)
         self.vboard.dacvalues = dacvals
         # Set calibrated values
         self.vboard.vcal = vcal
@@ -445,15 +470,8 @@ class AstepRun:
         self,
         layer: int,
         chip: int,
-        inj_voltage: float = 0.0,
-        inj_period: int = 100,
-        clkdiv: int = 100,
-        initdelay: int = 100,
-        cycle: float = 0,
-        pulseperset: int = 1,
+        inj_voltage: float|None = None,
         dac_config: tuple[int, list[float]] = None,
-        onchip: bool = True,
-        is_mV: bool = True,
     ):
         """
         Configure injections
@@ -462,25 +480,19 @@ class AstepRun:
         chip: int - which chip in the daisy chain to inject into
         Optional Arguments:
         inj_voltage: float - Injection Voltage. Range from 0 to 1.8. If dac_config is set inj_voltage will be overwritten
-        inj_period: int
-        clkdiv: int
-        initdelay: int
-        cycle: float
-        pulseperset: int
         dac_config:tuple[int, list[float]]: injdac settings. Must be fully specified if set.
-        onchip: bool (generate signal on chip or on GECCO card)
         """
-        if is_mV:  # Needs conversion to vdac units
+        if inj_voltage is not None and self.config.find("injector").attrib["ismV"]=="True":  # Needs conversion to vdac units
             inj_voltage = inj_voltage / 1000.0
 
-        self.injector = self.boardDriver.geccoGetInjectionBoard()
-        self.injector.period = inj_period
-        self.injector.clkdiv = clkdiv
-        self.injector.initdelay = initdelay
-        self.injector.cycle = cycle
-        self.injector.pulsesperset = pulseperset
+        self.injector = self.boardDriver.getInjector()
+        self.injector.period = int(self.config.find("injector").attrib["period"])
+        self.injector.clkdiv = int(self.config.find("injector").attrib["clkdiv"])
+        self.injector.initdelay = int(self.config.find("injector").attrib["initdelay"])
+        self.injector.cycle = int(self.config.find("injector").attrib["cycle"])
+        self.injector.pulsesperset = int(self.config.find("injector").attrib["pulsesperset"])
 
-        if isinstance(self.boardDriver, GeccoCarrierBoard) and not onchip:
+        if isinstance(self.boardDriver, GeccoCarrierBoard) and self.config.find("injector").attrib["onchip"]=="False":
             # Injection Board is provided by the board Driver
             # The Injection Board provides an underlying Voltage Board
             await self.boardDriver.ioSetInjectionToGeccoInjBoard(
@@ -497,7 +509,8 @@ class AstepRun:
             logger.info("Injection: Configured to use GECCO card")
         else:
             # Injection provided through integrated features on chip
-            # print("SET INJ WITH REGISTERS")
+            if inj_voltage is not None:
+                self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int(inj_voltage * 1024 / 1.8)  # 1.8 V coded on 10 bits
             await self.boardDriver.ioSetInjectionToChip(enable=True, flush=True)
             logger.info("Injection: Configured to use onchip circuit")
 
@@ -604,30 +617,30 @@ class AstepRun:
     def get_log_header(self, layer: int, chip: int):
         vdac_str = ""
         digitalconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["digitalconfig"]:
-            digitalconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["digitalconfig"]:
+            digitalconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "digitalconfig"
             ][key][1]
         biasconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["biasconfig"]:
-            biasconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["biasconfig"]:
+            biasconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "biasconfig"
             ][key][1]
         idacconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["idacs"]:
-            idacconfig[key] = self.asics[layer].asic_config[f"config_{chip}"]["idacs"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["idacs"]:
+            idacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["idacs"][
                 key
             ][1]
-        if self.chipversion > 2:
+        if self.config.find("chipversion").attrib["value"] > 2:
             vdacconfig = {}
-            for key in self.asics[layer].asic_config[f"config_{chip}"]["vdacs"]:
-                vdacconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+            for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["vdacs"]:
+                vdacconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                     "vdacs"
                 ][key][1]
             vdac_str = f"vDAC: {vdacconfig}\n"
         arrayconfig = {}
-        for key in self.asics[layer].asic_config[f"config_{chip}"]["recconfig"]:
-            arrayconfig[key] = self.asics[layer].asic_config[f"config_{chip}"][
+        for key in self.boardDriver.asics[layer].asic_config[f"config_{chip}"]["recconfig"]:
+            arrayconfig[key] = self.boardDriver.asics[layer].asic_config[f"config_{chip}"][
                 "recconfig"
             ][key][1]
 
@@ -649,9 +662,20 @@ class AstepRun:
         )
 
     # Read FPGA buffer and return buffer length and data stored within it
-    async def get_readout(self, counts: int = 4096):
+    async def get_readout(self, counts: int|None = None):
+        if self.config.find("autoread").attrib["value"] != "True":
+            for layer in self.layerlst:
+                await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         bufferSize = await self.boardDriver.readoutGetBufferSize()
-        readout = await self.boardDriver.readoutReadBytes(counts)
+        if counts is None:
+            readout = await self.boardDriver.readoutReadBytes(bufferSize)
+        else:
+            readout = await self.boardDriver.readoutReadBytes(counts)
+        return bufferSize, readout
+    
+    async def get_buffer(self):
+        bufferSize = await self.boardDriver.readoutGetBufferSize()
+        readout = await self.boardDriver.readoutReadBytes(bufferSize)
         return bufferSize, readout
 
     # Print status register
