@@ -732,15 +732,15 @@ class AstropixRun:
         await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
 
     async def runner(self,ro,ofile):
-        while True:
-            await asyncio.sleep(0)
-            try:
+        try:
+            while True:
+                #await asyncio.sleep(0)
                 buff, readout = await self.get_readout(ro)
                 if buff > 0:
                     ofile.write(readout)
                 print(f"  {buff:04d}  ", end="\r")
-            except (KeyboardInterrupt, asyncio.CancelledError):
-                logger.info("[Ctrl+C] while in main loop - exiting.")
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while in main loop - exiting.")
  
     async def housekeeping_simple(self):
         while True:
