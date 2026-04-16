@@ -717,7 +717,52 @@ class AstropixRun:
     async def config_hk(self, flush: bool = True):
         await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=flush)
         await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)
-    
+        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+    async def housekeeping_debug(self):
+        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+        await asyncio.sleep(1)
+        await self.boardDriver.houseKeeping.writeADCDACBytes([2<<3,0x00])
+        await asyncio.sleep(1)
+        #await self.boardDriver.rfg.write_hk_adcdac_mosi_fifo_bytes([2<<3,0x00],flush=True)
+        adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+        await asyncio.sleep(1)
+        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+        print(f"{adcBytes}")
+        await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+
+    async def runner(self,ro,ofile):
+        while True:
+            await asyncio.sleep(0)
+            try:
+                buff, readout = await self.get_readout(ro)
+                if buff > 0:
+                    ofile.write(readout)
+                print(f"  {buff:04d}  ", end="\r")
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                logger.info("[Ctrl+C] while in main loop - exiting.")
+ 
+    async def housekeeping_simple(self):
+        while True:
+
+            await asyncio.sleep(1)
+
+            await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+            ## Loop over ADC Settings
+            for chan in range(8):
+                #write bytes
+                byte1 = int(format(chan<<3,'08b'),2)
+                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
+
+                #read bytes
+                adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+                adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+                print(f"{adcBytes}")
+
+            await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+
+
     async def housekeeping(self, hk_timeout: int = 1, msbfirst: bool = True, printer: bool = True):
         while True:
         
@@ -726,42 +771,98 @@ class AstropixRun:
 
             # ADC Housekeeping
             ########################################################
+
+            await asyncio.sleep(1)
             await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
 
             ## Loop over ADC Settings
             for chan in range(8):
-                print(chan)
                 bits = format(chan<<3,'08b')
                 if msbfirst == False:
                     byte1 = int(bits[::-1],2)
                 else:
                     byte1 = int(bits,2)
 
+                print('CHANNEL ', chan)
+
                 #read same channel a few extra times to confirm value comes through
-                for _ in range(4):
+                for _ in range(3):
+                    #await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
                     await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-                    
+                    #await asyncio.sleep(0.5)
+                    #await self.boardDriver.rfg.write_hk_adcdac_mosi_fifo_bytes([byte1,0x00],flush=True)
                     adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
                     print(adcBytesCount)
-                    adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-                    print(adcBytes[:2])
-                    adcBits = BitArray(bytes=adcBytes[:2])
+                    if adcBytesCount != 0:
+                        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+                        print(adcBytes)
+                        adcBits = BitArray(bytes=adcBytes)
                     
                     #reverse bit order and swap bytes if needed
                     if msbfirst == False:
                         adcBits.reverse()
                         adcBits.byteswap()
 
-                    print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
+                    #print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
+                    #await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+                    #await asyncio.sleep(0.5)
 
             await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-            await asyncio.sleep(hk_timeout)
+            
 
     async def every(__seconds: float, func, *args, **kwargs):
         # scheduler
         while True:
             func(*args, **kwargs)
             await asyncio.sleep(__seconds)
+
+    async def callHK_old(self, lsbFirst=False):
+        """
+        Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
+        Input is two bytes:
+        First 2 bits: ignored
+        Next 3 bits: Set Channel #
+        Last 11 bits: ignored
+
+        Shift register input style requires bytes to be read in left to right. May be changed in future versions
+        """
+        ## Configure Housekeeping SPI Frequency.
+        ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz. #DV Check this I actually think it defaults to 4MHz
+        ## DAC Datasheet claims < 30 MHz works
+        #await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
+        #await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
+    
+        ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
+        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+        ## Loop over ADC Settings
+        for chan in range(8):
+            bits = format(chan<<3,'08b')
+            if lsbFirst == True:
+                byte1 = int(bits[::-1],2)
+            else:
+                byte1 = int(bits,2)
+
+            print('CHANNEL ', chan)
+
+            #read same channel a few extra times to confirm value comes through
+            for _ in range(3):
+
+                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
+                adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+                print(adcBytesCount)
+                adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+                adcBits = BitArray(bytes=adcBytes)
+                print(f"{adcBytes}")
+
+                #reverse bit order and swap bytes if needed
+                if lsbFirst == True:
+                    adcBits.reverse()
+                    adcBits.byteswap()
+
+                print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
+
+        await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
 
     async def callHK(
         self, flipped: bool = True

@@ -35,9 +35,9 @@ async def callHK(boardDriver, lsbFirst=False):
     ## Configure Housekeeping SPI Frequency.
     ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz. #DV Check this I actually think it defaults to 4MHz
     ## DAC Datasheet claims < 30 MHz works
-    await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
-    await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
-    
+    #await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
+    #await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
+    print('test')
     ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
     await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
 
@@ -105,25 +105,57 @@ async def main(args):
 
     # Begin housekeeping
     hk_timeout = 1 if args.hkloop is None else int(args.hkloop)
-    hktask = asyncio.create_task(arun.housekeeping(hk_timeout))
-    
-    while run:
-        try:
-            # Read data
-            buff, readout = await arun.get_readout(args.readout)
-            # Output data
-            if buff > 0:
-                ofile.write(readout)
-            print(f"  {buff:04d}  ", end="\r")
-            # Check time
-            run = time.time() < end_time
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while in main loop - exiting.")
-            run = False
+    background_tasks = set()
+    #hktask = asyncio.create_task(arun.housekeeping(hk_timeout))
+    #background_tasks.add(hktask)
+    #await hktask
+    lastLoopTime = 0
+
+
+    #tasks = asyncio.gather(arun.housekeeping(hk_timeout),arun.runner(args.readout,ofile))
+    print(f"started at {time.strftime('%X')}")
+
+    hktask = asyncio.create_task(arun.housekeeping_simple())
+    runrun = asyncio.create_task(arun.runner(args.readout,ofile))
+    await asyncio.sleep(10)
+    hktask.cancel()
+    runrun.cancel()
+    print(f"stopped at {time.strftime('%X')}")
+
+
+
+    # while run:
+    #     try:
+    #         #await arun.callHK_old()
+    #         # Read data
+
+    #     #for _ in range(200):
+    #         # task = asyncio.create_task(arun.get_readout(args.readout))
+    #         # await task
+    #         # buff, readout = task.result()
+    #         buff, readout = await arun.get_readout(args.readout)
+    #         #print('test')
+    #         # Output data
+    #         if buff > 0:
+    #             ofile.write(readout)
+    #         #await printStatus(arun.boardDriver, time.time() - end_time, buff=buff)
+    #         #print(f"  {buff:04d}  ", end="\r")
+    #         # Check time
+    #         run = time.time() < end_time
+ 
+    #         #Output Housekeeping
+    #         # loopTime = time.time()
+    #         # if loopTime-lastLoopTime > 1:
+    #         #    lastLoopTime = loopTime
+    #         #    await arun.callHK_old()
+
+    #     except (KeyboardInterrupt, asyncio.CancelledError):
+    #         logger.info("[Ctrl+C] while in main loop - exiting.")
+    #         run = False
 
     await arun.chips_disable_readout()
     if args.inject: await arun.stop_injection()
-    hktask.cancel()
+    #hktask.cancel()
     await arun.fpga_close_connection()
     ofile.close()
 
