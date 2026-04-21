@@ -43,6 +43,7 @@ class AstropixRun:
         self.config = ET.parse(fpgaxml).getroot()
         self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
         self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI
+        self.lock = asyncio.Lock()
 
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
@@ -715,9 +716,14 @@ class AstropixRun:
     ################## Housekeeping ############################
 
     async def config_hk(self, flush: bool = True):
+        
+        # Configure housekeeping spi frequency and CPOL/CPHA settings
         await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=flush)
         await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)
-        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+
+        # Empty stale housekeeping SPI Buffer:
+        adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+        if adcBytesCount > 0: await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
 
     async def housekeeping_debug(self):
         await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
@@ -734,34 +740,36 @@ class AstropixRun:
     async def runner(self,ro,ofile):
         try:
             while True:
-                #await asyncio.sleep(0)
-                buff, readout = await self.get_readout(ro)
-                if buff > 0:
-                    ofile.write(readout)
-                print(f"  {buff:04d}  ", end="\r")
+                await asyncio.sleep(0)
+                async with self.lock:
+                    buff, readout = await self.get_readout(ro)
+                    if buff > 0:
+                        ofile.write(readout)
+                    print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while in main loop - exiting.")
+            logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
  
     async def housekeeping_simple(self):
-        while True:
-
-            await asyncio.sleep(1)
-
+        try:
             await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
+            while True:
+                await asyncio.sleep(1)
+                async with self.lock:
+                    print(f"Output at {time.strftime('%X')}")
+                    ## Loop over ADC Channels
+                    for chan in range(8):
+                        #write bytes
+                        byte1 = int(format(chan<<3,'08b'),2)
+                        await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
 
-            ## Loop over ADC Settings
-            for chan in range(8):
-                #write bytes
-                byte1 = int(format(chan<<3,'08b'),2)
-                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-
-                #read bytes
-                adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-                adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-                print(f"{adcBytes}")
-
+                        #read bytes
+                        adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+                        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
+                        print(f"{adcBytes}")
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
+        finally:
             await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-
 
     async def housekeeping(self, hk_timeout: int = 1, msbfirst: bool = True, printer: bool = True):
         while True:

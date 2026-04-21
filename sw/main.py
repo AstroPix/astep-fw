@@ -112,13 +112,13 @@ async def main(args):
     #lastLoopTime = 0
 
 
-    #tasks = asyncio.gather(arun.housekeeping(hk_timeout),arun.runner(args.readout,ofile))
+    #tasks = asyncio.gather(arun.housekeeping_simple(),arun.runner(args.readout,ofile))
     #print(f"started at {time.strftime('%X')}")
 
-    #hktask = asyncio.create_task(arun.housekeeping_simple())
+    hktask = asyncio.create_task(arun.housekeeping_simple())
     runrun = asyncio.create_task(arun.runner(args.readout,ofile))
-    await asyncio.sleep(10)
-    #hktask.cancel()
+    await asyncio.sleep(args.runTime * 60.0)
+    hktask.cancel()
     runrun.cancel()
     #print(f"stopped at {time.strftime('%X')}")
 
