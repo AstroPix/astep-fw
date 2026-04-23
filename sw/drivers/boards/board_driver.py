@@ -872,6 +872,9 @@ class BoardDriver:
     async def getLayerStatFRAMECounter(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_stat_frame_counter")()
 
+    async def getLayerStatFRAMECounterRaw(self, layer: int):
+        return await getattr(self.rfg, f"read_layer_{layer}_stat_frame_counter_raw")()
+
     async def getLayerStatus(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_status")()
 
@@ -897,6 +900,16 @@ class BoardDriver:
         await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(
             0, flush=flush
         )
+    
+    async def getLayerStatCounters(self, layer: int):
+        # all counters are 4 bytes long
+        frame =  await getattr(self.rfg, f"read_layer_{layer}_stat_frame_counter_raw")()
+        idle = await getattr(self.rfg, f"read_layer_{layer}_stat_idle_counter_raw")()
+        wrong = await getattr(self.rfg, f"read_layer_{layer}_stat_wronglength_counter_raw")()
+        return bytearray([layer,layer])+frame+idle+wrong
+    
+    # def convertBytesToCounter(self,counter) -> int:
+    #     return int.from_bytes(counter,'little')
 
     async def getLayerMISOBytesCount(self, layer: int):
         """Returns the number of bytes in the Slave Out Bytes Buffer"""
@@ -1014,3 +1027,11 @@ class BoardDriver:
         """
         assert clockCycles > 0 and clockCycles <= 65535
         await self.rfg.write_layers_tlu_busy_duration(clockCycles, flush)
+
+    async def getFPGATimestamp(self) -> int:
+        return await self.rfg.read_layers_fpga_timestamp_counter(count = self.fpgaTimeStampBytesCount)
+        """Reads the Timestamp value as integer"""
+
+    async def getFPGATimestampRaw(self) -> bytes:
+        return await self.rfg.read_layers_fpga_timestamp_counter_raw(count = self.fpgaTimeStampBytesCount)
+        """Reads the Timestamp value"""

@@ -6,7 +6,6 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 
 import argparse
 import asyncio
-from bitstring import BitArray
 import os
 import sys
 import time
@@ -17,64 +16,8 @@ import logging
 # AstroPix drivers
 from astropixrun import AstropixRun
 
-#import drivers.astep.serial
-#import drivers.astropix.decode
-#import drivers.boards
-
-
-async def callHK(boardDriver, lsbFirst=False):
-    """
-    Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
-    Input is two bytes:
-    First 2 bits: ignored
-    Next 3 bits: Set Channel #
-    Last 11 bits: ignored
-
-    Shift register input style requires bytes to be read in left to right. May be changed in future versions
-    """
-    ## Configure Housekeeping SPI Frequency.
-    ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz. #DV Check this I actually think it defaults to 4MHz
-    ## DAC Datasheet claims < 30 MHz works
-    #await boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
-    #await boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
-    print('test')
-    ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
-    await boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-
-    ## Loop over ADC Settings
-    for chan in range(8):
-        bits = format(chan<<3,'08b')
-        if lsbFirst == True:
-            byte1 = int(bits[::-1],2)
-        else:
-            byte1 = int(bits,2)
-
-        print('CHANNEL ', chan)
-
-        #read same channel a few extra times to confirm value comes through
-        for _ in range(3):
-
-            await boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-            adcBytesCount = await boardDriver.houseKeeping.getADCBytesCount()
-            adcBytes = await boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-            adcBits = BitArray(bytes=adcBytes)
-            
-
-            #reverse bit order and swap bytes if needed
-            if lsbFirst == True:
-                adcBits.reverse()
-                adcBits.byteswap()
-
-            print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
-
-    await boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-
-
-
-
 #######################################################
 #################### MAIN FUNCTION ####################
-
 
 async def main(args):
     arun = AstropixRun(args.fpgaxml)
@@ -95,71 +38,37 @@ async def main(args):
     await arun.chips_enable_readout()
 
     # Configure housekeeping
-    await arun.config_hk()
+    await arun.config_adchk()
+    await arun.config_fpgahk()
 
-    # Main loop here
-    end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
-    run = time.time() < end_time
+    # # Main loop here
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     if args.inject: await arun.start_injection()
 
-    # Begin housekeeping
-    hk_timeout = 1 if args.hkloop is None else int(args.hkloop)
-    background_tasks = set()
-    #hktask = asyncio.create_task(arun.housekeeping(hk_timeout))
-    #background_tasks.add(hktask)
-    #await hktask
-    #lastLoopTime = 0
+    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
+    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
 
+    # # Begin async event loops
+    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
+    data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
 
-    #tasks = asyncio.gather(arun.housekeeping_simple(),arun.runner(args.readout,ofile))
-    #print(f"started at {time.strftime('%X')}")
+    # # Runtime
+    try:
+        if args.runTime: await asyncio.sleep(args.runTime * 60.0)
+        else: await asyncio.Event().wait()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while collecting data - exiting.")
+    
+    # # Finish data collection
+    hk_task.cancel()
+    data_task.cancel()
 
-    hktask = asyncio.create_task(arun.housekeeping_simple())
-    runrun = asyncio.create_task(arun.runner(args.readout,ofile))
-    await asyncio.sleep(args.runTime * 60.0)
-    hktask.cancel()
-    runrun.cancel()
-    #print(f"stopped at {time.strftime('%X')}")
-
-
-
-    # while run:
-    #     try:
-    #         #await arun.callHK_old()
-    #         # Read data
-
-    #     #for _ in range(200):
-    #         # task = asyncio.create_task(arun.get_readout(args.readout))
-    #         # await task
-    #         # buff, readout = task.result()
-    #         buff, readout = await arun.get_readout(args.readout)
-    #         #print('test')
-    #         # Output data
-    #         if buff > 0:
-    #             ofile.write(readout)
-    #         #await printStatus(arun.boardDriver, time.time() - end_time, buff=buff)
-    #         #print(f"  {buff:04d}  ", end="\r")
-    #         # Check time
-    #         run = time.time() < end_time
- 
-    #         #Output Housekeeping
-    #         # loopTime = time.time()
-    #         # if loopTime-lastLoopTime > 1:
-    #         #    lastLoopTime = loopTime
-    #         #    await arun.callHK_old()
-
-    #     except (KeyboardInterrupt, asyncio.CancelledError):
-    #         logger.info("[Ctrl+C] while in main loop - exiting.")
-    #         run = False
-
+    # Closeout
     await arun.chips_disable_readout()
     if args.inject: await arun.stop_injection()
-    #hktask.cancel()
     await arun.fpga_close_connection()
     ofile.close()
-
-
+    ofile_hk.close()
 
 #######################################################
 #################### TOP LEVEL ########################
@@ -284,11 +193,11 @@ if __name__ == "__main__":
     # Options related to housekeeping
     parser.add_argument(
         "-hk",
-        "--hkloop",
+        "--hkCadence",
         action="store",
         default=None,
         type=int,
-        help="Set cadence of housekeeping loop output in seconds. Default: 1s",
+        help="Set cadence of housekeeping loop output in seconds. Default: 1 second",
     )
 
     args = parser.parse_args()

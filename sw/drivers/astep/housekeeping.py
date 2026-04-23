@@ -47,9 +47,9 @@ class Housekeeping():
         floatTemperature =  rawTemperature * 503.975 / 4096 - 273.15
         return Decimal(floatTemperature).quantize(Decimal('.01'), rounding=ROUND_HALF_EVEN)
 
-    async def readFPGATemperatureRaw(self, targetQueue: str | None = None ) ->  float:
+    async def readFPGATemperatureRaw(self) ->  bytes:
         """Doc: https://docs.xilinx.com/r/en-US/ug480_7Series_XADC/Analog-Inputs "Temperature Sensor" """
-        return await self.rfg.read_hk_xadc_temperature(targetQueue = targetQueue) >> 4
+        return await self.rfg.read_hk_xadc_temperature_raw()
 
 
     async def readVCCInt(self, targetQueue: str | None = None) ->  float:
@@ -57,6 +57,11 @@ class Housekeeping():
 
         vccint = ( (await self.rfg.read_hk_xadc_vccint(targetQueue = targetQueue)) >> 4 ) / 4096 * 3
         return Decimal(vccint).quantize(Decimal('.01'), rounding=ROUND_HALF_EVEN)
+    
+    async def readVCCIntRaw(self) ->  bytes:
+        """ https://docs.xilinx.com/r/en-US/ug480_7Series_XADC/Analog-Inputs "Power Supply Sensor" """
+        return await self.rfg.read_hk_xadc_vccint_raw()
+
 
     @deprecated("Use Method in Board Driver")
     async def configureHKSPIFrequency(self, targetFrequencyHz : int , flush = False):
@@ -71,17 +76,21 @@ class Housekeeping():
         await self.rfg.spi_hk_ckdivider(divider,flush)
 
     async def writeADCDACBytes(self,values : bytearray) :
-        return await self.rfg.write_hk_adcdac_mosi_fifo_bytes(values,flush=True)
+        await self.rfg.write_hk_adcdac_mosi_fifo_bytes(values,flush=True)
 
     async def getADCBytesCount(self):
         """Returns the number of bytes in the ADC MISO buffer"""
         return await self.rfg.read_hk_adc_miso_fifo_read_size()
 
-    async def readADCBytes(self,count:int=1) :
+    async def readADCBytes(self,count:int=1):
         return await self.rfg.read_hk_adc_miso_fifo_raw(count)
+    
+    def convertBytesToADCVal(self, rawADC) -> float:
+        return int.from_bytes(rawADC,'big') / 4096 * 3.3
+    
 
 
-    async def configureSPI(self,adc:bool,dac:bool,msbfirst:bool=True):
+    async def configureHKSPI(self,adc:bool,dac:bool,msbfirst:bool=True):
         """Configures CPOL/CPHA of SPI master for ADC/DAC accordingly"""
         assert not(adc and dac),"ADC and DAC cannot be selected at the same time"
 
@@ -105,7 +114,7 @@ class Housekeeping():
 
         await self.rfg.write_hk_ctrl(regval,True)
 
-    async def selectSPI(self,adc:bool,dac:bool,msbfirst:bool=True):
+    async def selectHKSPI(self,adc:bool,dac:bool,msbfirst:bool=True):
         """Selects ADC/DAC after configuration of CPOL/CPHA of SPI master accordingly"""
         assert not(adc and dac),"ADC and DAC cannot be selected at the same time"
 

@@ -10,6 +10,8 @@ Updates: Adrien Laviron, adrien.laviron@nasa.gov
 # and eventually there will be a list of which ones are needed to run
 import binascii
 from bitstring import BitArray
+from datetime import datetime, timezone
+import struct
 
 # Logging stuff
 import logging
@@ -680,6 +682,18 @@ class AstropixRun:
         bufferSize = await self.boardDriver.readoutGetBufferSize()
         readout = await self.boardDriver.readoutReadBytes(bufferSize)
         return bufferSize, readout
+    
+    async def readout_loop(self,counts,ofile):
+        try:
+            while True:
+                await asyncio.sleep(0)
+                async with self.lock:
+                    buff, readout = await self.get_readout(counts)
+                    if buff > 0:
+                        ofile.write(readout)
+                    print(f"  {buff:04d}  ", end="\r")
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
 
     # Print status register
     async def print_status_reg(self):
@@ -715,195 +729,122 @@ class AstropixRun:
 
     ################## Housekeeping ############################
 
-    async def config_hk(self, flush: bool = True):
+    async def config_adchk(self, flush: bool = True):
         
         # Configure housekeeping spi frequency and CPOL/CPHA settings
         await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=flush)
-        await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)
+        await self.boardDriver.houseKeeping.configureHKSPI(adc=1,dac=0)
 
         # Empty stale housekeeping SPI Buffer:
         adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
         if adcBytesCount > 0: await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
 
-    async def housekeeping_debug(self):
-        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-        await asyncio.sleep(1)
-        await self.boardDriver.houseKeeping.writeADCDACBytes([2<<3,0x00])
-        await asyncio.sleep(1)
-        #await self.boardDriver.rfg.write_hk_adcdac_mosi_fifo_bytes([2<<3,0x00],flush=True)
-        adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-        await asyncio.sleep(1)
-        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-        print(f"{adcBytes}")
-        await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+    async def config_fpgahk(self, flush: bool = True):
 
-    async def runner(self,ro,ofile):
+        # Reset FPGA Statistics Counters
+        for layer in self.boardDriver.asics.keys():
+            await self.boardDriver.resetLayerStatCounters(layer)
+        # Need to check and see if this falls over without activating any chips for testing
+
+    async def housekeeping(self, ofile, hk_cadence: int = 1, terminalPrint: bool = True):
         try:
+            outputCount = 0
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
-                await asyncio.sleep(0)
+                await asyncio.sleep(hk_cadence)
                 async with self.lock:
-                    buff, readout = await self.get_readout(ro)
-                    if buff > 0:
-                        ofile.write(readout)
-                    print(f"  {buff:04d}  ", end="\r")
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
- 
-    async def housekeeping_simple(self):
-        try:
-            await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-            while True:
-                await asyncio.sleep(1)
-                async with self.lock:
-                    print(f"Output at {time.strftime('%X')}")
-                    ## Loop over ADC Channels
+                    # FPGA Digital Housekeeping:
+                    ########################################################
+                    fpgaBytes = bytearray([12,12]) #2-byte syncword (\x0c\x0c)
+                    for _ in range(3):
+                        fpgaBytes.extend(await self.boardDriver.houseKeeping.readFPGATemperatureRaw())
+
+                    for _ in range(3):
+                        fpgaBytes.extend(await self.boardDriver.houseKeeping.readVCCIntRaw())
+
+                    # FPGA Counter Housekeeping: Frames, Idles, Wrong
+                    ########################################################
+                    counterBytes = bytearray()
+                    for layer in self.boardDriver.asics.keys():
+                        counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
+                    
+                    # ADC Housekeeping:
+                    ########################################################
+                    # Request all ADC Channels
                     for chan in range(8):
-                        #write bytes
                         byte1 = int(format(chan<<3,'08b'),2)
                         await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
 
-                        #read bytes
-                        adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-                        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-                        print(f"{adcBytes}")
+                    # Read all hk fifo data at once
+                    adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+                    adcBytes = bytearray([16,16]) #2-byte syncword (\x10\x10)
+                    adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)) 
+
+                    # Time Information
+                    ########################################################
+                    fpga_time = await self.boardDriver.getFPGATimestampRaw()
+                    fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp())) 
+                    
+                    # Write to file
+                    ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
+
+                    # Terminal Output:
+                    ########################################################
+                    if terminalPrint:
+
+                        # Terminal Output Formatting: Can likely move elsewhere
+                        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}"
+                        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}"
+                        headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Status']
+                        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W']
+                        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}"
+
+                        if outputCount == 0:
+                            print(header_format.format(*headers))
+                            print(subheader_format.format(*subheaders))
+
+                        # Convert raw to values
+                        fsw = datetime.fromtimestamp(struct.unpack('d',fsw_time)[0],tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                        fpgacnt = int.from_bytes(fpga_time,'little')
+                        fpgaTemp = float(sum([self.boardDriver.houseKeeping.convertBytesToFPGATemperature(fpgaBytes[2:8][i : i + 2]) for i in range(0, 6, 2)])/3)
+                        fpgaVCCInt = float(sum([self.boardDriver.houseKeeping.convertBytesToVCCInt(fpgaBytes[8:][i : i + 2]) for i in range(0, 6, 2)])/3)
+                        ADCVals = [self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[2:][i : i + 2]) for i in range(0,16,2)]
+
+                        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
+                        L0Frames = L0Idle = L0Wrong = 'x'
+                        L1Frames = L1Idle = L1Wrong = 'x'
+                        L2Frames = L2Idle = L2Wrong = 'x'
+
+                        for l in layerinfo:
+                            if l[0] == 0:
+                                L0Frames = int.from_bytes(l[2:5],'little')
+                                L0Idle = int.from_bytes(l[6:9],'little')
+                                L0Wrong = int.from_bytes(l[10:13],'little')
+                            elif l[0] == 1:
+                                L1Frames = int.from_bytes(l[2:5],'little')
+                                L1Idle = int.from_bytes(l[6:9],'little')
+                                L1Wrong = int.from_bytes(l[10:13],'little')
+                            elif l[0] == 2:
+                                L2Frames = int.from_bytes(l[2:5],'little')
+                                L2Idle = int.from_bytes(l[6:9],'little')
+                                L2Wrong = int.from_bytes(l[10:13],'little')
+                        
+                        values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
+                                  ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong]
+                        
+                        print(value_format.format(*values))
+                        outputCount = (outputCount + 1) % 31
+
+                        # old print statements
+                        #print(f"FPGA:  Temperature {fpgaTemp:.2f} C | VCCInt {fpgaVCCInt:.2f} V")
+                        #print(f"ADC:  CH0:Layer2Temp {ADCVals[1]:.3f} C | CH1:Layer1Temp {ADCVals[2]:.3f} C | CH2:Layer0Temp {ADCVals[3]:.3f} C | CH3:Layer0Curr {ADCVals[4]/10.:.3f} A | CH4:Layer1Curr {ADCVals[5]/10.:.3f} A | CH5:Layer2Curr {ADCVals[6]/10.:.3f} A | CH6:HVMon {ADCVals[7]/0.0125:.3f} V | CH7:SecVoltage {ADCVals[0]*2.:.3f} V")
+                        #print(f"Layer {layerBytes[0]}:  Data Frames {toInt(layerBytes[2:5])} | Idle Bytes {toInt(layerBytes[6:9])} | Wrong Frames {toInt(layerBytes[10:13])}")
+                        #toInt = self.boardDriver.convertBytesToCounter
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
         finally:
-            await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-
-    async def housekeeping(self, hk_timeout: int = 1, msbfirst: bool = True, printer: bool = True):
-        while True:
-        
-            # FPGA Digital Housekeeping
-            ########################################################
-
-            # ADC Housekeeping
-            ########################################################
-
-            await asyncio.sleep(1)
-            await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-
-            ## Loop over ADC Settings
-            for chan in range(8):
-                bits = format(chan<<3,'08b')
-                if msbfirst == False:
-                    byte1 = int(bits[::-1],2)
-                else:
-                    byte1 = int(bits,2)
-
-                print('CHANNEL ', chan)
-
-                #read same channel a few extra times to confirm value comes through
-                for _ in range(3):
-                    #await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-                    await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-                    #await asyncio.sleep(0.5)
-                    #await self.boardDriver.rfg.write_hk_adcdac_mosi_fifo_bytes([byte1,0x00],flush=True)
-                    adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-                    print(adcBytesCount)
-                    if adcBytesCount != 0:
-                        adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-                        print(adcBytes)
-                        adcBits = BitArray(bytes=adcBytes)
-                    
-                    #reverse bit order and swap bytes if needed
-                    if msbfirst == False:
-                        adcBits.reverse()
-                        adcBits.byteswap()
-
-                    #print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
-                    #await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-                    #await asyncio.sleep(0.5)
-
-            await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
             
-
-    async def every(__seconds: float, func, *args, **kwargs):
-        # scheduler
-        while True:
-            func(*args, **kwargs)
-            await asyncio.sleep(__seconds)
-
-    async def callHK_old(self, lsbFirst=False):
-        """
-        Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
-        Input is two bytes:
-        First 2 bits: ignored
-        Next 3 bits: Set Channel #
-        Last 11 bits: ignored
-
-        Shift register input style requires bytes to be read in left to right. May be changed in future versions
-        """
-        ## Configure Housekeeping SPI Frequency.
-        ## ADC Datasheet recommends > 8MHz (and < 16 MHz) and default is 10MHz. #DV Check this I actually think it defaults to 4MHz
-        ## DAC Datasheet claims < 30 MHz works
-        #await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=True)
-        #await self.boardDriver.houseKeeping.configureSPI(adc=1,dac=0)    
-    
-        ## Select and Set ADC. Comment -- in the future may be able to skip configuration w/in this step
-        await self.boardDriver.houseKeeping.selectSPI(adc=1,dac=0)
-
-        ## Loop over ADC Settings
-        for chan in range(8):
-            bits = format(chan<<3,'08b')
-            if lsbFirst == True:
-                byte1 = int(bits[::-1],2)
-            else:
-                byte1 = int(bits,2)
-
-            print('CHANNEL ', chan)
-
-            #read same channel a few extra times to confirm value comes through
-            for _ in range(3):
-
-                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-                adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-                print(adcBytesCount)
-                adcBytes = await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)
-                adcBits = BitArray(bytes=adcBytes)
-                print(f"{adcBytes}")
-
-                #reverse bit order and swap bytes if needed
-                if lsbFirst == True:
-                    adcBits.reverse()
-                    adcBits.byteswap()
-
-                print(f"Got ADC bytes {int(adcBits.bin,2)/4096*3.3}")
-
-        await self.boardDriver.houseKeeping.selectSPI(adc=0,dac=0)
-
-    async def callHK(
-        self, flipped: bool = True
-    ):  # adding a setting that can change the byte ordering in the future if we ever fix/change this
-        """
-        Calls housekeeping from TI ADC128S102 ADC. Loops over each of the 8 input channels.
-        Input is two bytes:
-        First 2 bits: ignored
-        Next 3 bits: Set Channel #
-        Last 11 bits: ignored
-
-        Shift register input style requires bytes to be read in left to right. May be fixed in future versions
-        """
-        assert isinstance(self.boardDriver, CMODBoard), (
-            "No housekeeping exists on the Gecco board"
-        )
-        await driver.houseKeeping.selectADC()
-
-        ## Loop over ADC Settings
-        for chan in range(0, 8):
-            bits = format(chan, "08b")
-            if flipped == True:
-                byte1 = int(bits[::-1], 2)  # this is a hex string is this ok?
-            else:
-                byte1 = int(bits, 2)  # this is a hex string is this ok?
-
-            await driver.houseKeeping.writeADCDACBytes([byte1, 0x00])
-            adcBytesCount = await driver.houseKeeping.getADCBytesCount()
-            adcBytes = await driver.houseKeeping.readADCBytes(
-                adcBytesCount
-            )  # still need to output this from task
-            print(f"Got ADC bytes {adcBytes}")
-
     ###################### INTERNAL METHODS ###########################
 
     # Below here are internal methods used for constructing things and testing
