@@ -35,7 +35,6 @@ async def main(args):
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
-
     await arun.chips_reset_configure()
     await arun.buffer_flush()
 
@@ -49,27 +48,29 @@ async def main(args):
     # Iterate over injection runs
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     for vinj in [100]:
-        for chip in range(args.chipsPerRow):
+        for chip in range(args.chipsPerRow[0]):
 
             # Set vinj and row here
+            logger.info(f"Doing chip {chip} with {vinj} mV.")
             for layer in range(args.layers):
                 await arun.init_injection(layer=layer, chip=chip, inj_voltage=vinj)
-                for row in range(n_rows)
+                for row in range(n_rows):
                     arun.boardDriver.asics[layer].enable_inj_row(chip, row)
 
             # Iterate over columns here
             for col in range(first_col, n_cols):
+                logger.info(f"Doing column {col}.")
                 #Turn on correct column here
                 await arun.boardDriver.layersSelectSPI(flush=True)
                 for layer in range(args.layers):
-                    arun.boardDriver.asics[layer].enable_inj_col(col)
+                    arun.boardDriver.asics[layer].enable_inj_col(chip, col)
                     for row in range(n_rows):
                         arun.boardDriver.asics[layer].enable_pixel(chip, row, col)
                     await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
                 await arun.boardDriver.layersDeselectSPI(flush=True)
 
 
-                print(f"Injecting in column {col} of chip {chip}")
+                logger.info(f"Injecting in column {col} of chip {chip}")
 
                 # Main loop here
                 end_time = float("inf") if args.runTime is None else time.time() + args.runTime
@@ -81,7 +82,7 @@ async def main(args):
                 while run:
                     try:
                         # Read data
-                        buff, readout = await arun.get_readout(args.readout)
+                        buff, readout = await arun.get_readout()
                         # Output data
                         if buff > 0:
                             ofile.write(readout)
@@ -97,15 +98,15 @@ async def main(args):
                 print("\n")
                 
                 #Turn off correct column here
-                for layer in range(args.layer):
+                for layer in range(args.layers):
                     arun.boardDriver.asics[layer].disable_inj_col(chip, col)
                     for row in range(n_rows):
                         arun.boardDriver.asics[layer].disable_pixel(chip, row, col)##TBC
 
-            # Set vinj and row here
+            # Turn off chip here
             await arun.boardDriver.layersSelectSPI(flush=True)
             for layer in range(args.layers):
-                for row in range(n_rows)
+                for row in range(n_rows):
                     arun.boardDriver.asics[layer].disable_inj_row(chip, row)
                 await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
             await arun.boardDriver.layersDeselectSPI(flush=True)
@@ -172,7 +173,7 @@ if __name__ == "__main__":
         action="store",
         required=False,
         type=int,
-        default=1
+        default=1,
         help="Layers to run injection scan on \
                                 Default: 1 (only layer 0)",
     )
