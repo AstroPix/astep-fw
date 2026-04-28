@@ -35,8 +35,6 @@ async def main(args):
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
-    await arun.chips_reset_configure()
-    await arun.buffer_flush()
 
     # Setup chip geometry
     chipversion = arun.config.find("chipversion").attrib["value"]
@@ -45,12 +43,27 @@ async def main(args):
     if chipversion == 5: n_rows, n_cols = 34, 36
     first_col = 3 if chipversion==3 else 0
 
+    # Gather inactive pixels
+    noinjpix = []
+    for layer in range(args.layers):
+        for chip in range(max(args.chipsPerRow)):
+            for col in range(first_col, n_cols):
+                for row in range(n_rows):
+                    if not(arun.boardDriver.asics[layer].is_pixel_enabled(chip=chip, col=col, row=row)):
+                        noinjpix.append((layer, chip, col, row))
+                        arun.boardDriver.asics[layer].disable_pixel(chip=chip, col=col, row=row)
+            logger.info(f"Layer {layer} chip {chip}: {len(noinjpix)} additional non-injected pixels")
+
+    # Turn off all chips to start with
+    await arun.chips_reset_configure()
+    await arun.buffer_flush()
+
     # Iterate over injection runs
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     try:
 
         for vinj in [500]:
-            for chip in range(args.chipsPerRow[0]):
+            for chip in range(max(args.chipsPerRow)):
 
                 # Set vinj and row here
                 for layer in range(args.layers):
@@ -65,7 +78,8 @@ async def main(args):
                     for layer in range(args.layers):
                         arun.boardDriver.asics[layer].enable_inj_col(chip=chip, col=col)
                         for row in range(n_rows):
-                            arun.boardDriver.asics[layer].enable_pixel(chip=chip, col=col, row=row)
+                            if (layer, chip, col, row) not in noinjpix:
+                                arun.boardDriver.asics[layer].enable_pixel(chip=chip, col=col, row=row)
                         await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
                     await arun.boardDriver.layersDeselectSPI(flush=True)
 
@@ -169,23 +183,36 @@ if __name__ == "__main__":
                                 Default: config/gecco.xml (default parameters for the Gecco board)",
     )
     parser.add_argument(
-        "-l",
-        "--layers",
+        "-y",
+        "--yaml",
         action="store",
         required=False,
-        type=int,
-        default=1,
-        help="Layers to run injection scan on \
-                                Default: 1 (only layer 0)",
+        type=str,
+        default=["quadchip_allOff"],
+        nargs="+",
+        help="filepath (in scripts/config/ directory) .yml file containing chip configuration. \
+                                One file must be passed for each layer, from layer #0 to layer #2. \
+                                Default: config/quadChip_allOff (All pixels off, only fisrt layer is configured)",
     )
+    #parser.add_argument(
+        #"-l",
+        #"--layers",
+        #action="store",
+        #required=False,
+        #type=int,
+        #default=1,
+        #help="Layers to run injection scan on \
+                                #Default: 1 (only layer 0)",
+    #)
     parser.add_argument(
         "-c",
         "--chipsPerRow",
         action="store",
         required=False,
         type=int,
-        default=4,
-        help="Maximum number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4",
+        default=[4],
+        nargs="+",
+        help="Number of chips per SPI bus to enable. Can provide a single number or one number per bus. Default: 4",
     )
 
     args = parser.parse_args()
@@ -225,8 +252,9 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
 
-    args.yaml = ["quadchip_allOff" for _ in range(args.layers)]
-    args.chipsPerRow = [args.chipsPerRow for _ in range(args.layers)]
+    #args.yaml = ["quadchip_allOff" for _ in range(args.layers)]
+    #args.chipsPerRow = [args.chipsPerRow for _ in range(args.layers)]
+    args.layers = len(args.yaml)
     pathdelim = os.path.sep  # determine if Mac or Windows separators in path name    
     # Sanitizing args.fpgaxml
     args.fpgaxml = os.getcwd() + pathdelim + "scripts" + pathdelim + "config" + pathdelim + args.fpgaxml + ".xml"
