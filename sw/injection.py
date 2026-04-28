@@ -47,12 +47,12 @@ async def main(args):
     noinjpix = []
     for layer in range(args.layers):
         for chip in range(max(args.chipsPerRow)):
-            for col in range(first_col, n_cols):
+            for col in range(n_cols):
                 for row in range(n_rows):
                     if not(arun.boardDriver.asics[layer].is_pixel_enabled(chip=chip, col=col, row=row)):
                         noinjpix.append((layer, chip, col, row))
-                        arun.boardDriver.asics[layer].disable_pixel(chip=chip, col=col, row=row)
-            logger.info(f"Layer {layer} chip {chip}: {len(noinjpix)} additional non-injected pixels")
+                    arun.boardDriver.asics[layer].disable_pixel(chip=chip, col=col, row=row)
+            logger.info(f"Layer {layer} chip {chip}: {len(noinjpix)} cumulative non-injected pixels")
 
     # Turn off all chips to start with
     await arun.chips_reset_configure()
@@ -62,7 +62,7 @@ async def main(args):
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     try:
 
-        for vinj in [500]:
+        for vinj in [100, 150, 200, 300, 500, 700, 900, 1500]:
             for chip in range(max(args.chipsPerRow)):
 
                 # Set vinj and row here
@@ -85,7 +85,9 @@ async def main(args):
 
                     fpga_ts = await arun.boardDriver.rfg.read_layers_fpga_timestamp_counter(count= arun.boardDriver.fpgaTimeStampBytesCount)
                     logger.info(f"FPGA_TS={fpga_ts}: Injecting {vinj} mV in column {col} of chip {chip}")
-
+                    # for col2 in range(n_cols):
+                    #     datacol = arun.boardDriver.asics[0].asic_config[f"config_{chip}"]["recconfig"][f"col{col2}"][1]
+                    #     print(f"{datacol:038b}")
                     # Main loop here
                     end_time = float("inf") if args.runTime is None else time.time() + args.runTime
                     run = time.time() < end_time
@@ -100,7 +102,7 @@ async def main(args):
                             # Output data
                             if buff > 0:
                                 ofile.write(readout)
-                            print(f"  {buff:04d}  ", end="\r")
+                            print(f"  {buff:05d}  ", end="\r")
                             # Check time
                             run = time.time() < end_time
                         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -109,6 +111,7 @@ async def main(args):
                     
                     await arun.stop_injection()
                     await arun.chips_disable_readout()
+                    logger.info(f"Last buffer size: {buff:05d}")
                     
                     #Turn off correct column here
                     for layer in range(args.layers):
