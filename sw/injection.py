@@ -47,68 +47,71 @@ async def main(args):
 
     # Iterate over injection runs
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
-    for vinj in [100]:
-        for chip in range(args.chipsPerRow[0]):
+    try:
 
-            # Set vinj and row here
-            for layer in range(args.layers):
-                await arun.init_injection(layer=layer, chip=chip, inj_voltage=vinj)
-                for row in range(n_rows):
-                    arun.boardDriver.asics[layer].enable_inj_row(chip=chip, row=row)
+        for vinj in [500]:
+            for chip in range(args.chipsPerRow[0]):
 
-            # Iterate over columns here
-            for col in range(first_col, n_cols):
-                #Turn on correct column here
+                # Set vinj and row here
+                for layer in range(args.layers):
+                    await arun.init_injection(layer=layer, chip=chip, inj_voltage=vinj)
+                    for row in range(n_rows):
+                        arun.boardDriver.asics[layer].enable_inj_row(chip=chip, row=row)
+
+                # Iterate over columns here
+                for col in range(first_col, n_cols):
+                    #Turn on correct column here
+                    await arun.boardDriver.layersSelectSPI(flush=True)
+                    for layer in range(args.layers):
+                        arun.boardDriver.asics[layer].enable_inj_col(chip=chip, col=col)
+                        for row in range(n_rows):
+                            arun.boardDriver.asics[layer].enable_pixel(chip=chip, col=col, row=row)
+                        await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
+                    await arun.boardDriver.layersDeselectSPI(flush=True)
+
+                    fpga_ts = await arun.boardDriver.rfg.read_layers_fpga_timestamp_counter(count= arun.boardDriver.fpgaTimeStampBytesCount)
+                    logger.info(f"FPGA_TS={fpga_ts}: Injecting {vinj} mV in column {col} of chip {chip}")
+
+                    # Main loop here
+                    end_time = float("inf") if args.runTime is None else time.time() + args.runTime
+                    run = time.time() < end_time
+
+                    await arun.chips_enable_readout() 
+                    await arun.start_injection()
+                    
+                    while run:
+                        try:
+                            # Read data
+                            buff, readout = await arun.get_readout()
+                            # Output data
+                            if buff > 0:
+                                ofile.write(readout)
+                            print(f"  {buff:04d}  ", end="\r")
+                            # Check time
+                            run = time.time() < end_time
+                        except (KeyboardInterrupt, asyncio.CancelledError):
+                            logger.info("[Ctrl+C] while in main loop - exiting.")
+                            raise KeyboardInterrupt
+                    
+                    await arun.stop_injection()
+                    await arun.chips_disable_readout()
+                    
+                    #Turn off correct column here
+                    for layer in range(args.layers):
+                        arun.boardDriver.asics[layer].disable_inj_col(chip=chip, col=col)
+                        for row in range(n_rows):
+                            arun.boardDriver.asics[layer].disable_pixel(chip=chip, col=col, row=row)
+
+                # Turn off chip here
                 await arun.boardDriver.layersSelectSPI(flush=True)
                 for layer in range(args.layers):
-                    arun.boardDriver.asics[layer].enable_inj_col(chip=chip, col=col)
                     for row in range(n_rows):
-                        arun.boardDriver.asics[layer].enable_pixel(chip=chip, col=col, row=row)
+                        arun.boardDriver.asics[layer].disable_inj_row(chip=chip, row=row)
                     await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
                 await arun.boardDriver.layersDeselectSPI(flush=True)
 
-                logger.info(f"FPGA_TS={await arun.boardDriver.rfg.read_layers_fpga_timestamp_counter(count= \
-                                            arun.boardDriver.fpgaTimeStampBytesCount)}: Injecting {vinj} mV in column {col} of chip {chip}")
-
-                # Main loop here
-                end_time = float("inf") if args.runTime is None else time.time() + args.runTime
-                run = time.time() < end_time
-
-                await arun.chips_enable_readout() 
-                await arun.start_injection()
-                
-                while run:
-                    try:
-                        # Read data
-                        buff, readout = await arun.get_readout()
-                        # Output data
-                        if buff > 0:
-                            ofile.write(readout)
-                        print(f"  {buff:04d}  ", end="\r")
-                        # Check time
-                        run = time.time() < end_time
-                    except (KeyboardInterrupt, asyncio.CancelledError):
-                        logger.info("[Ctrl+C] while in main loop - exiting.")
-                        run = False
-                
-                await arun.stop_injection()
-                await arun.chips_disable_readout()
-                print("\n")
-                
-                #Turn off correct column here
-                for layer in range(args.layers):
-                    arun.boardDriver.asics[layer].disable_inj_col(chip=chip, col=col)
-                    for row in range(n_rows):
-                        arun.boardDriver.asics[layer].disable_pixel(chip=chip, col=col, row=row)
-
-            # Turn off chip here
-            await arun.boardDriver.layersSelectSPI(flush=True)
-            for layer in range(args.layers):
-                for row in range(n_rows):
-                    arun.boardDriver.asics[layer].disable_inj_row(chip=chip, row=row)
-                await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
-            await arun.boardDriver.layersDeselectSPI(flush=True)
-
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        logger.info("[Ctrl+C] detected - closing cleanly.")
 
     await arun.fpga_close_connection()
     ofile.close()
