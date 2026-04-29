@@ -63,6 +63,7 @@ async def main(args):
     try:
 
         for vinj in [100, 150, 200, 300, 500, 700, 900, 1500]:
+        #for vinj in [500]:
             for chip in range(max(args.chipsPerRow)):
 
                 # Set vinj and row here
@@ -254,6 +255,19 @@ if __name__ == "__main__":
     global logger
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
+
+    # Layer counting begins at 0.
+    # Make sure config arguments make sense
+    if len(args.yaml) > len(args.chipsPerRow):
+        if len(args.chipsPerRow) > 1:
+            logger.warning(
+                f"Number of chips per row not provided for every layer - default to {args.chipsPerRow[0]} for all {len(args.yaml)} layers."
+            )
+        args.chipsPerRow = [args.chipsPerRow[0]] * len(args.yaml)
+    elif len(args.yaml) < len(args.chipsPerRow):
+        raise ValueError(
+            "You need to provide one yaml configuration file for every chipsPerRow argument."
+        )
 
     #args.yaml = ["quadchip_allOff" for _ in range(args.layers)]
     #args.chipsPerRow = [args.chipsPerRow for _ in range(args.layers)]

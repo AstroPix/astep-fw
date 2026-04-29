@@ -11,6 +11,6 @@
   <RSTdelay value="0.5"/>
   <autoread value="True"/>
   <autoread_keepalive value="4"/>
-  <injector onchip="True" ismV="True" period="500" clkdiv="300" initdelay="100" cycle="0" pulsesperset="1"/>
+  <injector onchip="True" ismV="True" period="200" clkdiv="300" initdelay="100" cycle="0" pulsesperset="1"/>
   <housekeeping period="1" Nreads="3" SPIfreq="10000000"/>
 </fpga_config>
