@@ -59,11 +59,11 @@ async def main(args):
     await arun.buffer_flush()
 
     # Iterate over injection runs
-    ofile = open("{}.bin".format(args.outputPrefix), "wb")
     try:
 
         for vinj in [100, 150, 200, 300, 500, 700, 900, 1500]:
         #for vinj in [500]:
+            ofile = open("{}_{}mV.bin".format(args.outputPrefix, vinj), "wb")
             for chip in range(max(args.chipsPerRow)):
 
                 # Set vinj and row here
@@ -128,11 +128,12 @@ async def main(args):
                     await arun.boardDriver.writeSPIAsicConfig(lane=layer, targetChip=chip)
                 await arun.boardDriver.layersDeselectSPI(flush=True)
 
+            ofile.close()
+
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("[Ctrl+C] detected - closing cleanly.")
 
     await arun.fpga_close_connection()
-    ofile.close()
 
 
 
