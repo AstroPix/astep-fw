@@ -787,6 +787,7 @@ class AstropixRun:
                     
                     # Write to file
                     ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
+                    ofile.flush()
 
                     # Terminal Output:
                     ########################################################
