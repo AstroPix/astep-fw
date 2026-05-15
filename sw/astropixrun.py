@@ -667,7 +667,7 @@ class AstropixRun:
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         bufferSize = await self.boardDriver.readoutGetBufferSize()
-        if counts is None:
+        if counts is None and bufferSize > 10:
             readout = await self.boardDriver.readoutReadBytes(bufferSize)
         else:
             readout = await self.boardDriver.readoutReadBytes(counts)

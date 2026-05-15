@@ -107,7 +107,7 @@ async def main(args):
             # Output data
             if buff > 0:
                 ofile.write(readout)
-            print(f"  {buff:04d}  ", end="\r")
+            print(f"  {buff:05d}  ", end="\r")
             # Check time
             run = time.time() < end_time
         except (KeyboardInterrupt, asyncio.CancelledError):
