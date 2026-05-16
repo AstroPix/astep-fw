@@ -105,7 +105,7 @@ async def main(args):
             # Read data
             buff, readout = await arun.get_readout(args.readout)
             # Output data
-            if buff > 0:
+            if len(readout) > 0:
                 ofile.write(readout)
             print(f"  {buff:05d}  ", end="\r")
             # Check time
