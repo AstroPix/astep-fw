@@ -63,7 +63,56 @@ async def test_tlu_disabled_count_enable(dut):
     await Timer(50, units="us")
     pass
     
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def test_tlu_disabled_t0_reset(dut):
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    job = cocotb.start_soon(
+        driver.layersConfigFPGATimestamp(
+            enable=True,
+            use_divider=False,
+            use_tlu=False,
+            flush=True,
+        )
+    )
+
+    ## Wait for counter count and two clock cycles to cover delay of TLU starting to update
+    await RisingEdge(dut.layers_fpga_timestamp_ctrl_count)
+    await FallingEdge(dut.tlu.tlu_clk_in)
+
+    ## Check it counts
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.tlu_ts_out.value & 0xFF == 0
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.tlu_ts_out.value & 0xFF == 1
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.tlu_ts_out.value & 0xFF == 2
+
+   
+    await job
+
+
+    ## Send T0, should reset
+    ## Now Reset with t0
+    await Timer(50, units="us")
+
+    dut.tlu_t0.value = 1
+    await Timer(10, units="us")
+    dut.tlu_t0.value = 0
+    await FallingEdge(dut.tlu.tlu_clk_in)
+    assert dut.tlu_ts_out.value & 0xFF == 0
+    await RisingEdge(dut.tlu.tlu_clk_in)
+    await RisingEdge(dut.tlu.tlu_clk_in)
     
+    #await job
+
+    await Timer(50, units="us")
+    pass
+  
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def test_tlu_disabled_count_lsbzero(dut):
     ## Clock/Reset
@@ -108,7 +157,9 @@ async def test_tlu_disabled_count_divided(dut):
     await vip.cctb.common_clock_reset(dut)
     await Timer(10, units="us")
     driver = await astep24_3l_sim.getDriver(dut)
-
+    
+    
+    await driver.layersConfigFPGATimestampFrequency(targetFrequencyHz=40000000, flush=True)
     job = cocotb.start_soon(
         driver.layersConfigFPGATimestamp(
             enable=True,
@@ -135,7 +186,7 @@ async def test_tlu_disabled_count_divided(dut):
     job = cocotb.start_soon(
         driver.layersConfigFPGATimestamp(
             enable=False,
-            use_divider=False,
+            use_divider=True,
             use_tlu=False,
             flush=True,
         )
@@ -147,6 +198,28 @@ async def test_tlu_disabled_count_divided(dut):
     assert dut.tlu_ts_out.value & 0xFF == 0
 
     await job
+    
+    ## Restart counter to see in sim 
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=True,
+        use_tlu=False,
+        flush=True,
+    )
+    await Timer(50, units="us")
+    
+    await driver.layersConfigFPGATimestamp(
+        enable=False,
+        use_divider=True,
+        use_tlu=False,
+        flush=True,
+    )
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=True,
+        use_tlu=False,
+        flush=True,
+    )
     await Timer(50, units="us")
     pass
 
