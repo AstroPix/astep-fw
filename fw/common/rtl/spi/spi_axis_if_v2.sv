@@ -1,6 +1,6 @@
 `include "axi_ifs.sv"
 
-module spi_axis_if_v2 #( parameter QSPI = 0) (
+module spi_axis_if_v2 #( parameter QSPI = 0,parameter DEBUG=0) (
 
     // System clock
     input wire                    clk,
@@ -47,7 +47,9 @@ module spi_axis_if_v2 #( parameter QSPI = 0) (
     // SPI Master
     output wire                     spi_clk,
     output wire                     spi_mosi,
-    input  wire [QSPI:0]            spi_miso
+    input  wire [QSPI:0]            spi_miso,
+    
+    output wire [7:0]               miso_byte_debug
 );
 
     reg enable_synced; // Forced enable, synced in this Clock domain
@@ -76,6 +78,9 @@ module spi_axis_if_v2 #( parameter QSPI = 0) (
     // AXIS Master Write
     wire        m_axis_byte_valid = m_axis_tready & m_axis_tvalid;
     wire        m_axis_byte_waiting = !m_axis_tready & m_axis_tvalid;
+    
+    
+    assign miso_byte_debug = miso_byte;
 
     // Signals: Clock
     // SPI Output clock is the same as the main clock

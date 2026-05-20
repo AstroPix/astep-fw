@@ -24,7 +24,7 @@ module layers_readout_switched #(
     output wire [LAYER_COUNT-1:0]       layers_spi_clk,
     output wire [LAYER_COUNT-1:0]       layers_spi_mosi,
     input  wire [LAYER_COUNT*2-1:0]     layers_spi_miso,
-    output wire [LAYER_COUNT-1:0]       layers_spi_csn,
+    input  wire [LAYER_COUNT-1:0]       layers_spi_csn,
 
     // MOSI
     //----------------
@@ -81,7 +81,11 @@ module layers_readout_switched #(
     generate
         for (li = 0 ; li < LAYER_COUNT ; li++) begin
 
-            layer_if_a #(.LAYER_ID(li+1)) layer_if_I (
+            layer_if_a #(
+                .LAYER_ID(li+1),
+                .DEBUG(li==25)
+                //.DEBUG(li==0)
+            ) layer_if_I (
 
                 .clk_core(clk_core),
                 .clk_core_resn(clk_core_resn),

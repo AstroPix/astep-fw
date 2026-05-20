@@ -2,6 +2,7 @@
 ALL_BUILDS=gecco-astropix3.build cmodr2-astep.build
 CCTB_ARGS ?= 
 export BUILD_ITERATION?=01
+export ILA_DEBUG?=0
 
 clean:
 	@rm -Rf vivado-run/ .Xil bitstreams reports

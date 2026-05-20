@@ -6,6 +6,11 @@ if {[llength [array get ::env BUILD_ITERATION]] > 0} {
     set ::buildIteration $::env(BUILD_ITERATION)
 }
 
+set ::ilaDebug false 
+if {[llength [array get ::env ILA_DEBUG]] > 0} {
+    set ::ilaDebug $::env(ILA_DEBUG)
+}
+
 ## This method used to generate a Date version for RFG, so that SW can read a build version to easily check which firmware is flashed
 proc getDateVersion args {
     set date [clock seconds]
@@ -91,6 +96,7 @@ proc read_syn_ip {} {
     global target_board
 
     set projectFiles [get_files]
+    
     ## Go through IP directories from IP project and load all the XCI files found
     foreach ipDir [glob -nocomplain -type d $commonSrcDir/xilinx-ip/*] {
         set sourceIPFile $ipDir/[file tail $ipDir].xci
@@ -116,8 +122,8 @@ proc read_syn_ip {} {
         }
     }
 
-    ## Upgrade IP for vivado version or target board, this should unlock the ips
-    upgrade_ip [get_ips]
+
+    
 
     ## Set Synthesis checkpoint request to true so that that ips are build with main synthesis command
     foreach srcFile [get_files] {
@@ -136,6 +142,17 @@ proc read_syn_ip {} {
     set_property -dict [list CONFIG.FIFO_DEPTH 1024] [get_ips fifo_axis_2clk_spi_layer]
 
 
+    ## Load Local IP for debug stuff
+    ################
+    if {${::ilaDebug}} {
+        catch {read_ip $firmware_dir/local-ip/ila_4trigger4bytes/ila_4trigger4bytes.xci}
+    } 
+    
+    ## Finalize
+    #######
+    
+    ## Upgrade IP for vivado version or target board, this should unlock the ips
+    upgrade_ip [get_ips]
 
 }
 
