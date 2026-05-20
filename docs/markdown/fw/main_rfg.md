@@ -296,9 +296,9 @@
 **Reset Value**: 8'b00000111
 
 
-| [7:6] | 5 | 4 | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |-- |-- |
-| RSVD |loopback |disable_miso |cs |disable_autoread |reset |hold |
+| [7:7] | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+| --|-- |-- |-- |-- |-- |-- |-- |
+| RSVD |force_interrupt |loopback |disable_miso |cs |disable_autoread |reset |hold |
 
 - hold : Hold Layer
 - reset : Active High Layer Reset (Inverted before output to Sensor)
@@ -306,6 +306,7 @@
 - cs : Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1
 - disable_miso : If 1, the SPI interface won't read bytes from MOSI
 - loopback : If 1, the Layer SPI Master is connected to the matching internal SPI Slave
+- force_interrupt : If 1, the input interrupt is forced asserted (0) - used for testing autoread
 
 
 ## <a id='layer_1_cfg_ctrl'></a>layer_1_cfg_ctrl
@@ -320,9 +321,9 @@
 **Reset Value**: 8'b00000111
 
 
-| [7:6] | 5 | 4 | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |-- |-- |
-| RSVD |loopback |disable_miso |cs |disable_autoread |reset |hold |
+| [7:7] | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+| --|-- |-- |-- |-- |-- |-- |-- |
+| RSVD |force_interrupt |loopback |disable_miso |cs |disable_autoread |reset |hold |
 
 - hold : Hold Layer
 - reset : Active High Layer Reset (Inverted before output to Sensor)
@@ -330,6 +331,7 @@
 - cs : Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1
 - disable_miso : If 1, the SPI interface won't read bytes from MOSI
 - loopback : If 1, the Layer SPI Master is connected to the matching internal SPI Slave
+- force_interrupt : If 1, the input interrupt is forced asserted (0) - used for testing autoread
 
 
 ## <a id='layer_2_cfg_ctrl'></a>layer_2_cfg_ctrl
@@ -344,9 +346,9 @@
 **Reset Value**: 8'b00000111
 
 
-| [7:6] | 5 | 4 | 3 | 2 | 1 | 0 |
-| --|-- |-- |-- |-- |-- |-- |
-| RSVD |loopback |disable_miso |cs |disable_autoread |reset |hold |
+| [7:7] | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+| --|-- |-- |-- |-- |-- |-- |-- |
+| RSVD |force_interrupt |loopback |disable_miso |cs |disable_autoread |reset |hold |
 
 - hold : Hold Layer
 - reset : Active High Layer Reset (Inverted before output to Sensor)
@@ -354,6 +356,7 @@
 - cs : Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1
 - disable_miso : If 1, the SPI interface won't read bytes from MOSI
 - loopback : If 1, the Layer SPI Master is connected to the matching internal SPI Slave
+- force_interrupt : If 1, the input interrupt is forced asserted (0) - used for testing autoread
 
 
 ## <a id='layer_0_status'></a>layer_0_status

@@ -467,6 +467,23 @@ async def test_layer_0_readout_large_buffer(dut):
     await Timer(50, units="us")
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
+async def test_layer_0_force_interrupt_autoread(dut):
+    """Forcing interrupt with Interrupt enable should enable readout, and show an increased in idle bytes counter"""
+    
+    ## Driver, asic, clock+reset
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    
+    await driver.setLayerConfig(
+        layer=0, reset=False, hold=False, autoread=True, chipSelect=True,forceInterrupt=True, flush=True
+    )
+    await Timer(50, units="us")
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_3_layers_single_frame(dut):
     """Send A single frame to all layers after each other"""
 
@@ -611,3 +628,5 @@ async def test_3_layers_multiple_frames_parallel(dut):
     )
 
     await Timer(50, units="us")
+
+

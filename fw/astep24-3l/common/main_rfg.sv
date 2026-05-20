@@ -62,6 +62,7 @@ module main_rfg(
     output logic                   layer_0_cfg_ctrl_cs,
     output logic                   layer_0_cfg_ctrl_disable_miso,
     output logic                   layer_0_cfg_ctrl_loopback,
+    output logic                   layer_0_cfg_ctrl_force_interrupt,
     output logic [7:0]           layer_1_cfg_ctrl,
     output logic                   layer_1_cfg_ctrl_hold,
     output logic                   layer_1_cfg_ctrl_reset,
@@ -69,6 +70,7 @@ module main_rfg(
     output logic                   layer_1_cfg_ctrl_cs,
     output logic                   layer_1_cfg_ctrl_disable_miso,
     output logic                   layer_1_cfg_ctrl_loopback,
+    output logic                   layer_1_cfg_ctrl_force_interrupt,
     output logic [7:0]           layer_2_cfg_ctrl,
     output logic                   layer_2_cfg_ctrl_hold,
     output logic                   layer_2_cfg_ctrl_reset,
@@ -76,6 +78,7 @@ module main_rfg(
     output logic                   layer_2_cfg_ctrl_cs,
     output logic                   layer_2_cfg_ctrl_disable_miso,
     output logic                   layer_2_cfg_ctrl_loopback,
+    output logic                   layer_2_cfg_ctrl_force_interrupt,
     output logic [7:0]           layer_0_status,
     input  logic                   layer_0_status_interruptn,
     input  logic                   layer_0_status_frame_decoding,
@@ -393,18 +396,21 @@ module main_rfg(
     assign layer_0_cfg_ctrl_cs = layer_0_cfg_ctrl_reg[3];
     assign layer_0_cfg_ctrl_disable_miso = layer_0_cfg_ctrl_reg[4];
     assign layer_0_cfg_ctrl_loopback = layer_0_cfg_ctrl_reg[5];
+    assign layer_0_cfg_ctrl_force_interrupt = layer_0_cfg_ctrl_reg[6];
     assign layer_1_cfg_ctrl_hold = layer_1_cfg_ctrl_reg[0];
     assign layer_1_cfg_ctrl_reset = layer_1_cfg_ctrl_reg[1];
     assign layer_1_cfg_ctrl_disable_autoread = layer_1_cfg_ctrl_reg[2];
     assign layer_1_cfg_ctrl_cs = layer_1_cfg_ctrl_reg[3];
     assign layer_1_cfg_ctrl_disable_miso = layer_1_cfg_ctrl_reg[4];
     assign layer_1_cfg_ctrl_loopback = layer_1_cfg_ctrl_reg[5];
+    assign layer_1_cfg_ctrl_force_interrupt = layer_1_cfg_ctrl_reg[6];
     assign layer_2_cfg_ctrl_hold = layer_2_cfg_ctrl_reg[0];
     assign layer_2_cfg_ctrl_reset = layer_2_cfg_ctrl_reg[1];
     assign layer_2_cfg_ctrl_disable_autoread = layer_2_cfg_ctrl_reg[2];
     assign layer_2_cfg_ctrl_cs = layer_2_cfg_ctrl_reg[3];
     assign layer_2_cfg_ctrl_disable_miso = layer_2_cfg_ctrl_reg[4];
     assign layer_2_cfg_ctrl_loopback = layer_2_cfg_ctrl_reg[5];
+    assign layer_2_cfg_ctrl_force_interrupt = layer_2_cfg_ctrl_reg[6];
     assign layers_fpga_timestamp_ctrl_enable = layers_fpga_timestamp_ctrl_reg[0];
     assign layers_fpga_timestamp_ctrl_use_divider = layers_fpga_timestamp_ctrl_reg[1];
     assign layers_fpga_timestamp_ctrl_use_tlu = layers_fpga_timestamp_ctrl_reg[2];

@@ -92,6 +92,7 @@ set baseRegisters {
             cs               {-doc "Chip Select, active high (inverted in firmware) - Set to 1 to force chip select low - if autoread is active, chip select is automatically 1"}
             disable_miso     {-doc "If 1, the SPI interface won't read bytes from MOSI"}
             loopback         {-doc "If 1, the Layer SPI Master is connected to the matching internal SPI Slave"}
+            force_interrupt  {-doc "If 1, the input interrupt is forced asserted (0) - used for testing autoread"}
         }
         -doc "Layer $i control bits"
     }}]
