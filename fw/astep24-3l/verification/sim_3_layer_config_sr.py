@@ -39,16 +39,16 @@ async def test_layers_config_sr_bitgen(dut):
     configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=0)
     bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=0)
     assert 1 == len(configs)
-    assert 4 == len(bits)
-    assert [1,1,0,1] == bits
+    assert 6 == len(bits)
+    assert [0,1,1,1,0,1] == bits
     await Timer(150, units="us")
     
     ## Get Config for Target Chip
     configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=1)
     bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=1)
     assert 1 == len(configs)
-    assert 4 == len(bits)
-    assert [0,0,0,1] == bits
+    assert 6 == len(bits)
+    assert [1,1,0,0,0,1] == bits
     await Timer(150, units="us")
     
     
@@ -56,11 +56,11 @@ async def test_layers_config_sr_bitgen(dut):
     configs = driver.getAsic(lane=0).getChipsConfigs(msbfirst=False,targetChip=-1)
     bits = driver.getAsic(lane=0).getConfigBits(msbfirst=False,targetChip=-1)
     assert 2 == len(configs)
-    assert 4 == len(configs[0])
-    assert 4 == len(configs[1])
-    assert [0,0,0,1] == configs[0]
-    assert [1,1,0,1] == configs[1]
-    assert [0,0,0,1,1,1,0,1] == bits
+    assert 6 == len(configs[0])
+    assert 6 == len(configs[1])
+    assert [1,1,0,0,0,1] == configs[0]
+    assert [0,1,1,1,0,1] == configs[1]
+    assert [1,1,0,0,0,1,0,1,1,1,0,1] == bits
     await Timer(150, units="us")
 
     await Timer(150, units="us")
