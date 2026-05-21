@@ -122,15 +122,9 @@ proc read_syn_ip {} {
         }
     }
 
-
+    ## Upgrade IP for vivado version or target board, this should unlock the ips
+    upgrade_ip [get_ips]
     
-
-    ## Set Synthesis checkpoint request to true so that that ips are build with main synthesis command
-    foreach srcFile [get_files] {
-        if {[string match *.xci $srcFile]} {
-            set_property generate_synth_checkpoint true $srcFile
-        }
-    }
 
     ## Update Buffer sizes
     ########
@@ -151,8 +145,15 @@ proc read_syn_ip {} {
     ## Finalize
     #######
     
-    ## Upgrade IP for vivado version or target board, this should unlock the ips
-    upgrade_ip [get_ips]
+   
+
+
+    ## Set Synthesis checkpoint request to true so that that ips are build with main synthesis command
+    foreach srcFile [get_files] {
+        if {[string match *.xci $srcFile]} {
+            set_property generate_synth_checkpoint true $srcFile
+        }
+    }
 
 }
 
