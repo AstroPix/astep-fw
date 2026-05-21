@@ -1041,11 +1041,12 @@
 **Reset Value**: 8'h01
 
 
-| [7:1] | 0 |
-| --|-- |
-| RSVD |packet_mode |
+| [7:2] | 1 | 0 |
+| --|-- |-- |
+| RSVD |reset |packet_mode |
 
 - packet_mode : If 1, the Readout FIFO data will be filled only with full data frames
+- reset : if 1, the readout FIFO is reset, flushing all bytes
 
 
 ## <a id='layers_readout'></a>layers_readout

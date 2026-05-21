@@ -896,8 +896,12 @@ class BoardDriver:
     ## Readout
     ################
     
-    async def readoutConfigure(self,packet_mode : bool,flush:bool=True):
-        await self.rfg.write_layers_readout_ctrl(1 if packet_mode is True else 0,flush)
+    async def readoutConfigure(self,packet_mode : bool, reset:bool,flush:bool=True):
+        reg = 1 if packet_mode is True else 0
+        reg |= (1<<1) if reset is True else 0 
+        await self.rfg.write_layers_readout_ctrl(reg,flush)
+
+    
         
     async def readoutGetBufferSize(self):
         """Returns the actual size of buffer"""

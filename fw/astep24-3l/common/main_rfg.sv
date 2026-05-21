@@ -218,6 +218,7 @@ module main_rfg(
     output logic [7:0]           layers_inj_wdata,
     output logic [7:0]           layers_readout_ctrl,
     output logic                   layers_readout_ctrl_packet_mode,
+    output logic                   layers_readout_ctrl_reset,
     // AXIS Slave interface to read from FIFO layers_readout,
     // --------------------,
     input  logic [7:0]            layers_readout_s_axis_tdata,
@@ -436,6 +437,7 @@ module main_rfg(
     assign layers_inj_ctrl_trigger = layers_inj_ctrl_reg[3];
     assign layers_inj_ctrl_write = layers_inj_ctrl_reg[4];
     assign layers_readout_ctrl_packet_mode = layers_readout_ctrl_reg[0];
+    assign layers_readout_ctrl_reset = layers_readout_ctrl_reg[1];
     assign io_ctrl_reserved0 = io_ctrl_reg[0];
     assign io_ctrl_reserved1 = io_ctrl_reg[1];
     assign io_ctrl_gecco_sample_clock_se = io_ctrl_reg[2];

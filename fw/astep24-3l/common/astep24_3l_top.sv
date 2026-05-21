@@ -596,6 +596,9 @@ module astep24_3l_top(
       
         .layers_readout_ctrl(),
         .layers_readout_ctrl_packet_mode(layers_readout_ctrl_packet_mode),
+        .layers_readout_ctrl_reset(layers_readout_ctrl_reset),
+
+        
         .layers_readout_s_axis_tdata(layers_readout_s_axis_tdata),
         .layers_readout_s_axis_tvalid(layers_readout_s_axis_tvalid),
         .layers_readout_s_axis_tready(layers_readout_s_axis_tready),
@@ -634,7 +637,7 @@ module astep24_3l_top(
         .clk_core_resn(clk_core_resn),
         .clk_io(spi_layers_ckdivider_divided_clk),
         .clk_io_resn(spi_layers_ckdivider_divided_resn),
-
+        .buffer_reset(layers_readout_ctrl_reset),
         // Layers
         .layers_interruptn({
             layers_interruptn_ext_or_loopback[2],

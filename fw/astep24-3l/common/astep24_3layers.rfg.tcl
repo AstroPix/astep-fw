@@ -211,6 +211,7 @@ set baseRegisters {
         -reset 8'h01
         -bits {
             packet_mode {-doc "If 1, the Readout FIFO data will be filled only with full data frames"}
+            reset { -doc "if 1, the readout FIFO is reset, flushing all bytes" }
         }
     }
     LAYERS_READOUT   {-fifo_axis_slave -read_count -doc "Reads from the readout data fifo"}
