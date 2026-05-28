@@ -126,7 +126,12 @@ class AstropixRun:
                 "configure_autoread: No chips number provided and asic configuration not loaded - Setting for 1 chip, may cause issues if more are present!"
             )
             nchips = 1
-        nbytes = 5 + nchips - 1
+        chipversion = self.config.find("chipversion").attrib["value"]
+        if chipversion == 3: payloadlen = 5
+        elif chipversion == 4: payloadlen = 8
+        elif chipversion == 5: payloadlen = 8
+        else: payloadlen = 5
+        nbytes = payloadlen + nchips - 1
         await self.boardDriver.rfg.write_layers_cfg_nodata_continue(
             value=nbytes, flush=flush
         )
