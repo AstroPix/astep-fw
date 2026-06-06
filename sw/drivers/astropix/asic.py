@@ -239,42 +239,39 @@ class Asic:
                 )[1]
                 | (2 << row)
             )
-       
 
-    # AS: update below this
-
-    def disable_inj_row(self, row: int):
+    def disable_inj_row(self, chip : int, row: int):
         """Disable row injection switch
         :param row: Row number
         """
         if row < self.num_rows:
-            self.asic_config["recconfig"][f"col{row}"][1] = (
-                self.asic_config["recconfig"].get(
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{row}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
                     f"col{row}", 0b001_11111_11111_11111_11111_11111_11111_11110
                 )[1]
                 & 0b111_11111_11111_11111_11111_11111_11111_11110
             )
 
-    def disable_inj_col(self, col: int):
+    def disable_inj_col(self, chip : int, col: int):
         """Disable col injection switch
         :param col: Col number
         """
         if col < self.num_cols:
-            self.asic_config["recconfig"][f"col{col}"][1] = (
-                self.asic_config["recconfig"].get(
+            self.asic_config[f"config_{chip}"]["recconfig"][f"col{col}"][1] = (
+                self.asic_config[f"config_{chip}"]["recconfig"].get(
                     f"col{col}", 0b001_11111_11111_11111_11111_11111_11111_11110
                 )[1]
                 & 0b101_11111_11111_11111_11111_11111_11111_11111
             )
 
-    def get_pixel(self, col: int, row: int):
-        return self.is_pixel_enabled(col, row)
+    def get_pixel(self, chip : int, col: int, row: int):
+        return self.is_pixel_enabled(chip, col, row)
 
     def set_vinj(self,chip:int,inj:float):
         #logger.info(f"Set vinj: {self.asic_config}")
         self.asic_config[f"config_{chip}"]["vdacs"]["vinj"][1] = int( inj / 1000 * 1024 / 1.8 ) 
 
-    def is_pixel_enabled(self, col: int, row: int):
+    def is_pixel_enabled(self, chip : int, col: int, row: int):
         """
         Checks if a given pixel is enabled
         Takes:
@@ -282,19 +279,19 @@ class Asic:
         row: int - row of pixel
         """
         if row < self.num_rows:
-            if self.asic_config["recconfig"].get(f"col{col}")[1] & (1 << (row + 1)):
+            if self.asic_config[f"config_{chip}"]["recconfig"].get(f"col{col}")[1] & (1 << (row + 1)):
                 return False
             return True
 
         logger.error("Invalid row %d larger than %d", row, self.num_rows)
         return None
 
-    def reset_recconfig(self):
+    def reset_recconfig(self, chip : int):
         """
         Reset recconfig by disabling all pixels and disabling all injection switches and mux ouputs
         """
-        for key in self.asic_config["recconfig"]:
-            self.asic_config["recconfig"][key][1] = (
+        for key in self.asic_config[f"config_{chip}"]["recconfig"]:
+            self.asic_config[f"config_{chip}"]["recconfig"][key][1] = (
                 0b001_11111_11111_11111_11111_11111_11111_11110
             )
 

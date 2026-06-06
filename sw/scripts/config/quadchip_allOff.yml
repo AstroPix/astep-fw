@@ -30,7 +30,7 @@ astropix3:
             extrabits:          [15, 0b0]
 
         biasconfig:
-            DisHiDR:            [1, 0b1]
+            DisHiDR:            [1, 0b0]
             q01:                [1, 0b0]
             qon0:               [1, 0b0]
             qon1:               [1, 0b1]
@@ -48,7 +48,7 @@ astropix3:
             nu7:                [6, 0]
             nu8:                [6, 0]
             vn2:                [6, 0]
-            vnfoll2:            [6, 1]
+            vnfoll2:            [6, 10]
             vnbias:             [6, 10]
             vpload:             [6, 5]
             nu13:               [6, 60]
@@ -60,7 +60,7 @@ astropix3:
 
         vdacs: # vdac = voltage / 1.8 * 1024
             blpix:              [10, 568] # 1V = 568
-            thpix:              [10, 652] # 100 mV threshold = 625, #738 = 300mV, 400mV = 795
+            thpix:              [10, 682] # 100 mV threshold = 625, #738 = 300mV, 400mV = 795
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
@@ -111,7 +111,7 @@ astropix3:
             extrabits:          [15, 0b0]
 
         biasconfig:
-            DisHiDR:            [1, 0b1]
+            DisHiDR:            [1, 0b0]
             q01:                [1, 0b0]
             qon0:               [1, 0b0]
             qon1:               [1, 0b1]
@@ -129,7 +129,7 @@ astropix3:
             nu7:                [6, 0]
             nu8:                [6, 0]
             vn2:                [6, 0]
-            vnfoll2:            [6, 1]
+            vnfoll2:            [6, 10]
             vnbias:             [6, 10]
             vpload:             [6, 5]
             nu13:               [6, 60]
@@ -141,7 +141,7 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 652] # 625=100mV
+            thpix:              [10, 682] # 625=100mV
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
@@ -192,7 +192,7 @@ astropix3:
             extrabits:          [15, 0b0]
 
         biasconfig:
-            DisHiDR:            [1, 0b1]
+            DisHiDR:            [1, 0b0]
             q01:                [1, 0b0]
             qon0:               [1, 0b0]
             qon1:               [1, 0b1]
@@ -210,7 +210,7 @@ astropix3:
             nu7:                [6, 0]
             nu8:                [6, 0]
             vn2:                [6, 0]
-            vnfoll2:            [6, 1]
+            vnfoll2:            [6, 10]
             vnbias:             [6, 10]
             vpload:             [6, 5]
             nu13:               [6, 60]
@@ -222,7 +222,7 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 652]
+            thpix:              [10, 682]
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
@@ -273,7 +273,7 @@ astropix3:
             extrabits:          [15, 0b0]
 
         biasconfig:
-            DisHiDR:            [1, 0b1]
+            DisHiDR:            [1, 0b0]
             q01:                [1, 0b0]
             qon0:               [1, 0b0]
             qon1:               [1, 0b1]
@@ -291,7 +291,7 @@ astropix3:
             nu7:                [6, 0]
             nu8:                [6, 0]
             vn2:                [6, 0]
-            vnfoll2:            [6, 1]
+            vnfoll2:            [6, 10]
             vnbias:             [6, 10]
             vpload:             [6, 5]
             nu13:               [6, 60]
@@ -303,7 +303,7 @@ astropix3:
 
         vdacs:
             blpix:              [10, 568]
-            thpix:              [10, 652]
+            thpix:              [10, 682]
             vcasc2:             [10, 625]
             nu1:                [10, 512]
             thpmos:             [10, 682]
