@@ -189,12 +189,14 @@ module astep24_3l_top(
             );
         end
     endgenerate
-
+    
+    
+    wire [2:0] layers_cfg_ctrl_force_interrupt;
 
     wire [2:0] layers_interruptn_ext_or_loopback = {
-        layers_interruptn_synced[2]  & (layers_loopback_interruptn[2] || !(layer_2_cfg_ctrl_loopback)),
-        layers_interruptn_synced[1]  & (layers_loopback_interruptn[1] || !(layer_1_cfg_ctrl_loopback)),
-        layers_interruptn_synced[0]  & (layers_loopback_interruptn[0] || !(layer_0_cfg_ctrl_loopback))
+        (!layers_cfg_ctrl_force_interrupt[2] & layers_interruptn_synced[2])  & (layers_loopback_interruptn[2] || !(layer_2_cfg_ctrl_loopback)),
+        (!layers_cfg_ctrl_force_interrupt[1] & layers_interruptn_synced[1])  & (layers_loopback_interruptn[1] || !(layer_1_cfg_ctrl_loopback)),
+        (!layers_cfg_ctrl_force_interrupt[0] & layers_interruptn_synced[0])  & (layers_loopback_interruptn[0] || !(layer_0_cfg_ctrl_loopback))
     };
 
 
@@ -410,6 +412,7 @@ module astep24_3l_top(
         .layer_0_cfg_ctrl_cs(layer_0_cfg_ctrl_cs),
         .layer_0_cfg_ctrl_disable_miso(layer_0_cfg_ctrl_disable_miso),
         .layer_0_cfg_ctrl_loopback(layer_0_cfg_ctrl_loopback),
+        .layer_0_cfg_ctrl_force_interrupt(layers_cfg_ctrl_force_interrupt[0]),
 
         .layer_1_cfg_ctrl(),
         .layer_1_cfg_ctrl_disable_autoread(layer_1_cfg_ctrl_disable_autoread),
@@ -418,8 +421,9 @@ module astep24_3l_top(
         .layer_1_cfg_ctrl_cs(layer_1_cfg_ctrl_cs),
         .layer_1_cfg_ctrl_disable_miso(layer_1_cfg_ctrl_disable_miso),
         .layer_1_cfg_ctrl_loopback(layer_1_cfg_ctrl_loopback),
+        .layer_1_cfg_ctrl_force_interrupt(layers_cfg_ctrl_force_interrupt[1]),
 
-
+        
         .layer_2_cfg_ctrl(),
         .layer_2_cfg_ctrl_disable_autoread(layer_2_cfg_ctrl_disable_autoread),
         .layer_2_cfg_ctrl_reset(layer_2_reset),
@@ -427,7 +431,8 @@ module astep24_3l_top(
         .layer_2_cfg_ctrl_cs(layer_2_cfg_ctrl_cs),
         .layer_2_cfg_ctrl_disable_miso(layer_2_cfg_ctrl_disable_miso),
         .layer_2_cfg_ctrl_loopback(layer_2_cfg_ctrl_loopback),
-
+        .layer_2_cfg_ctrl_force_interrupt(layers_cfg_ctrl_force_interrupt[2]),
+        
         .layer_0_status(),
         .layer_0_status_interruptn(layers_interruptn_synced[0]),
         .layer_0_status_frame_decoding(layer_0_status_frame_decoding),
@@ -591,6 +596,9 @@ module astep24_3l_top(
       
         .layers_readout_ctrl(),
         .layers_readout_ctrl_packet_mode(layers_readout_ctrl_packet_mode),
+        .layers_readout_ctrl_reset(layers_readout_ctrl_reset),
+
+        
         .layers_readout_s_axis_tdata(layers_readout_s_axis_tdata),
         .layers_readout_s_axis_tvalid(layers_readout_s_axis_tvalid),
         .layers_readout_s_axis_tready(layers_readout_s_axis_tready),
@@ -629,7 +637,7 @@ module astep24_3l_top(
         .clk_core_resn(clk_core_resn),
         .clk_io(spi_layers_ckdivider_divided_clk),
         .clk_io_resn(spi_layers_ckdivider_divided_resn),
-
+        .buffer_reset(layers_readout_ctrl_reset),
         // Layers
         .layers_interruptn({
             layers_interruptn_ext_or_loopback[2],
@@ -647,7 +655,7 @@ module astep24_3l_top(
             layer_2_spi_miso_internal,
             layer_1_spi_miso_internal,
             layer_0_spi_miso_internal}),
-        .layers_spi_csn(),
+        .layers_spi_csn({layer_2_spi_csn,layer_1_spi_csn,layer_0_spi_csn}),
 
         // MOSI
         //-----------

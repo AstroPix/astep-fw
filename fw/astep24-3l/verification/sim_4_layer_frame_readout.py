@@ -467,6 +467,23 @@ async def test_layer_0_readout_large_buffer(dut):
     await Timer(50, units="us")
 
 @cocotb.test(timeout_time=2, timeout_unit="ms")
+async def test_layer_0_force_interrupt_autoread(dut):
+    """Forcing interrupt with Interrupt enable should enable readout, and show an increased in idle bytes counter"""
+    
+    ## Driver, asic, clock+reset
+    asic = vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1)
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    
+    await driver.setLayerConfig(
+        layer=0, reset=False, hold=False, autoread=True, chipSelect=True,forceInterrupt=True, flush=True
+    )
+    await Timer(50, units="us")
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
 async def test_3_layers_single_frame(dut):
     """Send A single frame to all layers after each other"""
 
@@ -611,3 +628,57 @@ async def test_3_layers_multiple_frames_parallel(dut):
     )
 
     await Timer(50, units="us")
+
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def test_4_buffer_reset(dut):
+    """Send A single frame and reset buffer to flush content"""
+
+    ## Create ASIC Models
+    asics = []
+    asics.append(vip.astropix3.Astropix3Model(dut=dut, lane = 0 ,  chipID=1))
+    
+
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+    driver = await astep24_3l_sim.getDriver(dut)
+
+    ## Enable FPGA Timestamp counting
+    await driver.layersConfigFPGATimestamp(
+        enable=True,
+        use_divider=False,
+        use_tlu=False,
+        flush=True,
+    )
+
+    await print_layers_stats(dut, driver)
+
+    await Timer(50, units="us")
+
+    ## Start the layers, with autoread enabled
+    await driver.setLayerConfig( layer=0, reset=False, hold=False, autoread=True, flush=True )
+    
+
+    ## Generate Frames
+    generator = cocotb.start_soon(asics[0].generateTestFrame(length=5, framesCount=2))
+    await generator.join()
+    dut._log.info("Sequencing tasks done")
+
+    ## Wait a bit and check the readout size - also read the bytes to avoid buffer getting full, since simulation buffer size is small (16)
+    totalBytes = await driver.readoutGetBufferSize()
+    assert totalBytes != 0 
+    
+    ## Assert Reset and deassert
+    await driver.readoutConfigure(packet_mode = True,reset=True)
+    await Timer(1, units="us")
+    await driver.readoutConfigure(packet_mode = True,reset=False)
+    await Timer(1, units="us")
+
+    totalBytes = await driver.readoutGetBufferSize()
+    assert totalBytes == 0 
+
+    await Timer(50, units="us")
+
+     

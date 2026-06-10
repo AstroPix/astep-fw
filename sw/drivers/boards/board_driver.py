@@ -610,33 +610,7 @@ class BoardDriver:
                 layersCfg[layer], flush
             )
 
-    # @deprecated("Please use clearer setLayerConfig method")
-    # async def setLayerReset(self,layer:int, reset : bool, disable_autoread : bool  = True, modify : bool = False, flush = False):
-    #     """Asserts/Deasserts the Reset output for the given layer
 
-    #     Args:
-    #         disable_autoread (int): By default 1, disables the automatic layer readout upon interruptn=0 condition
-    #         modify (bool): Reads the Control register first and only change the required bits
-    #         flush (bool): Write the register right away
-
-    #     """
-    #     regval = 0xff if reset is True else 0x00
-    #     if modify is True:
-    #         regval =  await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
-
-    #     if reset is True:
-    #         regval |= (1<<1)
-    #     else:
-    #         regval &= ~(1<<1)
-
-    #     if disable_autoread is True:
-    #         regval |= (1<<2)
-    #     else:
-    #         regval &= ~(1<<2)
-
-    #     #if not reset:
-    #     #    regval = regval | ( disable_autoread << 2 )
-    #     await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval,flush)
 
     async def setLayerConfig(
         self,
@@ -646,6 +620,7 @@ class BoardDriver:
         hold: bool,
         chipSelect: bool = False,
         disableMISO: bool = False,
+        forceInterrupt : bool = False,
         flush=False,
     ):
         """Modified the layer config with provided bools
@@ -687,6 +662,11 @@ class BoardDriver:
             regval |= 1 << 4
         else:
             regval &= ~(1 << 4)
+            
+        if forceInterrupt is True:
+            regval |= 1 << 6
+        else:
+            regval &= ~(1 << 6)
 
         await getattr(self.rfg, f"write_layer_{layer}_cfg_ctrl")(regval, flush)
 
@@ -885,6 +865,17 @@ class BoardDriver:
         await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(
             0, flush=flush
         )
+        
+    async def zeroLaneStats(self, layer: int, flush: bool = True):
+        await getattr(self.rfg, f"write_layer_{layer}_stat_wronglength_counter")(
+            0, flush=flush
+        )
+        await getattr(self.rfg, f"write_layer_{layer}_stat_idle_counter")(
+            0, flush=flush
+        )
+        await getattr(self.rfg, f"write_layer_{layer}_stat_frame_counter")(
+            0, flush=flush
+        )
 
     async def assertLayerNotInReset(self, layer: int):
         ctrlReg = await self.getLayerControl(layer)
@@ -905,8 +896,12 @@ class BoardDriver:
     ## Readout
     ################
     
-    async def readoutConfigure(self,packet_mode : bool,flush:bool=True):
-        await self.rfg.write_layers_readout_ctrl(1 if packet_mode is True else 0,flush)
+    async def readoutConfigure(self,packet_mode : bool, reset:bool,flush:bool=True):
+        reg = 1 if packet_mode is True else 0
+        reg |= (1<<1) if reset is True else 0 
+        await self.rfg.write_layers_readout_ctrl(reg,flush)
+
+    
         
     async def readoutGetBufferSize(self):
         """Returns the actual size of buffer"""

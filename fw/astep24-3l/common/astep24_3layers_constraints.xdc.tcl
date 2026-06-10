@@ -114,10 +114,13 @@ for {set i 0} {$i < $numberOfLayerClocks} {incr i} {
         #set refclk spi_layer${i}_clock_internal
 
         set_output_delay -max -clock $refclk $layer_spi_io_delay    [get_ports layer_${i}_spi_mosi ]
-        set_output_delay -min -clock $refclk -2                      [get_ports layer_${i}_spi_mosi ]
-
-        set_input_delay  -max -clock $refclk  2                      [get_ports layer_${i}_spi_miso* ] -clock_fall
-        set_input_delay  -min -clock $refclk  -1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
+        set_output_delay -min -clock $refclk -2                     [get_ports layer_${i}_spi_mosi ]
+         
+        set_input_delay  -max -clock $refclk  $layer_spi_io_delay   [get_ports layer_${i}_spi_miso* ] 
+        set_input_delay  -min -clock $refclk  0                     [get_ports layer_${i}_spi_miso* ]
+        
+        #set_input_delay  -max -clock $refclk  2                      [get_ports layer_${i}_spi_miso* ] -clock_fall
+        #set_input_delay  -min -clock $refclk  -1                     [get_ports layer_${i}_spi_miso* ] -clock_fall
 
     }
 

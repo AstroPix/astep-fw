@@ -12,7 +12,8 @@ module astropix_spi_protocol_av1 #(
     parameter LAYER_ID = 3'h0,
     parameter IDLE_BYTE = 8'h3D,
     parameter ASTROPIX_PAYLOAD_LENGTH = 3'd4,
-    parameter TS_WIDTH=64)(
+    parameter TS_WIDTH=64,
+    parameter DEBUG=0)(
 
 
     // System clock and control
@@ -148,6 +149,12 @@ module astropix_spi_protocol_av1 #(
 
                     // Got Frame Header, and not Idle byte
                     if (slave_byte_valid && s_axis_tdata!=IDLE_BYTE) begin
+                        
+                        
+                        // DEBUG 26/04
+                        if (s_axis_tdata[2:0]!=cfg_payload_length) begin
+                            stat_wronglength_detected <= 1'b1;
+                        end
 
                         // Send Header Length
                         protocol_state              <= HEADER_LENGTH;
@@ -155,7 +162,7 @@ module astropix_spi_protocol_av1 #(
                         receive_frame_length        <= s_axis_tdata[2:0];
                         receive_frame_length_frozen <= s_axis_tdata[2:0];
 
-                        // Length: ID + FRAME LENGTH + 4 TS bytes
+                        // Length: ID + FRAME LENGTH + PAYLOAD LENGTH + X TS bytes
                         frame_buffer                <= s_axis_tdata;
                         m_axis_tdata                <= 1 + (s_axis_tdata[2:0]+1) + (cfg_fpga_timestamp_size*2+2);
                         m_axis_tvalid               <= 1'b1;
@@ -169,6 +176,9 @@ module astropix_spi_protocol_av1 #(
 
                         // Report decoding status
                         status_frame_decoding        <= 1'b1;
+                        
+                        // Toggle Frame detected for 1 cycle to enable counting
+                        stat_idle_detected <= 1'b0;
 
                     end else if (slave_byte_valid && s_axis_tdata==IDLE_BYTE) begin
 
@@ -185,18 +195,19 @@ module astropix_spi_protocol_av1 #(
                 end
 
                 HEADER_LENGTH: begin
-                    stat_frame_detected          <= 1'b0;
-
+                    stat_frame_detected             <= 1'b0;
+                    stat_wronglength_detected       <= 1'b0;
 
 
                     // Send Header ID
                     if (master_byte_valid) begin
                         protocol_state          <= HEADER_ID;
                         m_axis_tdata            <= LAYER_ID;
-
-                        if (receive_frame_length_frozen!=cfg_payload_length) begin
+                        
+                        // DEBUG 26/04
+                        /*if (receive_frame_length_frozen!=cfg_payload_length) begin
                             stat_wronglength_detected <= 1'b1;
-                        end
+                            end*/
                     end
 
 
@@ -204,7 +215,7 @@ module astropix_spi_protocol_av1 #(
 
                 HEADER_ID: begin
 
-                    stat_wronglength_detected <= 1'b0;
+                    //stat_wronglength_detected <= 1'b0;
 
                     // Send Frame
                     if (master_byte_valid) begin
@@ -217,7 +228,7 @@ module astropix_spi_protocol_av1 #(
 
                 FORWARD: begin
 
-                    stat_frame_detected          <= 1'b0;
+                    
                     if (master_byte_valid) begin
 
                         // Finished, add other data
@@ -250,7 +261,9 @@ module astropix_spi_protocol_av1 #(
                         receive_frame_length <= receive_frame_length -1;
 
                         // If master stage is ready for byte, leave slave to ready
-                        s_axis_tready <= m_axis_tready;
+                        // DEBUG 26/04
+                        //s_axis_tready <= m_axis_tready;
+                        s_axis_tready <= 1'b0;
 
                         // Output
                         m_axis_tdata            <= s_axis_tdata;
@@ -342,6 +355,29 @@ module astropix_spi_protocol_av1 #(
             endcase
         end
     end
+    
+    
+    
+    
+    generate
+        if (DEBUG) begin
+            ila_4trigger4bytes ila_inst (
+              .clk    (clk), // input wire clk
+             
+              .probe0 (stat_wronglength_detected),
+              .probe1 (slave_byte_valid), 
+              .probe2 (1'b0), 
+              .probe3 (1'b0),
+              
+              
+              .probe4 (protocol_state),
+              .probe5 (s_axis_tdata), 
+              .probe6 (slave_byte_valid),
+              .probe7 (8'd0)
+              
+            );
+        end
+    endgenerate
 
 
 endmodule

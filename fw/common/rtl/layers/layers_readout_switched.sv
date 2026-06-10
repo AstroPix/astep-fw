@@ -18,13 +18,15 @@ module layers_readout_switched #(
     input wire clk_io,
     input wire clk_io_resn,
 
+    input wire buffer_reset,
+
     // Layers Interface
     //-----------------
     input  wire [LAYER_COUNT-1:0]       layers_interruptn,
     output wire [LAYER_COUNT-1:0]       layers_spi_clk,
     output wire [LAYER_COUNT-1:0]       layers_spi_mosi,
     input  wire [LAYER_COUNT*2-1:0]     layers_spi_miso,
-    output wire [LAYER_COUNT-1:0]       layers_spi_csn,
+    input  wire [LAYER_COUNT-1:0]       layers_spi_csn,
 
     // MOSI
     //----------------
@@ -81,7 +83,11 @@ module layers_readout_switched #(
     generate
         for (li = 0 ; li < LAYER_COUNT ; li++) begin
 
-            layer_if_a #(.LAYER_ID(li+1)) layer_if_I (
+            layer_if_a #(
+                .LAYER_ID(li+1),
+                .DEBUG(li==25)
+                //.DEBUG(li==0)
+            ) layer_if_I (
 
                 .clk_core(clk_core),
                 .clk_core_resn(clk_core_resn),
@@ -155,7 +161,7 @@ module layers_readout_switched #(
     wire buffer_in_last = switch_m_axis_tlast | (!config_packet_mode);
     fifo_axis_1clk_1kB  frames_buffer(
         .s_axis_aclk(clk_core),
-        .s_axis_aresetn(clk_core_resn),
+        .s_axis_aresetn(clk_core_resn & (!buffer_reset)),
 
         // From Switch
         .s_axis_tdata(switch_m_axis_tdata),
@@ -179,7 +185,7 @@ module layers_readout_switched #(
     wire write_in_buffer = switch_m_axis_tready & switch_m_axis_tvalid;
     wire read_in_buffer = readout_frames_m_axis_tready & readout_frames_m_axis_tvalid;
     always_ff @(posedge clk_core) begin
-        if (!clk_core_resn) begin
+        if (!clk_core_resn || buffer_reset) begin
             readout_frames_data_count <= 32'd0;
             readout_frames_data_count_temp <= 'd0; 
         end

@@ -1,6 +1,6 @@
 
 
-module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
+module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64,parameter DEBUG=0)(
 
     input  wire				clk_core,
     input  wire				clk_core_resn,
@@ -21,7 +21,7 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
     output wire [31:0]      mosi_s_write_size,
 
     output wire				spi_clk,
-    output wire				spi_csn,
+    input wire				spi_csn,
     input  wire [1:0]		spi_miso,
     output wire				spi_mosi,
 
@@ -32,6 +32,7 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
     input  wire                     cfg_layer_reset,
     input  wire                     cfg_disable_miso,
     input  wire [7:0]               cfg_payload_length,
+    
 
 
     output wire                     status_frame_decoding,
@@ -59,6 +60,9 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
 
     // Sections
     //---------------
+    // 
+    
+    
 
 
     // Instances
@@ -81,7 +85,8 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
         .s_axis_tvalid(mosi_s_axis_tvalid)
     );
 
-    spi_axis_if_v2 #(.QSPI(1)  ) spi_io(
+    wire [7:0] miso_byte_debug;
+    spi_axis_if_v2 #(.QSPI(1),.DEBUG(DEBUG)  ) spi_io(
         .clk(clk_spi),
         .enable(spi_io_enable),
         .cpol(1'b0),
@@ -97,7 +102,8 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
         .spi_clk(spi_clk),
         //.spi_csn(spi_csn),
         .spi_miso(spi_miso),
-        .spi_mosi(spi_mosi)
+        .spi_mosi(spi_mosi),
+        .miso_byte_debug(miso_byte_debug)
     );
 
     fifo_axis_2clk_spi_layer  miso_fifo(
@@ -147,6 +153,61 @@ module layer_if_a  #(LAYER_ID = 0,parameter TS_WIDTH=64)(
         .stat_idle_detected(stat_idle_detected),
         .stat_wronglength_detected(stat_wronglength_detected)
     );
+    
+    
+    // Debug for Wrong Length 
+    
+    reg stat_wronglength_detected_sticky;
+    always @(posedge clk_core) begin
+        
+        stat_wronglength_detected_sticky <= stat_wronglength_detected ? 1'b1 : stat_wronglength_detected_sticky;
+    end
+    
+    
+    reg stat_wronglength_detected_sticky_spi;
+    always @(posedge clk_spi) begin
+        
+        stat_wronglength_detected_sticky_spi <= stat_wronglength_detected_sticky;
+    end
+    
+    
+    generate
+        if (DEBUG) begin
+            /*ila_4trigger4bytes ila_inst (
+              .clk    (clk_spi), // input wire clk
+             
+              .probe0 (stat_wronglength_detected_sticky_spi),
+              .probe1 (1'b0), 
+              .probe2 (1'b0), 
+              .probe3 (1'b0),
+              
+              
+              .probe4 (spi_io_m_axis_tdata),
+              .probe5 (spi_io_m_axis_tvalid), 
+              .probe6 (spi_io_m_axis_tready),
+              .probe7 (8'd0)
+              
+              );*/
+              
+              ila_4trigger4bytes ila_inst (
+                .clk    (clk_core), // input wire clk
+               
+                .probe0 (stat_wronglength_detected),
+                .probe1 (spi_io_m_axis_tvalid), 
+                .probe2 (spi_io_m_axis_tready), 
+                .probe3 (spi_csn),
+                
+                
+                .probe4 (spi_io_m_axis_tdata),
+                .probe5 ({6'd0,spi_miso}), 
+                .probe6 ({7'd0,spi_clk}),
+                .probe7 (miso_byte_debug)
+                
+                );
+        end
+    endgenerate
+    
+    
 
 
 endmodule

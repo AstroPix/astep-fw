@@ -60,16 +60,12 @@ module tlu_client #(
 
   assign tlu_sync = tlu_sync_in;
   assign tlu_trig = tlu_trig_in;
-  /*sync_signal #(
-      .WIDTH(2),
-      .STAGES(0)
-    ) sync_tlu_input (
-      .out_clk(tlu_clk),
-      .signal_in ({tlu_sync_in, tlu_trig_in}),  // i, async
-      .signal_out({tlu_sync, tlu_trig})  // o, sync to out_clk
-  );*/
+ 
 
-  assign t0_i =  enable_in & ((conf_t0_mode_in && tlu_sync) || t0_inject_in);
+  // Change 12/05/26 Richard -> t0_i is active also when enable is 0, if TLU counter mode is not in use
+  //assign t0_i =  enable_in & ((conf_t0_mode_in && tlu_sync) || t0_inject_in);
+  assign t0_i =   ((conf_t0_mode_in && tlu_sync) || t0_inject_in);
+
   assign trig_i = enable_in & (tlu_trig || trigger_inject_in);
   // if conf_busy_on_t0_in == 1'b1:
   // set busy_min_duration_counter on t0, or, if t0 mode is disabled, when the module is being enabled
