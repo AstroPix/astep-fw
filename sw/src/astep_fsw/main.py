@@ -6,7 +6,6 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 
 import argparse
 import asyncio
-from bitstring import BitArray
 import os
 import sys
 import time
@@ -15,7 +14,7 @@ import time
 import logging
 
 # AstroPix drivers
-from .drivers import astropix, boards
+from astropixrun import AstropixRun
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -38,30 +37,39 @@ async def main(args):
     await arun.buffer_flush()
     await arun.chips_enable_readout()
 
-    # Main loop here
-    end_time = float("inf") if args.runTime is None else time.time() + (args.runTime * 60.0)
-    run = time.time() < end_time
+    # Configure housekeeping
+    await arun.config_adchk()
+    await arun.config_fpgahk()
+
+    # # Main loop here
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     if args.inject: await arun.start_injection()
-    
-    while run:
-        try:
-            # Read data
-            buff, readout = await arun.get_readout(args.readout)
-            # Output data
-            if len(readout) > 0:
-                ofile.write(readout)
-            print(f"  {buff:05d}  ", end="\r")
-            # Check time
-            run = time.time() < end_time
-        except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while in main loop - exiting.")
-            run = False
 
+    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
+    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
+
+    # # Begin async event loops
+    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
+    data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
+
+    # # Runtime
+    try:
+        if args.runTime: await asyncio.sleep(args.runTime * 60.0)
+        else: await asyncio.Event().wait()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while collecting data - exiting.")
+    
+    # # Finish data collection
+    hk_task.cancel()
+    data_task.cancel()
+
+    # Closeout
     await arun.chips_disable_readout()
     if args.inject: await arun.stop_injection()
     await arun.fpga_close_connection()
     ofile.close()
+    ofile_hk.close()
+
 #######################################################
 #################### TOP LEVEL ########################
 
@@ -193,6 +201,16 @@ if __name__ == "__main__":
         dest="systemd_test",
         action="store_true",
         help="Repeat log message, used for systemd testing",
+    )
+
+    # Options related to housekeeping
+    parser.add_argument(
+        "-hk",
+        "--hkCadence",
+        action="store",
+        default=None,
+        type=int,
+        help="Set cadence of housekeeping loop output in seconds. Default: 1 second",
     )
 
     args = parser.parse_args()
