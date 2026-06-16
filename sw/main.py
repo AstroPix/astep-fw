@@ -45,12 +45,11 @@ async def main(args):
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
     if args.inject: await arun.start_injection()
 
-    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
     ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
 
     # # Begin async event loops
-    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
-    data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
+    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk, args.hkPeriod))
+    data_task = asyncio.create_task(arun.readout_loop(args.readout, ofile))
 
     # # Runtime
     try:
@@ -193,11 +192,11 @@ if __name__ == "__main__":
     # Options related to housekeeping
     parser.add_argument(
         "-hk",
-        "--hkCadence",
+        "--hkPeriod",
         action="store",
         default=None,
         type=int,
-        help="Set cadence of housekeeping loop output in seconds. Default: 1 second",
+        help="Set period of housekeeping loop output in seconds. Default: 1 second",
     )
 
     args = parser.parse_args()
