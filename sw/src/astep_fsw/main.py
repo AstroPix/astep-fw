@@ -23,6 +23,16 @@ async def main(args):
     arun = AstropixRun(args.fpgaxml)
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
+    # Configure and start housekeeping
+    await arun.config_adchk()
+    await arun.config_fpgahk()
+    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
+    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
+    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
+    # Ramp up HV
+    if args.HVup is not None: #arun.rampHV(args.HVup)
+        hvup_task = asyncio.create_task(arun.rampHV(args.HVup, timeout = 5))
+    # Configure detectors
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
@@ -35,21 +45,11 @@ async def main(args):
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
     await arun.chips_reset_configure()
     await arun.buffer_flush()
-    await arun.chips_enable_readout()
-
-    # Configure housekeeping
-    await arun.config_adchk()
-    await arun.config_fpgahk()
-
-    # # Main loop here
+    # Wait for HV before starting data acquisition
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
+    while not hvup_task.done(): time.sleep(.1)
+    await arun.chips_enable_readout()
     if args.inject: await arun.start_injection()
-
-    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
-    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
-
-    # # Begin async event loops
-    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
     data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
 
     # # Runtime
@@ -64,6 +64,7 @@ async def main(args):
     data_task.cancel()
 
     # Closeout
+    if args.HVdown: asyncio.create_task(arun.rampHV(0.))
     await arun.chips_disable_readout()
     if args.inject: await arun.stop_injection()
     await arun.fpga_close_connection()
@@ -211,6 +212,20 @@ if __name__ == "__main__":
         default=None,
         type=int,
         help="Set cadence of housekeeping loop output in seconds. Default: 1 second",
+    )
+
+    parser.add_argument(
+        "--HVup",
+        action="store",
+        type=float,
+        default=None
+        help="Ramp HV up to set voltage before acquiring data. Default: None"
+    )
+    parser.add_argument(
+        "--HVdown",
+        action="store_true",
+        default=False,
+        help="Ramp HV down after data acquisition. Default: False"
     )
 
     args = parser.parse_args()

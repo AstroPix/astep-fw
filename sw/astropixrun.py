@@ -43,7 +43,8 @@ class AstropixRun:
         """
         self.config = ET.parse(fpgaxml).getroot()
         self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
-        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI
+        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI.
+        self.lastHVset = 0.
         self.lock = asyncio.Lock()
 
     ##################### FPGA INTERACTIONS #########################
@@ -676,8 +677,9 @@ class AstropixRun:
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         bufferSize = await self.boardDriver.readoutGetBufferSize()
-        if counts is None and bufferSize > 10:
-            readout = await self.boardDriver.readoutReadBytes(bufferSize)
+        if counts is None:
+            if bufferSize > 10:
+                readout = await self.boardDriver.readoutReadBytes(bufferSize)
         else:
             readout = await self.boardDriver.readoutReadBytes(counts)
         return bufferSize, readout
@@ -693,7 +695,7 @@ class AstropixRun:
                 await asyncio.sleep(0)
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
-                    if buff > 0:
+                    if len(readout) > 0:
                         ofile.write(readout)
                     print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -742,106 +744,153 @@ class AstropixRun:
             await self.boardDriver.resetLayerStatCounters(layer)
         # Need to check and see if this falls over without activating any chips for testing
 
-    async def housekeeping(self, ofile, hk_cadence: int = 1, terminalPrint: bool = True):
+    async def getHKdata(self):
+        async with self.lock:
+            # FPGA Digital Housekeeping:
+            ########################################################
+            fpgaBytes = bytearray([12,12]) #2-byte syncword (\x0c\x0c)
+            for _ in range(3):
+                fpgaBytes.extend(await self.boardDriver.houseKeeping.readFPGATemperatureRaw())
+
+            for _ in range(3):
+                fpgaBytes.extend(await self.boardDriver.houseKeeping.readVCCIntRaw())
+
+            # FPGA Counter Housekeeping: Frames, Idles, Wrong
+            ########################################################
+            counterBytes = bytearray()
+            for layer in self.boardDriver.asics.keys():
+                counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
+            
+            # ADC Housekeeping:
+            ########################################################
+            # Request all ADC Channels
+            for chan in range(8):
+                byte1 = int(format(chan<<3,'08b'),2)
+                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
+
+            # Read all hk fifo data at once
+            adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+            adcBytes = bytearray([16,16]) #2-byte syncword (\x10\x10)
+            adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)) 
+
+            # Time Information
+            ########################################################
+            fpga_time = await self.boardDriver.getFPGATimestampRaw()
+            fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
+        self.lastHVset = self.boardDriver.houseKeeping.convertBytesToHV(adcBytes[14:16])/0.0125
+        return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes
+
+    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount):
+        # Terminal Output Formatting: Can likely move elsewhere
+        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}"
+        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}"
+        headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Status']
+        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W']
+        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}"
+
+        if outputCount == 0:
+            print(header_format.format(*headers))
+            print(subheader_format.format(*subheaders))
+
+        # Convert raw to values
+        fsw = datetime.fromtimestamp(struct.unpack('d',fsw_time)[0],tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        fpgacnt = int.from_bytes(fpga_time,'little')
+        fpgaTemp = float(sum([self.boardDriver.houseKeeping.convertBytesToFPGATemperature(fpgaBytes[2:8][i : i + 2]) for i in range(0, 6, 2)])/3)
+        fpgaVCCInt = float(sum([self.boardDriver.houseKeeping.convertBytesToVCCInt(fpgaBytes[8:][i : i + 2]) for i in range(0, 6, 2)])/3)
+        ADCVals = [self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[2:][i : i + 2]) for i in range(0,16,2)]
+
+        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
+        L0Frames = L0Idle = L0Wrong = 'x'
+        L1Frames = L1Idle = L1Wrong = 'x'
+        L2Frames = L2Idle = L2Wrong = 'x'
+
+        for l in layerinfo:
+            if l[0] == 0:
+                L0Frames = int.from_bytes(l[2:5],'little')
+                L0Idle = int.from_bytes(l[6:9],'little')
+                L0Wrong = int.from_bytes(l[10:13],'little')
+            elif l[0] == 1:
+                L1Frames = int.from_bytes(l[2:5],'little')
+                L1Idle = int.from_bytes(l[6:9],'little')
+                L1Wrong = int.from_bytes(l[10:13],'little')
+            elif l[0] == 2:
+                L2Frames = int.from_bytes(l[2:5],'little')
+                L2Idle = int.from_bytes(l[6:9],'little')
+                L2Wrong = int.from_bytes(l[10:13],'little')
+        
+        values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
+                    ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong]
+        
+        print(value_format.format(*values))
+        outputCount = (outputCount + 1) % 31
+
+        # old print statements
+        #print(f"FPGA:  Temperature {fpgaTemp:.2f} C | VCCInt {fpgaVCCInt:.2f} V")
+        #print(f"ADC:  CH0:Layer2Temp {ADCVals[1]:.3f} C | CH1:Layer1Temp {ADCVals[2]:.3f} C | CH2:Layer0Temp {ADCVals[3]:.3f} C | CH3:Layer0Curr {ADCVals[4]/10.:.3f} A | CH4:Layer1Curr {ADCVals[5]/10.:.3f} A | CH5:Layer2Curr {ADCVals[6]/10.:.3f} A | CH6:HVMon {ADCVals[7]/0.0125:.3f} V | CH7:SecVoltage {ADCVals[0]*2.:.3f} V")
+        #print(f"Layer {layerBytes[0]}:  Data Frames {toInt(layerBytes[2:5])} | Idle Bytes {toInt(layerBytes[6:9])} | Wrong Frames {toInt(layerBytes[10:13])}")
+        #toInt = self.boardDriver.convertBytesToCounter
+
+    async def housekeeping(self, ofile, hk_period: int = 1, terminalPrint: bool = False):
         try:
             outputCount = 0
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
-                await asyncio.sleep(hk_cadence)
-                async with self.lock:
-                    # FPGA Digital Housekeeping:
-                    ########################################################
-                    fpgaBytes = bytearray([12,12]) #2-byte syncword (\x0c\x0c)
-                    for _ in range(3):
-                        fpgaBytes.extend(await self.boardDriver.houseKeeping.readFPGATemperatureRaw())
-
-                    for _ in range(3):
-                        fpgaBytes.extend(await self.boardDriver.houseKeeping.readVCCIntRaw())
-
-                    # FPGA Counter Housekeeping: Frames, Idles, Wrong
-                    ########################################################
-                    counterBytes = bytearray()
-                    for layer in self.boardDriver.asics.keys():
-                        counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
-                    
-                    # ADC Housekeeping:
-                    ########################################################
-                    # Request all ADC Channels
-                    for chan in range(8):
-                        byte1 = int(format(chan<<3,'08b'),2)
-                        await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,0x00])
-
-                    # Read all hk fifo data at once
-                    adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-                    adcBytes = bytearray([16,16]) #2-byte syncword (\x10\x10)
-                    adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)) 
-
-                    # Time Information
-                    ########################################################
-                    fpga_time = await self.boardDriver.getFPGATimestampRaw()
-                    fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp())) 
-                    
-                    # Write to file
-                    ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
-                    ofile.flush()
-
-                    # Terminal Output:
-                    ########################################################
-                    if terminalPrint:
-
-                        # Terminal Output Formatting: Can likely move elsewhere
-                        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}"
-                        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}"
-                        headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Status']
-                        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W']
-                        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}"
-
-                        if outputCount == 0:
-                            print(header_format.format(*headers))
-                            print(subheader_format.format(*subheaders))
-
-                        # Convert raw to values
-                        fsw = datetime.fromtimestamp(struct.unpack('d',fsw_time)[0],tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-                        fpgacnt = int.from_bytes(fpga_time,'little')
-                        fpgaTemp = float(sum([self.boardDriver.houseKeeping.convertBytesToFPGATemperature(fpgaBytes[2:8][i : i + 2]) for i in range(0, 6, 2)])/3)
-                        fpgaVCCInt = float(sum([self.boardDriver.houseKeeping.convertBytesToVCCInt(fpgaBytes[8:][i : i + 2]) for i in range(0, 6, 2)])/3)
-                        ADCVals = [self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[2:][i : i + 2]) for i in range(0,16,2)]
-
-                        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
-                        L0Frames = L0Idle = L0Wrong = 'x'
-                        L1Frames = L1Idle = L1Wrong = 'x'
-                        L2Frames = L2Idle = L2Wrong = 'x'
-
-                        for l in layerinfo:
-                            if l[0] == 0:
-                                L0Frames = int.from_bytes(l[2:5],'little')
-                                L0Idle = int.from_bytes(l[6:9],'little')
-                                L0Wrong = int.from_bytes(l[10:13],'little')
-                            elif l[0] == 1:
-                                L1Frames = int.from_bytes(l[2:5],'little')
-                                L1Idle = int.from_bytes(l[6:9],'little')
-                                L1Wrong = int.from_bytes(l[10:13],'little')
-                            elif l[0] == 2:
-                                L2Frames = int.from_bytes(l[2:5],'little')
-                                L2Idle = int.from_bytes(l[6:9],'little')
-                                L2Wrong = int.from_bytes(l[10:13],'little')
-                        
-                        values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
-                                  ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong]
-                        
-                        print(value_format.format(*values))
-                        outputCount = (outputCount + 1) % 31
-
-                        # old print statements
-                        #print(f"FPGA:  Temperature {fpgaTemp:.2f} C | VCCInt {fpgaVCCInt:.2f} V")
-                        #print(f"ADC:  CH0:Layer2Temp {ADCVals[1]:.3f} C | CH1:Layer1Temp {ADCVals[2]:.3f} C | CH2:Layer0Temp {ADCVals[3]:.3f} C | CH3:Layer0Curr {ADCVals[4]/10.:.3f} A | CH4:Layer1Curr {ADCVals[5]/10.:.3f} A | CH5:Layer2Curr {ADCVals[6]/10.:.3f} A | CH6:HVMon {ADCVals[7]/0.0125:.3f} V | CH7:SecVoltage {ADCVals[0]*2.:.3f} V")
-                        #print(f"Layer {layerBytes[0]}:  Data Frames {toInt(layerBytes[2:5])} | Idle Bytes {toInt(layerBytes[6:9])} | Wrong Frames {toInt(layerBytes[10:13])}")
-                        #toInt = self.boardDriver.convertBytesToCounter
+                # Measure data
+                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes = self.getHKdata()
+                # Write to file
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
+                ofile.flush()
+                # Terminal Output:
+                if terminalPrint:
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount)
+                # Sleep
+                await asyncio.sleep(hk_period)
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
         finally:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
-            
+    
+    async def setDAC(self, voltage: float):
+        """
+        Sets the DAC value
+        Configures HK SPI for the DAC and then back to ADC when done, so that the default state is always ADC coms
+        :param voltage: DAC voltage (in V)
+        """
+        if voltage < 0 or voltage > 3.3:
+           logging.error(f"DAC voltage={voltage} is out of range! Must be between 0 and 3.3 V")
+           return
+        async with self.lock:
+            await self.boardDriver.houseKeeping.configureHKSPI(adc=0, dac=1)
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=0, dac=1)
+            if voltage == 0:
+                await self.boardDriver.houseKeeping.writeADCDACBytes([0x30,0x00]) # power down
+            else:
+                bytess = format(int((voltage/3.3)*2**12-1),'016b')
+                byte1 = int(bytess[0:8],2)
+                byte2 = int(bytess[8:16],2)
+                await self.boardDriver.houseKeeping.writeADCDACBytes([byte1,byte2])
+            await self.boardDriver.houseKeeping.configureHKSPI(adc=1, dac=0)
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=1, dac=0)
+
+    async def rampHV(self, hv: float, timeout: float = 5):
+        """
+        Progressively ramps up or down the detectors High Voltage through DAC commands
+        :param hv: Target HV voltage in V. Will be clipped to 0-264V range
+        """
+        timeout += time.time()
+        hvdiff = max(min(hv*0.0125, 3.3), 0) - self.lastHVset
+        if abs(hvdiff) < 0.01:
+            logger.info(f"HV already at {hv:.2f} V, skipping ramp")
+            return
+        sequence = [self.lastHVset + f * hvdiff for f in [0.25, 0.5, 0.75, 1]]
+        for hvset in sequence:
+            if time.time() > timeout:
+                logger.warning(f"Timeout of {timeout} seconds reached while ramping HV, stopping ramp")
+                return
+            await self.setDAC(hvset)
+            await asyncio.sleep(1)
+
+
     ###################### INTERNAL METHODS ###########################
 
     # Below here are internal methods used for constructing things and testing
