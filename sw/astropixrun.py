@@ -728,9 +728,12 @@ class AstropixRun:
     ################## Housekeeping ############################
 
     async def config_adchk(self, flush: bool = True):
-        
         # Configure housekeeping spi frequency and CPOL/CPHA settings
-        await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=10000000,flush=flush)
+        if self.config.find("housekeeping") is None:
+            spifreq = 10000000
+        else:
+            spifreq = self.config.find("housekeeping").attrib["SPIfreq"]
+        await self.boardDriver.configureHKSPIFrequency(targetFrequencyHz=int(spifreq),flush=flush)
         await self.boardDriver.houseKeeping.configureHKSPI(adc=1,dac=0)
 
         # Empty stale housekeeping SPI Buffer:
@@ -743,6 +746,7 @@ class AstropixRun:
         for layer in self.boardDriver.asics.keys():
             await self.boardDriver.resetLayerStatCounters(layer)
         # Need to check and see if this falls over without activating any chips for testing
+
 
     async def getHKdata(self):
         async with self.lock:
@@ -830,7 +834,14 @@ class AstropixRun:
         #print(f"Layer {layerBytes[0]}:  Data Frames {toInt(layerBytes[2:5])} | Idle Bytes {toInt(layerBytes[6:9])} | Wrong Frames {toInt(layerBytes[10:13])}")
         #toInt = self.boardDriver.convertBytesToCounter
 
-    async def housekeeping(self, ofile, hk_period: int = 1, terminalPrint: bool = False):
+
+    async def housekeeping(self, ofile, hk_period: int|None = None, terminalPrint: bool = True):
+        if hk_period is None:
+            if self.config.find("housekeeping") is None:
+                hk_period = 1
+            else:
+                hk_period = int(self.config.find("housekeeping").attrib["period"])
+
         try:
             outputCount = 0
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)

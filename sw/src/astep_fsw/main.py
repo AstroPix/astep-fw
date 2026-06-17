@@ -26,9 +26,8 @@ async def main(args):
     # Configure and start housekeeping
     await arun.config_adchk()
     await arun.config_fpgahk()
-    hk_cadence = 1 if args.hkCadence is None else int(args.hkCadence) # in seconds
     ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
-    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk,hk_cadence))
+    hk_task = asyncio.create_task(arun.housekeeping(ofile_hk, args.hkPeriod))
     # Ramp up HV
     if args.HVup is not None: #arun.rampHV(args.HVup)
         hvup_task = asyncio.create_task(arun.rampHV(args.HVup, timeout = 5))
@@ -207,18 +206,18 @@ if __name__ == "__main__":
     # Options related to housekeeping
     parser.add_argument(
         "-hk",
-        "--hkCadence",
+        "--hkPeriod",
         action="store",
         default=None,
         type=int,
-        help="Set cadence of housekeeping loop output in seconds. Default: 1 second",
+        help="Set period of housekeeping loop output in seconds. Default: 1 second",
     )
 
     parser.add_argument(
         "--HVup",
         action="store",
         type=float,
-        default=None
+        default=None,
         help="Ramp HV up to set voltage before acquiring data. Default: None"
     )
     parser.add_argument(
