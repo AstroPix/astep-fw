@@ -72,7 +72,8 @@ async def setHV(lsbFirst=False,setVoltage=0): # adding a setting that can change
         return
 
     ## Open UART Driver for CMOD
-    driver = drivers.boards.getCMODUartDriver("COM6")
+    #driver = drivers.boards.getCMODUartDriver("COM6")
+    driver = drivers.boards.getCMODSPIDriver("/dev/spidev1.0","/dev/gpiochip2",19)
     await driver.open() #does the driver need to be closed between reads? 
     await driver.houseKeeping.configureHKSPI(adc=0,dac=1)
     await driver.houseKeeping.selectHKSPI(adc=0,dac=1)

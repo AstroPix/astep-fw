@@ -42,7 +42,9 @@ async def main(args):
         await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
+    print("A")
     await arun.chips_reset_configure()
+    print("B")
     await arun.buffer_flush()
     # Wait for HV before starting data acquisition
     ofile = open("{}.bin".format(args.outputPrefix), "wb")
