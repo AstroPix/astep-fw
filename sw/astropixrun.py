@@ -9,7 +9,6 @@ Updates: Adrien Laviron, adrien.laviron@nasa.gov
 # Needed modules. They all import their own suppourt libraries,
 # and eventually there will be a list of which ones are needed to run
 import binascii
-from bitstring import BitArray
 from datetime import datetime, timezone
 import struct
 
@@ -21,11 +20,12 @@ import time
 import asyncio
 import xml.etree.ElementTree as ET
 
-from tqdm import tqdm
-
-from .drivers import astep.serial, astropix.decode, boards
-from .drivers.cmod import CMODBoard
-from .drivers.gecco import GeccoCarrierBoard
+#from .src.astep_fsw.drivers import astep.serial, astropix.decode, boards
+from .src.astep_fsw.drivers.astep import serial
+from .src.astep_fsw.drivers.astropix import decode
+from .src.astep_fsw.drivers import boards
+from .src.astep_fsw.drivers.cmod import CMODBoard
+from .src.astep_fsw.drivers.gecco import GeccoCarrierBoard
 
 
 logger = logging.getLogger(__name__)
@@ -924,11 +924,6 @@ class AstropixRun:
         except Exception as e:
             logger.error("Testing FPGA I/O Failed, is the FW flashed?")
             raise RuntimeError("Could not read or write from FW,  is the FW flashed?")
-
-    # progress bar
-    def _wait_progress(self, seconds: int):
-        for _ in tqdm(range(seconds), desc=f"Wait {seconds} s"):
-            time.sleep(1)
 
     # Check of general functionality esp of SPI lines, as inspired from documentation
     async def functionalityCheck(self, holdBool: bool = True):
