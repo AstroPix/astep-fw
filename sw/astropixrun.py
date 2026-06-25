@@ -21,11 +21,10 @@ import time
 import asyncio
 import xml.etree.ElementTree as ET
 
-import pandas as pd
 from tqdm import tqdm
 
 import drivers.astep.serial
-import drivers.astropix.decode
+#import drivers.astropix.decode
 import drivers.boards
 from drivers.cmod import CMODBoard
 from drivers.gecco import GeccoCarrierBoard
@@ -55,8 +54,8 @@ class AstropixRun:
             if uart or self.config.find("protocol").attrib["value"] == "uart":
                 self.boardDriver = drivers.boards.getCMODUartDriver(self.config.find("port").attrib["value"])
             elif self.config.find("protocol").attrib["value"] == "spi":
-                raise NotImplementedError("CMOD/SPI not yet supported")
-                #self.boardDriver = drivers.boards.getCMODSPIDriver(*self.config??)
+                #raise NotImplementedError("CMOD/SPI not yet supported")
+                self.boardDriver = drivers.boards.getCMODSPIDriver("/dev/spidev1.0","/dev/gpiochip2",19)
             else:
                 self.boardDriver = drivers.boards.getCMODDriver()
         elif self.config.find("fpga").attrib["value"] == "gecco":
@@ -245,15 +244,18 @@ class AstropixRun:
         await self.boardDriver.resetLayers(float(self.config.find("RSTdelay").attrib["value"]))
 
     async def chips_hold(self, hold: bool):
-        """ """
+        """
+	"""
         await self.boardDriver.holdLayers(hold)
 
     async def chips_select(self, cs: bool):
-        """ """
+        """
+	"""
         await self.boardDriver.layersSetSPICSN(cs)
 
     async def chips_disable_readout(self):
-        """ """
+        """
+	"""
         await self.boardDriver.disableLayersReadout(True)
 
     async def chips_enable_readout(self, autoread: bool|None = None, layerlst: list|None = None):

@@ -17,7 +17,6 @@ import os
 import sys
 import time
 
-import pandas as pd
 from tqdm import tqdm
 
 import drivers.astep.serial
