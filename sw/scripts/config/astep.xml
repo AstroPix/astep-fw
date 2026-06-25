@@ -3,7 +3,7 @@
   <SR value="False"/>
   <chipversion value="3"/>
   <fpga value="cmod"/>
-  <protocol value="uart"/>
+  <protocol value="spi"/>
   <port value="COM6"/>
   <FPGATSfreq value="1000000"/>
   <useTLU value="False"/>
