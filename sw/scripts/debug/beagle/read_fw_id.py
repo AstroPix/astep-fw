@@ -6,6 +6,7 @@ import drivers.boards
 
 import rfg.io.spi 
 rfg.io.spi.debug()
+#rfg.io.spi.warning()
 
 async def main():
     print("Hi")
@@ -19,6 +20,8 @@ async def main():
 
     print(f"Firmware ID: 0x{hex(id)}")
     print(f"Firmware Version: {str(version)}")
+
+    await boardDriver.close()
 
 
 asyncio.run(main())

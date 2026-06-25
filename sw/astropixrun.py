@@ -56,6 +56,8 @@ class AstropixRun:
             elif self.config.find("protocol").attrib["value"] == "spi":
                 #raise NotImplementedError("CMOD/SPI not yet supported")
                 self.boardDriver = drivers.boards.getCMODSPIDriver("/dev/spidev1.0","/dev/gpiochip2",19)
+                #import rfg.io.spi
+                #rfg.io.spi.warning()
             else:
                 self.boardDriver = drivers.boards.getCMODDriver()
         elif self.config.find("fpga").attrib["value"] == "gecco":
@@ -241,6 +243,7 @@ class AstropixRun:
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
+        print(float(self.config.find("RSTdelay").attrib["value"]))
         await self.boardDriver.resetLayers(float(self.config.find("RSTdelay").attrib["value"]))
 
     async def chips_hold(self, hold: bool):
@@ -307,10 +310,13 @@ class AstropixRun:
     async def chips_reset_configure(self):
         # Reset
         await self.chips_reset()
+        print("a")
         # Set FPGA to neutral
         await self.chips_disable_readout()
+        print("b")
         # Set chip config
         await self.chips_setcfg()
+        print("c")
 
     async def chips_flush(self):
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
@@ -779,14 +785,16 @@ class AstropixRun:
 
             # Read all hk fifo data at once
             adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
+            print(f"HK ADC bytes count={adcBytesCount}", end=" ")
             adcBytes = bytearray([16,16]) #2-byte syncword (\x10\x10)
-            adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount)) 
+            adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount))
+            print(adcBytes)
 
             # Time Information
             ########################################################
-            fpga_time = await self.boardDriver.getFPGATimestampRaw()
+            fpga_time = bytearray(await self.boardDriver.getFPGATimestampRaw())
             fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
-        self.lastHVset = self.boardDriver.houseKeeping.convertBytesToHV(adcBytes[14:16])/0.0125
+        #self.lastHVset = self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[14:16])
         return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes
 
     def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount):
@@ -845,13 +853,13 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
                 # Measure data
-                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes = self.getHKdata()
-                # Write to file
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
-                ofile.flush()
+                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes = await self.getHKdata()
                 # Terminal Output:
                 if terminalPrint:
                     self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount)
+                # Write to file
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
+                ofile.flush()
                 # Sleep
                 await asyncio.sleep(hk_period)
         except (KeyboardInterrupt, asyncio.CancelledError):
@@ -881,23 +889,27 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.configureHKSPI(adc=1, dac=0)
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1, dac=0)
 
-    async def rampHV(self, hv: float, timeout: float = 5):
+    async def rampHV(self, hv: float|None=None, timeout: float = 5):
         """
         Progressively ramps up or down the detectors High Voltage through DAC commands
         :param hv: Target HV voltage in V. Will be clipped to 0-264V range
         """
-        timeout += time.time()
+        if hv is None: hv = self.lastHVset
+        endtime = time.time()+timeout
         hvdiff = max(min(hv*0.0125, 3.3), 0) - self.lastHVset
-        if abs(hvdiff) < 0.01:
+        print(f"last HV={self.lastHVset}, diff={hvdiff}")
+        if abs(hvdiff) < 0.05:
             logger.info(f"HV already at {hv:.2f} V, skipping ramp")
             return
         sequence = [self.lastHVset + f * hvdiff for f in [0.25, 0.5, 0.75, 1]]
         for hvset in sequence:
-            if time.time() > timeout:
+            print(f"T={endtime-time.time()}: setting DAC to {hvset}")
+            if time.time() > endtime:
                 logger.warning(f"Timeout of {timeout} seconds reached while ramping HV, stopping ramp")
-                return
+                break
             await self.setDAC(hvset)
             await asyncio.sleep(1)
+        self.lastHVset = hv*0.0125
 
 
     ###################### INTERNAL METHODS ###########################
