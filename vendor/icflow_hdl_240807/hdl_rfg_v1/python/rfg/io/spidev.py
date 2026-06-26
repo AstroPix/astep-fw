@@ -72,15 +72,18 @@ class SPIDEVIO(rfg.core.RFGIO):
         atexit.register(exit_close,self)
 
     async def close(self):
-        logger.info("Closing SPIDEV Port")
         if self.gpio is not None:
-            self.spiDev.close()
+            logger.info("Closing SPIDEV Port")
             self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
             self.gpio.release()
+            self.spiDev.close()
             self.gpio = None
+        else:
+            logger.info("GPIO lines already released!")
 
     def writeBytesIO(self,bytesToWrite: bytearray):
         # Add one more dummy byte to the write to make sure no byte get stuck in a receiver
+        logger.debug(f"Writing {bytesToWrite} + 1 dummy")
         bytesToWrite.append(0x00)
         self.spiDev.writebytes2(bytesToWrite)
         return
@@ -125,6 +128,8 @@ class SPIDEVIO(rfg.core.RFGIO):
             result = await asyncio.get_running_loop().run_in_executor(None, partial(self.readBytesIO,count=count))
             for b in result:
                 await self.spiReadQueue.put(b)
+            logger.debug(f"Reading expected {count} bytes, got {len(result)}.")
+            logger.debug(f"Read: {result} decoding ...")
 
             await self.spiDecoder.run_frame_decoding()
 
@@ -132,7 +137,7 @@ class SPIDEVIO(rfg.core.RFGIO):
             for x in range(count):
                 b = self.spiDecoder.decoded_bytes_queue.get(timeout=self.readout_timeout)
                 readBytes.append(b)
-
+            logger.debug(f"Reading decoded to {bytearray(readBytes)}")
             return readBytes
 
         except Exception as e:

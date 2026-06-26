@@ -575,17 +575,12 @@ class BoardDriver:
         Args:
             waitTime (float):  Reset duration - Default 0.5s
         """
-        print("A")
         layer0Cfg = await self.rfg.read_layer_0_cfg_ctrl()
         layer0Cfg |= 1 << 1
-        print(layer0Cfg)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg, flush)
-        print(waitTime)
         await asyncio.sleep(waitTime)
         layer0Cfg &= ~(1 << 1)
-        print(layer0Cfg)
         await self.rfg.write_layer_0_cfg_ctrl(layer0Cfg, flush)
-        print("B")
 
     async def resetLayersFull(
         self, waitTime: float = 0.5, wait: bool = True, flush=True

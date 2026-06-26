@@ -17,12 +17,16 @@ import os
 import sys
 import time
 
-from tqdm import tqdm
+#from tqdm import tqdm
 
 import drivers.astep.serial
-import drivers.astropix.decode
+#import drivers.astropix.decode
 import drivers.boards
 
+import rfg.io.spi
+rfg.io.spi.debug()
+import rfg.io.spidev
+rfg.io.spidev.debug()
 
 async def buffer_flush(boardDriver, layerlst=range(3)):
     """This method flushes data from SPI lanes then from FPGA buffer, and resets counters"""
@@ -122,7 +126,7 @@ async def printStatus(boardDriver, time=0.0, buff=0):
         )
     )
 
-
+"""
 # Needed to decode data
 class myhack:
     def __init__(self):
@@ -163,7 +167,7 @@ def bin2csv(fprefix):
         logger.warning(
             "csv file not created because no data is present in binary file."
         )
-
+"""
 
 #######################################################
 #################### MAIN FUNCTION ####################
@@ -173,32 +177,35 @@ async def main(args):
     # Welcome to the main (and only) function of this script!
     print(args)  # Soon to be removed
     # Setup FPGA communications
-    boardDriver = drivers.boards.getCMODUartDriver("COM6")
+    #boardDriver = drivers.boards.getCMODUartDriver("COM6")
+    boardDriver = drivers.boards.getCMODSPIDriver("/dev/spidev1.0","/dev/gpiochip2",19)
     await boardDriver.open()
     logger.info("Opened FPGA, testing...")
     try:
         fwid = await boardDriver.readFirmwareID()
-        logger.info(f"FW ID: {fwid}")
+        logger.info(f"FW ID: {hex(fwid)}")
     except Exception:
         raise RuntimeError("Could not read or write from astropix!")
     logger.info("FPGA test successful.")
     await boardDriver.enableSensorClocks(flush=True)
+    logger.info("Clocks enabled.")
     # Setup FPGA timestamps
     await boardDriver.layersConfigFPGATimestampFrequency(
         targetFrequencyHz=1000000, flush=True
     )
+    logger.info("FPGA TS freq set.")
     await boardDriver.layersConfigFPGATimestamp(
         enable=True,
-        force=False,
-        source_match_counter=True,
-        source_external=False,
-        flush=True,
+        use_divider=True,
+        use_tlu=False,
+        flush=True
     )
-
+    logger.info("FPGA TS configured.")
     spiDivider = 3
     await boardDriver.configureLayerSPIDivider(spiDivider, flush=True)
     logger.info("SPI divider set to {}".format(spiDivider))
     await boardDriver.rfg.write_layers_cfg_nodata_continue(value=8, flush=True)
+    logger.info("nodatacontinueset")
     # Configure chips in memory
     pathdelim = os.path.sep  # determine if Mac or Windows separators in path name
     ymlpath = [
@@ -215,7 +222,7 @@ async def main(args):
     try:
         for layer, (nchips, yml) in enumerate(zip(args.chipsPerRow, ymlpath)):
             boardDriver.setupASIC(
-                version=3, row=layer, chipsPerRow=nchips, configFile=yml
+                version=3, lane=layer, chipsPerLane=nchips, configFile=yml
             )
     except FileNotFoundError as e:
         logger.error(
@@ -227,32 +234,34 @@ async def main(args):
     # Set general fw config and reset
     for layer in range(3):
         await boardDriver.zeroLayerWrongLength(layer, flush=True)
+    logger.info("wronglength=0")
     layerlst = range(len(args.yaml))
     await boardDriver.disableLayersReadout(
         flush=True
     )  # Hold, disableMISO, disableAutoread, CS=inactive
     await boardDriver.resetLayersFull()  # Toggle RST
-    # Setup injector
-    injector = boardDriver.getInjectionBoard(
+    if False:
+        # Setup injector
+        injector = boardDriver.getInjectionBoard(
         slot=3
-    )  # ShortHand to configure on-chip injector
-    (
+        )  # ShortHand to configure on-chip injector
+        (
         injector.period,
         injector.clkdiv,
         injector.initdelay,
         injector.cycle,
         injector.pulsesperset,
-    ) = 100, 300, 100, 0, 1  # Default set of parameters
-    await boardDriver.ioSetInjectionToGeccoInjBoard(
+        ) = 100, 300, 100, 0, 1  # Default set of parameters
+        await boardDriver.ioSetInjectionToGeccoInjBoard(
         enable=False, flush=True
-    )  # ShortHand for writing the correct registers on-chip, ignore reference to Gecco
+        )  # ShortHand for writing the correct registers on-chip, ignore reference to Gecco
 
     # Set chip IDs
     await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
     for layer in layerlst:
-        await boardDriver.asics[layer].writeSPIRoutingFrame(0)
+        await boardDriver.writeRoutingFrame(layer, 0)
     await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
-
+    logger.info("Chip ID set.")
     # Set first chip config - all pixels Off
     chipConfig = boardDriver.asics[0].gen_config_vector_SPI(
         msbfirst=False, targetChip=0
@@ -265,6 +274,9 @@ async def main(args):
             await boardDriver.layersSelectSPI(flush=True)  # Set chipSelect
             await boardDriver.asics[layer].writeSPI(payload)
             await boardDriver.layersDeselectSPI(flush=True)  # Unset chipSelect
+    logger.info("Chips configured.")
+    await boardDriver.close()
+    return
     await buffer_flush(
         boardDriver, layerlst
     )  # Exit with hold active and manages chipselect itself

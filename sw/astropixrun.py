@@ -243,22 +243,21 @@ class AstropixRun:
         """
         This method asserts the reset signal for .5s by default then deasserts it
         """
-        print(float(self.config.find("RSTdelay").attrib["value"]))
         await self.boardDriver.resetLayers(float(self.config.find("RSTdelay").attrib["value"]))
 
     async def chips_hold(self, hold: bool):
         """
-	"""
+	    """
         await self.boardDriver.holdLayers(hold)
 
     async def chips_select(self, cs: bool):
         """
-	"""
+	    """
         await self.boardDriver.layersSetSPICSN(cs)
 
     async def chips_disable_readout(self):
         """
-	"""
+	    """
         await self.boardDriver.disableLayersReadout(True)
 
     async def chips_enable_readout(self, autoread: bool|None = None, layerlst: list|None = None):
@@ -309,14 +308,15 @@ class AstropixRun:
 
     async def chips_reset_configure(self):
         # Reset
-        await self.chips_reset()
         print("a")
+        await self.chips_reset()
+        print("chips reset done")
         # Set FPGA to neutral
         await self.chips_disable_readout()
-        print("b")
+        print("chips in neutral")
         # Set chip config
         await self.chips_setcfg()
-        print("c")
+        print("chips configured")
 
     async def chips_flush(self):
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
@@ -355,9 +355,13 @@ class AstropixRun:
         """
         Flushes the data already present in chips digital periphery, then the FPGA buffer
         """
+        print("--1")
         await self.chips_flush()
+        print("--2")
         buff = await self.boardDriver.readoutGetBufferSize()
+        print("--3")
         await self.boardDriver.readoutReadBytes(buff)
+        print("--4")
 
     ## Methods to update the internal variables. Please don't do it manually
     ## This updates the dac config
@@ -684,6 +688,7 @@ class AstropixRun:
             bufferSize = await self.boardDriver.readoutGetBufferSize()
             if bufferSize > 10:
                 readout = await self.boardDriver.readoutReadBytes(bufferSize)
+            else: readout = []
         else:
             readout = await self.boardDriver.readoutReadBytes(counts)
         return bufferSize, readout
@@ -699,9 +704,10 @@ class AstropixRun:
                 await asyncio.sleep(0)
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
-                    if len(readout) > 0:
-                        ofile.write(readout)
-                    print(f"  {buff:04d}  ", end="\r")
+                print(f"buff={buff}")
+                if len(readout) > 0:
+                    ofile.write(bytes(readout))
+                #print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
 
@@ -785,16 +791,14 @@ class AstropixRun:
 
             # Read all hk fifo data at once
             adcBytesCount = await self.boardDriver.houseKeeping.getADCBytesCount()
-            print(f"HK ADC bytes count={adcBytesCount}", end=" ")
             adcBytes = bytearray([16,16]) #2-byte syncword (\x10\x10)
             adcBytes.extend(await self.boardDriver.houseKeeping.readADCBytes(adcBytesCount))
-            print(adcBytes)
 
             # Time Information
             ########################################################
             fpga_time = bytearray(await self.boardDriver.getFPGATimestampRaw())
             fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
-        #self.lastHVset = self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[14:16])
+            print(len(fpgaBytes), len(counterBytes), adcBytesCount, len(adcBytes))
         return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes
 
     def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount):

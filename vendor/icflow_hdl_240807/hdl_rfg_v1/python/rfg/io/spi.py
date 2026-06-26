@@ -18,7 +18,7 @@ def info():
 def warning():
     logger.setLevel(logging.WARNING)
 
-
+info()
 
 ## This decoder is used to transform low level bytes into payload bytes following RFG spi framing
 class SPIBytesDecoder():
@@ -51,14 +51,14 @@ class SPIBytesDecoder():
                 frame_start = True
             elif frame_start and currentLength < self.currentExpectedLength:
                 currentLength += 1
-                logger.info("Read payload byte %x",byte)
+                logger.debug("Read payload byte %x",byte)
                 self.decoded_bytes_queue.put(byte)
                 if currentLength is self.currentExpectedLength:
                     logger.debug("Reached requested %d bytes",self.currentExpectedLength)
                     frame_start = False 
                     currentLength = 0
             else:
-                logger.info("Got IDLE Byte 2 %x",byte)
+                logger.debug("Got IDLE Byte 2 %x",byte)
                 pass
                 #logger.debug("SAFE Reached requested %d bytes",self.currentExpectedLength)
                 #frame_start = False 
@@ -86,7 +86,7 @@ class SPIBytesDecoder():
                     currentLength = 0
                     finished = True
             else:
-                logger.info("Got IDLE Byte %x",byte)
+                logger.debug("Got IDLE Byte %x",byte)
                 pass
             #logger.info("SAFE Reached requested %d bytes",self.currentExpectedLength)
             #frame_start = False 
