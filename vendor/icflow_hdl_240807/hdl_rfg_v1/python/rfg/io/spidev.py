@@ -73,9 +73,11 @@ class SPIDEVIO(rfg.core.RFGIO):
 
     async def close(self):
         logger.info("Closing SPIDEV Port")
-        self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
-        self.gpio.release()
-        self.spiDev.close()
+        if self.gpio is not None:
+            self.spiDev.close()
+            self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
+            self.gpio.release()
+            self.gpio = None
 
     def writeBytesIO(self,bytesToWrite: bytearray):
         # Add one more dummy byte to the write to make sure no byte get stuck in a receiver
