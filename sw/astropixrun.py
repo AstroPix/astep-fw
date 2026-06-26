@@ -701,13 +701,13 @@ class AstropixRun:
     async def readout_loop(self,counts,ofile):
         try:
             while True:
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.05)
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
-                print(f"buff={buff}")
+                #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
-                #print(f"  {buff:04d}  ", end="\r")
+                print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
 
@@ -798,7 +798,6 @@ class AstropixRun:
             ########################################################
             fpga_time = bytearray(await self.boardDriver.getFPGATimestampRaw())
             fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
-            print(len(fpgaBytes), len(counterBytes), adcBytesCount, len(adcBytes))
         return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes
 
     def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount):

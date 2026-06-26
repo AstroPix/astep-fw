@@ -906,7 +906,7 @@ class BoardDriver:
         frame =  await getattr(self.rfg, f"read_layer_{layer}_stat_frame_counter_raw")()
         idle = await getattr(self.rfg, f"read_layer_{layer}_stat_idle_counter_raw")()
         wrong = await getattr(self.rfg, f"read_layer_{layer}_stat_wronglength_counter_raw")()
-        return bytearray([layer,layer])+frame+idle+wrong
+        return bytearray([layer,layer])+bytearray(frame)+bytearray(idle)+bytearray(wrong)
     
     # def convertBytesToCounter(self,counter) -> int:
     #     return int.from_bytes(counter,'little')
