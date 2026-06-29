@@ -96,60 +96,55 @@ async def main(args):
     arun = AstropixRun(args.fpgaxml)
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
-    print("1")
     # Ramp up HV
     #await arun.rampHV(args.HVup)
     if args.HVup is not None: #arun.rampHV(args.HVup)
         hvup_task = asyncio.create_task(arun.rampHV(args.HVup, timeout = 5))
     if args.HVup is not None: await hvup_task
-    print("2")
     # Configure detectors
     await arun.fpga_configure_clocks()
     arun.load_yaml(args.yaml, args.chipsPerRow)
     await arun.fpga_configure_autoread_keepalive()
     await arun.update_pixThreshold(vthreshold=args.threshold)
-    print("3")
     if args.inject:
         arun.cfg_enable_pixel(*args.inject)
         arun.cfg_enable_injection(*args.inject)
         await arun.init_injection(layer=args.inject[0], chip=args.inject[1], inj_voltage=args.vinj)
     if args.analog:
         arun.cfg_enable_analog(*args.analog)  # Also turn that pixel on (just in case)
-    print("4")
+    logger.info("Uploading chips configuration.")
     await arun.chips_reset_configure()
     await arun.buffer_flush()
-    print("5")
 
-    if True:
-        # Wait for HV before starting data acquisition
-        #if args.HVup is not None: await hvup_task
-        #while hvup_task is not None and not hvup_task.done():
-            #logging.info("Waiting for HV ...")
-            #await asyncio.sleep(.5)
-        #if hvup_task is not None: hvup_task.cancel()
-        #while not hvup_task.done(): time.sleep(.1)
-        await arun.chips_enable_readout()
-        if args.inject: await arun.start_injection()
-        # Configure and start housekeeping
-        await arun.config_adchk()
-        await arun.config_fpgahk()
-        hk_period = 1 if args.hkPeriod is None else int(args.hkPeriod) # in seconds
-        ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
-        hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=hk_period, terminalPrint=True))
-        # Start data acquisition
-        ofile = open("{}.bin".format(args.outputPrefix), "wb")
-        data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
+    # Wait for HV before starting data acquisition
+    #if args.HVup is not None: await hvup_task
+    #while hvup_task is not None and not hvup_task.done():
+        #logging.info("Waiting for HV ...")
+        #await asyncio.sleep(.5)
+    #if hvup_task is not None: hvup_task.cancel()
+    #while not hvup_task.done(): time.sleep(.1)
+    await arun.chips_enable_readout()
+    if args.inject: await arun.start_injection()
+    # Configure and start housekeeping
+    await arun.config_adchk()
+    await arun.config_fpgahk()
+    hk_period = 1 if args.hkPeriod is None else int(args.hkPeriod) # in seconds
+    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
+    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=hk_period, terminalPrint=True))
+    # Start data acquisition
+    ofile = open("{}.bin".format(args.outputPrefix), "wb")
+    data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
 
-        # # Runtime
-        try:
-            if args.runTime: await asyncio.sleep(args.runTime * 60.0)
-            else: await asyncio.Event().wait()
-        except (KeyboardInterrupt, asyncio.CancelledError):
-                logger.info("[Ctrl+C] while collecting data - exiting.")
-        
-        # # Finish data collection
-        hk_task.cancel()
-        data_task.cancel()
+    # # Runtime
+    try:
+        if args.runTime: await asyncio.sleep(args.runTime * 60.0)
+        else: await asyncio.Event().wait()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] while collecting data - exiting.")
+    
+    # # Finish data collection
+    hk_task.cancel()
+    data_task.cancel()
 
     # Closeout
     await arun.chips_disable_readout()

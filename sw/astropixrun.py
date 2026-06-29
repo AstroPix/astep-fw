@@ -308,15 +308,11 @@ class AstropixRun:
 
     async def chips_reset_configure(self):
         # Reset
-        print("a")
         await self.chips_reset()
-        print("chips reset done")
         # Set FPGA to neutral
         await self.chips_disable_readout()
-        print("chips in neutral")
         # Set chip config
         await self.chips_setcfg()
-        print("chips configured")
 
     async def chips_flush(self):
         """This method will ensure the layer interrupt is not low and flush buffer, and reset counters"""
@@ -355,13 +351,9 @@ class AstropixRun:
         """
         Flushes the data already present in chips digital periphery, then the FPGA buffer
         """
-        print("--1")
         await self.chips_flush()
-        print("--2")
         buff = await self.boardDriver.readoutGetBufferSize()
-        print("--3")
         await self.boardDriver.readoutReadBytes(buff)
-        print("--4")
 
     ## Methods to update the internal variables. Please don't do it manually
     ## This updates the dac config
