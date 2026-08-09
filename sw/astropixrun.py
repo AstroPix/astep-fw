@@ -41,14 +41,20 @@ class AstropixRun:
         """
         Initalizes AstropixRun object from xml config file
         """
+        #General fields
         self.config = ET.parse(fpgaxml).getroot()
         self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
-        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI.
-        if "BBADC" in self.config.find("housekeeping").keys() and len(self.config.find("housekeeping").attrib["BBADC"]) > 0:
-            self.hk_BBADC = [int(e) for e in self.config.find("housekeeping").attrib["BBADC"]]
-        else: self.hk_BBADC = []
-        self.lastHVset = 0.
         self.lock = asyncio.Lock()
+        #Housekeeping fields
+        self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI.
+        if "BBADC" in self.config.find("housekeeping").keys():
+            self.hk_BBADC = [int(e) for e in self.config.find("housekeeping").attrib["BBADC"]]
+            if True in map(lambda x:x>6, self.hk_BBADC):
+                self.hk_BBADC=[]
+                #log error
+        else: self.hk_BBADC = []
+        self.bufferSize = -1
+        self.lastHVset = 0.
 
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
@@ -679,19 +685,19 @@ class AstropixRun:
         if self.config.find("autoread").attrib["value"] != "True":
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
+        self.bufferSize = await self.boardDriver.readoutGetBufferSize()
         if counts is None:
-            bufferSize = await self.boardDriver.readoutGetBufferSize()
-            if bufferSize > 10:
-                readout = await self.boardDriver.readoutReadBytes(bufferSize)
+            if self.bufferSize > 10:
+                readout = await self.boardDriver.readoutReadBytes(self.bufferSize)
             else: readout = []
         else:
             readout = await self.boardDriver.readoutReadBytes(counts)
-        return bufferSize, readout
+        return readout
     
     async def get_buffer(self):
-        bufferSize = await self.boardDriver.readoutGetBufferSize()
-        readout = await self.boardDriver.readoutReadBytes(bufferSize)
-        return bufferSize, readout
+        self.bufferSize = await self.boardDriver.readoutGetBufferSize()
+        readout = await self.boardDriver.readoutReadBytes(self.bufferSize)
+        return readout
     
     async def readout_loop(self,counts,ofile):
         try:
@@ -699,9 +705,9 @@ class AstropixRun:
                 await asyncio.sleep(0.05)
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
-                #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
+                    ofile.flush()
                 print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
@@ -808,11 +814,11 @@ class AstropixRun:
 
     def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount):
         # Terminal Output Formatting: Can likely move elsewhere
-        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}{:^12}{}"
-        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:^1}{:>3}{:>3}{:>3}"
+        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:^100}{:^12}{}"
+        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:^9}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:^1}{:>3}{:>3}{:>3}"
         headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Statistics', 'Status', 'BB ADC']
-        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W','|','L0','L1','L2']
-        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:^1} {:>02b} {:>02b} {:>02b}{}"
+        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','Buffer','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W','|','L0','L1','L2']
+        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>8}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:^1} {:>02b} {:>02b} {:>02b}{}"
 
         if outputCount == 0:
             print(header_format.format(*headers))
@@ -851,7 +857,7 @@ class AstropixRun:
                 L2Status = int.from_bytes(statusBytes[2],'little')
         
         values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
-                    ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong,'|',L0Status,L1Status,L2Status,bbadc]
+                    ADCVals[6]/10.,'|',self.bufferSize,L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong,'|',L0Status,L1Status,L2Status,bbadc]
         
         print(value_format.format(*values))
         outputCount = (outputCount + 1) % 31
