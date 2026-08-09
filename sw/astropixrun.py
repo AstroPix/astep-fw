@@ -879,7 +879,7 @@ class AstropixRun:
                 if terminalPrint:
                     self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount)
                 # Write to file
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes + statusBytes + bbadc_bytes)
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.bufferSize.to_bytes(2, "little") + counterBytes + statusBytes + bbadc_bytes)
                 ofile.flush()
                 # Sleep
                 await asyncio.sleep(hk_period)
