@@ -31,6 +31,9 @@ class Housekeeping():
         rawVccit = (int.from_bytes(rawVccit,'little')) >> 4
         return Decimal(rawVccit  / 4096 * 3 ).quantize(Decimal('.01'), rounding=ROUND_HALF_EVEN)
 
+    def convertBytesToHVTemperature(self,rawHVV) -> float :
+        rawHVV = (int.from_bytes(rawHVV,'little'))
+        return Decimal(rawHVV  / 4096 * 1.8 / 2e-3 - 273 ).quantize(Decimal('.1'), rounding=ROUND_HALF_EVEN)
 
     async def setXADCSampleFrequence(self,targetClock,refClock  : int = 60000000):
         await self.rfg.write_hk_conversion_trigger_match(int(refClock/targetClock),flush = True)
