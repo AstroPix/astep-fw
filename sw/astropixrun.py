@@ -691,7 +691,8 @@ class AstropixRun:
                     buff, readout = await self.get_readout(counts)
                     if buff > 0:
                         ofile.write(readout)
-                    print(f"  {buff:04d}  ", end="\r")
+                        ofile.flush()
+                    print(f"  {buff:05d}  {await self.boardDriver.rfg.read_layer_0_status()}", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
 

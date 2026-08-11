@@ -2,7 +2,7 @@
 <fpga_config>
   <fpga value="cmod"/>
   <protocol value="uart"/>
-  <port value="COM6"/>
+  <port value="COM20"/>
   <chipversion value="3"/>
   <SR value="False"/>
   <FPGATSfreq value="1000000"/>

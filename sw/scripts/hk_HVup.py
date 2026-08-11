@@ -72,7 +72,7 @@ async def setHV(lsbFirst=False,setVoltage=0): # adding a setting that can change
         return
 
     ## Open UART Driver for CMOD
-    driver = drivers.boards.getCMODUartDriver("COM6")
+    driver = drivers.boards.getCMODUartDriver("COM20")
     await driver.open() #does the driver need to be closed between reads? 
     await driver.houseKeeping.configureHKSPI(adc=0,dac=1)
     await driver.houseKeeping.selectHKSPI(adc=0,dac=1)
@@ -107,6 +107,7 @@ async def main(ramp):
     #    await callHK()
 
     if ramp == "up":
+        #for v in [.5, 1., 1.5, 1.9, 2.05]:
         for v in [.5, 1., 1.5, 1.9, 2.05]:
             await setHV(setVoltage=v)  
             time.sleep(1)
