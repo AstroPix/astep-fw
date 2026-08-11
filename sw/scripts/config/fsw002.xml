@@ -1,34 +1,31 @@
 <?xml version="1.0"?>
 <system_config>
-  <fpga_config value="astep.xml">
-  <HV_set value="150">
-  <chipconfig layer0="wWqQ_xx" layer1="wWqQ_xx" layer2="wWqQ_xx">
-  <configupdate value=""> <!--commands to be interpreted, arbitrary length-->
-  <chipsPerRow layer0="4" layer1="4" layer2="4">
-  <autoread layer0="True" layer1="True" layer2="True">
-  <readout value="None">
-  <onepixelonly value="False"> <!--Worst case scenario, check a single pixel operates...-->
-  <onepixellocation layer="0" chip="0" row="10" col="10"> 
-  <inject voltage="None"> <!--mV, or None for no injection-->
-  <housekeeping_period value="1">
-  <loglevel value="I">
+  <fpga_config value="astep.xml"/>
+  <HV_set value="164"/>
+  <chipconfig layer0="w000q00" layer1="w000q00" layer2="w000q00"/>
+  <configupdate value=""/> <!--commands to be interpreted, arbitrary length-->
+  <chipsPerRow layer0="4" layer1="4" layer2="4"/>
+  <autoread layer0="True" layer1="True" layer2="True"/>
+  <readout value="None"/>
+  <onepixelonly value="False"/> <!--Worst case scenario, check a single pixel operates...-->
+  <onepixellocation layer="0" chip="0" row="10" col="10"/> 
+  <inject voltage="None"/> <!--mV, or None for no injection-->
+  <housekeeping_period value="1"/>
+  <loglevel value="I"/>
+  <bookkeeping new="bookkeeping_new.csv" rts="bookkeeping_rts.csv" mfd="bookkeeping_mfd.csv"/>
+  <data_maxfilesize value="5"/> <!--In MB, if larger than ths it closes itself and starts writing the next-->
+  <data_filesizecadence value="60"/> <!--In seconds-->
+  <hk_maxfilesize value="1"/> <!--In MB, if larger than ths it closes itself and starts writing the next-->
+  <hk_filesizecadence value="60"/> <!--In seconds-->
+  <stuff_0 value="XXX"/>
+  <stuff_1 value="XXX"/>
+  <stuff_2 value="XXX"/>
+  <stuff_3 value="XXX"/>
+  <stuff_4 value="XXX"/>
+  <stuff_5 value="XXX"/>
+  <stuff_6 value="XXX"/>
+  <stuff_7 value="XXX"/>
+  <stuff_8 value="XXX"/>
+  <stuff_9 value="XXX"/>
+  <stuff_10 value="XXX"/>
 </system_config>
-<data_transfer>
-  <data_maxfilesize value="5"> <!--In MB, if larger than ths it closes itself and starts writing the next-->
-  <data_filesizecadence value="60"> <!--In seconds-->
-  <hk_maxfilesize value="1"> <!--In MB, if larger than ths it closes itself and starts writing the next-->
-  <hk_filesizecadence value="60"> <!--In seconds-->
-</data_transfer>
-<misc_stuff>
-  <stuff_0 value="XXX">
-  <stuff_1 value="XXX">
-  <stuff_2 value="XXX">
-  <stuff_3 value="XXX">
-  <stuff_4 value="XXX">
-  <stuff_5 value="XXX">
-  <stuff_6 value="XXX">
-  <stuff_7 value="XXX">
-  <stuff_8 value="XXX">
-  <stuff_9 value="XXX">
-  <stuff_10 value="XXX">
-</mis_stuff>

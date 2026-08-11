@@ -9,23 +9,26 @@ def checkDisk(path=".", space=100):
     :returns: bool, True if space is NOT available
     """
     statvfs = os.statvfs(path=path)
-    return statvfs.f_frsize * statvfs.f_bavail < space*2**20: # 100 MB
+    return statvfs.f_frsize * statvfs.f_bavail < space*2**20 # 100 MB
 
 class Bookkeeping:
-    def __init__(self, new, rts, mfd):
+    def __init__(self, new, rts, mfd, **kwargs):
         self.fnew = new
         self.frts = rts
         self.fmfd = mfd
 
-    def getNew(self, i)
-        with open(self.fnew) as f:
+    def __get(self, mfile):
+        with open(mfile) as f:
             data = f.read().split(",")
         if len(data) != 3:
-            return -1
-        r = [int(e) for e in data]
+            raise RuntimeError(f"{mfile} does not contain 3 fields - it may be corrupted.")
+        return [int(e) for e in data]
+
+    def getNew(self, i):
+        r = self.__get(self.fnew)
         r[i] += 1
         with open(self.fnew, "w") as f:
-            f.write(f"{},{},{}".format(*r))
+            f.write("{},{},{}".format(*r))
         return r[i]-1
 
     def getNewData(self):
@@ -36,14 +39,10 @@ class Bookkeeping:
         return self.getNew(2)
 
     def __mark(self, i, run, mfile):
-        with open(mfile) as f:
-            data = f.read().split(",")
-        r = [int(e) for e in data]
-        if len(data) != 3:
-            return -1
+        r = self.__get(mfile)
         r[i] = run
         with open(mfile, "w") as f:
-            f.write(f"{},{},{}".format(*r))
+            f.write("{},{},{}".format(*r))
 
     def markRTS(self, i, run):
         self.__mark(i, run, self.frts)
@@ -65,6 +64,17 @@ class Bookkeeping:
     def markfordelLog(self, run):
         self.markfordel(2, run)
 
+    def getRTSData(self):
+        return self.__get(self.frts)[0]
+    def getRTSHK(self):
+        return self.__get(self.frts)[1]
+    def getRTSLog(self):
+        return self.__get(self.frts)[2]
 
-
+    def getMFDData(self):
+        return self.__get(self.fmfd)[0]
+    def getMFDHK(self):
+        return self.__get(self.fmfd)[1]
+    def getMFDDLog(self):
+        return self.__get(self.fmfd)[2]
 

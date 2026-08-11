@@ -14,6 +14,7 @@ import logging
 
 # AstroPix drivers
 from astropixrun import AstropixRun
+import bookkeeping
 
 
 def parseFSW(fname):
@@ -41,6 +42,7 @@ def parseFSW(fname):
         cfg["vinj"] = int(cfgroot.find("inject").attrib["voltage"])
     cfg["hkPeriod"] = float(cfgroot.find("housekeeping_period").attrib["value"])
     cfg["loglevel"] = cfgroot.find("loglevel").attrib["value"]
+    cfg["bookkeeping"] = cfgroot.find("bookkeeping").attrib
     return cfg
 
 
@@ -73,6 +75,19 @@ def getxmlcfg():
         for y in cfg["yaml"]:
             if y+".yml" not in ymlfiles:
                 logger.error(f"{y}.yml not found"); nextfsw=True
+        bookkeepingKeys = cfg["bookkeeping"].keys()
+        if "new" not in bookkeepingKeys or "rts" not in bookkeepingKeys or "mfd" not in bookkeepingKeys:
+            logger.error(f"Invalid bookkeeping arguments")
+            nextfsw = True
+        if "new" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["new"])):
+            logger.error(f"File not found: {cfg['bookkeeping']['new']}")
+            nextfsw = True
+        if "rts" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["rts"])):
+            logger.error(f"File not found: {cfg['bookkeeping']['rts']}")
+            nextfsw = True
+        if "mfd" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["mfd"])):
+            logger.error(f"File not found: {cfg['bookkeeping']['mfd']}")
+            nextfsw = True
         if nextfsw: continue
         else: break
     if nextfsw:
