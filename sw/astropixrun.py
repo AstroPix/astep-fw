@@ -892,16 +892,16 @@ class AstropixRun:
         if hv is None: hv = self.lastHVset
         endtime = time.time()+timeout
         hvdiff = max(min(hv*0.0125, 3.3), 0) - self.lastHVset
-        print(f"last HV={self.lastHVset}, diff={hvdiff}")
+        logger.info(f"last HV={self.lastHVset}, diff={hvdiff}")
         if abs(hvdiff) < 0.05:
-            logger.info(f"HV already at {hv:.2f} V, skipping ramp")
+            logger.warning(f"HV already at {hv:.2f} V, skipping ramp")
             return
         sequence = [self.lastHVset + f * hvdiff for f in [0.25, 0.5, 0.75, 1]]
         for hvset in sequence:
-            print(f"T={endtime-time.time()}: setting DAC to {hvset}")
             if time.time() > endtime:
                 logger.warning(f"Timeout of {timeout} seconds reached while ramping HV, stopping ramp")
                 break
+            logger.info(f"T={endtime-time.time()}: setting DAC to {hvset}")
             await self.setDAC(hvset)
             await asyncio.sleep(1)
         self.lastHVset = hv*0.0125

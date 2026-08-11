@@ -30,6 +30,7 @@ sw/dist
 **/.venv
 **/__pycache__
 **/*pycache*
+sw/test.py
 
 ## Docs
 .icflow

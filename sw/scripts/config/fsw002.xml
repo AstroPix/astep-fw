@@ -6,9 +6,12 @@
   <configupdate value=""> <!--commands to be interpreted, arbitrary length-->
   <chipsPerRow layer0="4" layer1="4" layer2="4">
   <autoread layer0="True" layer1="True" layer2="True">
+  <readout value="None">
   <onepixelonly value="False"> <!--Worst case scenario, check a single pixel operates...-->
   <onepixellocation layer="0" chip="0" row="10" col="10"> 
   <inject voltage="None"> <!--mV, or None for no injection-->
+  <housekeeping_period value="1">
+  <loglevel value="I">
 </system_config>
 <data_transfer>
   <data_maxfilesize value="5"> <!--In MB, if larger than ths it closes itself and starts writing the next-->
