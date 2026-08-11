@@ -699,6 +699,7 @@ class AstropixRun:
                 #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
+                    #ofile.flush()
                 print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")

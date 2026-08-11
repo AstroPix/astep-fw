@@ -91,7 +91,8 @@ class BoardDriver:
         return await self.rfg.read_hk_firmware_id()
 
     async def readFirmwareIDName(self):
-        """"""
+        """
+	"""
         boards = {
             0xAB02: "Nexys GECCO Astropix v2",
             0xAB03: "Nexys GECCO Astropix v3",
