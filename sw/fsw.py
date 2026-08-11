@@ -5,7 +5,7 @@ Author: Adrien Laviron, adrien.laviron@nasa.gov
 """
 
 import asyncio
-import os, sys
+import os
 import time
 import xml.etree.ElementTree as ET
 
@@ -53,13 +53,15 @@ def getxmlcfg():
     If it fails, the next higher number will be loaded,
     :returns: dict
     """
+    # Check available files
     cfgfiles = os.listdir("scripts/config")
     ymlfiles, fswfiles, xmlfiles = [], [], []
     for f in cfgfiles:
         if f.endswith(".yml") and os.path.isfile(f"scripts/config/{f}"): ymlfiles.append(f)
         if f.endswith(".xml") and os.path.isfile(f"scripts/config/{f}"):
-            if f.startswith("fsw") and len(f) == 10: fswfiles.append(f)
+            if f.startswith("fsw") and len(f) == 10 and f[3:6].isdigit(): fswfiles.append(f)
             if f.startswith("astep"): xmlfiles.append(f)
+    # Attempt loading FSW configs in reverse order
     fswnlist = sorted([int(f[3:6]) for f in fswfiles], reverse=True)
     for fswn in fswnlist:
         logger.info(f"Loading fsw{fswn:03d}.xml")
@@ -68,31 +70,39 @@ def getxmlcfg():
         except Exception as e:
             logger.error(f"While parsing fsw: {e}")
             continue
-        nextfsw = False
-        if cfg["fpgaxml"] not in xmlfiles:
-            logger.error(f"{cfg['fpgaxml']} not found")
-            nextfsw = True
-        for y in cfg["yaml"]:
-            if y+".yml" not in ymlfiles:
-                logger.error(f"{y}.yml not found"); nextfsw=True
+        goodfsw = True
+        # Attempt loading bookkeeping mechanism
         bookkeepingKeys = cfg["bookkeeping"].keys()
         if "new" not in bookkeepingKeys or "rts" not in bookkeepingKeys or "mfd" not in bookkeepingKeys:
-            logger.error(f"Invalid bookkeeping arguments")
-            nextfsw = True
+            logger.error(f"Invalid bookkeeping arguments: {bookkeepingKeys}")
+            goodfsw = False
         if "new" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["new"])):
             logger.error(f"File not found: {cfg['bookkeeping']['new']}")
-            nextfsw = True
+            goodfsw = False
         if "rts" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["rts"])):
             logger.error(f"File not found: {cfg['bookkeeping']['rts']}")
-            nextfsw = True
+            goodfsw = False
         if "mfd" in bookkeepingKeys and not(os.path.isfile(cfg["bookkeeping"]["mfd"])):
             logger.error(f"File not found: {cfg['bookkeeping']['mfd']}")
-            nextfsw = True
-        if nextfsw: continue
+            goodfsw = False
+        if goodfsw:
+            logger.info("Instanciating Bookkeeping")
+            try:
+                cfg["bookkeeping"] = bookkeeping.Bookkeeping(**cfg["bookkeeping"])
+            except Exception as e:
+                logger.error(f"While instanciating Bookkeeping: {e}")
+                goodfsw = False
+        # Check fpga xml and yaml files are present
+        if cfg["fpgaxml"] not in xmlfiles:
+            logger.error(f"{cfg['fpgaxml']} not found")
+            goodfsw = False
+        for y in cfg["yaml"]:
+            if y+".yml" not in ymlfiles:
+                logger.error(f"{y}.yml not found"); goodfsw=True
+        if goodfsw: continue
         else: break
-    if nextfsw:
-        logger.critical("No valid fsw config file found")
-        sys.exit(-1)
+    if not(goodfsw):
+        raise RuntimeError("No valid fsw config file found")
     logger.info(f"Setting log level to {cfg["loglevel"]}")
     if cfg["loglevel"] == "I": logger.setLevel(logging.INFO)
     elif cfg["loglevel"] == "W": logger.setLevel(logging.WARNING)
@@ -102,23 +112,23 @@ def getxmlcfg():
     if cfg["inject"] is not None and (len(cfg["inject"]) != 4 or 
             cfg["inject"][0] < 0 or cfg["inject"][0] > 2 or cfg["inject"][1] < 0 or cfg["inject"][1] > 3 or 
             cfg["inject"][2] < 0 or cfg["inject"][2] > 34 or cfg["inject"][3] < 0 or cfg["inject"][3] > 34):
-        logger.error(f"One-pixel parameters {cfg["inject"]} invalid. Skipping injection.")
+        logger.error(f"One-pixel parameters {cfg["inject"]} invalid. All pixels are deactivated with no injection.")
         cfg["inject"] = None
     return cfg
 
 
-def getOutputName():
-    """
-    Checks output file location and bookkeeping files to determine the name of the next data, hk and log files to be generated.
-    """
-    datalist = os.listdir("data")
-    dataf = []
-    hkf = []
-    logf = []
-    for f in datalist:
-        if f.startswith("data_") and f.endswith(".bin") and os.path.isfile(f): dataf.append(f)
-        if f.startswith("hk_") and f.endswith(".bin") and os.path.isfile(f): hkf.append(f)
-        if f.endswith(".log") and os.path.isfile(f): logf.append(f)
+#def getOutputName():
+    #"""
+    #Checks output file location and bookkeeping files to determine the name of the next data, hk and log files to be generated.
+    #"""
+    #datalist = os.listdir("data")
+    #dataf = []
+    #hkf = []
+    #logf = []
+    #for f in datalist:
+        #if f.startswith("data_") and f.endswith(".bin") and os.path.isfile(f): dataf.append(f)
+        #if f.startswith("hk_") and f.endswith(".bin") and os.path.isfile(f): hkf.append(f)
+        #if f.endswith(".log") and os.path.isfile(f): logf.append(f)
     
 
 
@@ -127,6 +137,13 @@ def getOutputName():
 
 async def main():
     args = getxmlcfg()
+    datan, hkn, logn = args["bookkeeping"].getNewAll()
+    logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
+    args["bookkeeping"].markRTSall(datan-1, hkn-1, logn-1)
+    os.system(f"mv test.log data/log{logn:05d}.log")
+    if args["bookkeeping"].checkDisk("data/", 100):
+        logger.critical("Less than 100 MB available in data folder - aborting run.")
+        raise RuntimeError("Not enough disk space left.")
     arun = AstropixRun(f"scripts/config/{args['fpgaxml']}")
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
@@ -152,15 +169,15 @@ async def main():
     # Configure and start housekeeping
     await arun.config_adchk()
     await arun.config_fpgahk()
-    ofile_hk = open("{}_hk.bin".format(args.outputPrefix),"wb")
+    ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
     hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hk_period"], terminalPrint=False))
     # Start data acquisition
-    ofile = open("{}.bin".format(args.outputPrefix), "wb")
+    ofile = open("data/data{:05d}.bin".format(datan), "wb")
     data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
 
     # # Runtime
     try:
-        if args.runTime: await asyncio.sleep(args.runTime * 60.0)
+        if args.runTime: await asyncio.sleep(args.runTime)
         else: await asyncio.Event().wait()
     except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while collecting data - exiting.")

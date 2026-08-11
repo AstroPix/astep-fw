@@ -21,8 +21,6 @@ import time
 import asyncio
 import xml.etree.ElementTree as ET
 
-from tqdm import tqdm
-
 import drivers.astep.serial
 #import drivers.astropix.decode
 import drivers.boards
@@ -718,7 +716,7 @@ class AstropixRun:
         for i, buff in enumerate(buffer_lst):
             if buff > 0:
                 readout_data = data[i][:buff]
-                logger.info(binascii.hexlify(readout_data))
+                #logger.info(binascii.hexlify(readout_data))
                 allData += readout_data
                 if bitfile:
                     bitfile.write(f"{str(binascii.hexlify(readout_data))}\n")
@@ -929,9 +927,9 @@ class AstropixRun:
             raise RuntimeError("Could not read or write from FW,  is the FW flashed?")
 
     # progress bar
-    def _wait_progress(self, seconds: int):
-        for _ in tqdm(range(seconds), desc=f"Wait {seconds} s"):
-            time.sleep(1)
+    #def _wait_progress(self, seconds: int):
+        #for _ in tqdm(range(seconds), desc=f"Wait {seconds} s"):
+            #time.sleep(1)
 
     # Check of general functionality esp of SPI lines, as inspired from documentation
     async def functionalityCheck(self, holdBool: bool = True):

@@ -16,6 +16,30 @@ class Bookkeeping:
         self.fnew = new
         self.frts = rts
         self.fmfd = mfd
+        wronglength, wrongvalue = [], []
+        with open(self.fnew) as f:
+            dnew = f.read().split(",")
+        if len(dnew) != 3: wronglength.append(self.fnew)
+        try:
+            _ = [int(e) for e in dnew]
+        except ValueError:
+            wrongvalue.append(self.fnew)
+        with open(self.frts) as f:
+            drts = f.read().split(",")
+        if len(drts) != 3: wronglength.append(self.frts)
+        try:
+            _ = [int(e) for e in drts]
+        except ValueError:
+            wrongvalue.append(self.frts)
+        with open(self.fmfd) as f:
+            dmfd = f.read().split(",")
+        if len(dmfd) != 3: wronglength.append(self.fmfd)
+        try:
+            _ = [int(e) for e in dmfd]
+        except ValueError:
+            wrongvalue.append(self.fmfd)
+        if len(wronglength) > 0 or len(wrongvalue) > 0:
+            raise RuntimeError(f"Bookkeeping files invalid: Wrong number of fields={wronglength}; Int conversion failed={wrongvalue}")
 
     def __get(self, mfile):
         with open(mfile) as f:
@@ -31,6 +55,13 @@ class Bookkeeping:
             f.write("{},{},{}".format(*r))
         return r[i]-1
 
+    def getNewAll(self):
+        r = self.__get(self.fnew)
+        s = [e+1 for e in r]
+        with open(self.fnew) as f:
+            f.write("{},{},{}".format(s))
+        return r
+
     def getNewData(self):
         return self.getNew(0)
     def getNewHK(self):
@@ -40,9 +71,13 @@ class Bookkeeping:
 
     def __mark(self, i, run, mfile):
         r = self.__get(mfile)
-        r[i] = run
+        r[i] = int(run)
         with open(mfile, "w") as f:
             f.write("{},{},{}".format(*r))
+
+    def markRTSAll(self, datan, hkn, logn):
+        with open(self.frts) as f:
+            f.write("{},{},{}".format(int(datan), int(hkn), int(logn)))
 
     def markRTS(self, i, run):
         self.__mark(i, run, self.frts)
