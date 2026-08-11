@@ -19,6 +19,11 @@ ${BASE}/fw/common/rtl/rfg/ftdi/ftdi_interface_control_fsm.sv
 ${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_egress.sv
 ${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_igress.sv
 
+${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_igress_sampled.sv
+#${BASE}/fw/common/rtl/rfg/spi/spi_slave_axis_egress_sampled.sv
+
+
+
 #${BASE}/fw/common/rtl/rfg/uart/uart_lite_driver.sv
 
 ${BASE}/fw/common/rtl/rfg/uart/neorv32_uart_axis.vhd
@@ -51,7 +56,7 @@ ${BASE}/fw/common/rtl/utilities/reset_sync.sv
 ${BASE}/fw/common/rtl/utilities/async_input_sync.sv
 #${BASE}/fw/common/rtl/utilities/async_signal_sync.sv
 ${BASE}/fw/common/rtl/utilities/resets_synchronizer.sv
-#${BASE}/fw/common/rtl/utilities/edge_detect.sv
+${BASE}/fw/common/rtl/utilities/edge_detect.sv
 
 ${BASE}/fw/common/rtl/fifo/fifo_ptr_logic.sv
 ${BASE}/fw/common/rtl/fifo/mini_fwft_fifo.sv

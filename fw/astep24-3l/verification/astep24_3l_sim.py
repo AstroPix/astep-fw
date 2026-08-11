@@ -81,7 +81,16 @@ async def getSPIDriver(dut):
 
     ## Sof Reset
     #await rfg_io.softReset()
+    # 
 
+    ## Activate SPI Reset
+    for _ in range(4):
+        dut.spi_csn.value = 0
+        await Timer(1, units="us")
+        dut.spi_csn.value = 1
+        await Timer(1, units="us")
+
+    ## open Driver
     firmwareRF.withIODriver(rfg_io)
     #await rfg_io.open()
     await Timer(10, units="us")
@@ -89,6 +98,8 @@ async def getSPIDriver(dut):
     boardDriver = SimBoard(firmwareRF)
     await boardDriver.open()
     await Timer(10, units="us")
+
+    
 
 
     return boardDriver

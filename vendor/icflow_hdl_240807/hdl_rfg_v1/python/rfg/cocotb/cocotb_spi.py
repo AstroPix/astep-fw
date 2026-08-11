@@ -33,6 +33,8 @@ def info():
     vip.spi.info()
 
 
+info()
+
 class SPIIO(rfg.core.RFGIO):
     """"""
 
@@ -66,7 +68,9 @@ class SPIIO(rfg.core.RFGIO):
         # cocotb.start_soon(self.spiDecoder.start_protocol_decoding())
 
     async def close(self):
+        logger.info(f"Closing RFG SPI Master")
         self.spi.reset()
+        self.spi.csn.value = 1
 
     async def writeBytes(self, b: bytearray):
         b.append(0x00)

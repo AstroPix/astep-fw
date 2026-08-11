@@ -54,6 +54,10 @@ async def test_fw_id_spi(dut):
     print("FW ID:",hex(id))
     assert id == 0xff00
 
+    ## Close driver 
+    await driver.close()
+    await Timer(10, units="us")
+
 
 
 @cocotb.test(timeout_time = 1 , timeout_unit = "ms")

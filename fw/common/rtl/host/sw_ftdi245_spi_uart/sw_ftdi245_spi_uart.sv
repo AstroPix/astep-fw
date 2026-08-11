@@ -217,11 +217,73 @@ module sw_ftdi245_spi_uart(
     byte_t readout_framing_m_axis_tuser;
 
 
+    // CPI CS and Clock Edge detection
+    // -------------
+    logic spi_cs_falling,spi_cs_rising,spi_clk_rising,spi_clk_falling;
+    logic spi_selected;
+    logic [1:0] spi_select_count;
+    logic spi_mosi_sync;
+
+    wire spi_reset_activated = spi_select_count == 'd0;
+
+    
+    
+    edge_detect  spi_cs_edge(
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .in(spi_csn),
+        .rising_edge(spi_cs_rising),
+        .falling_edge(spi_cs_falling)
+    );
+    edge_detect #(.DELAY_LENGTH(2)) spi_clk_edge(
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .in(spi_clk),
+        .rising_edge(spi_clk_rising),
+        .falling_edge(spi_clk_falling)
+    );
+    async_input_sync #(.DEBOUNCE_DELAY(2)) spi_mosi_sync_stage (
+        .clk(clk_core),
+        .resn(clk_core_resn),
+        .async_input(spi_mosi),
+        .sync_out(spi_mosi_sync)
+    );
+
+    always_ff @(posedge clk_core) begin 
+        if (!clk_core_resn) begin 
+            spi_selected <= 'b0;
+            spi_select_count <= 'd3;
+        end
+        else begin
+            if (spi_cs_falling) begin 
+                spi_selected <= 'b1;
+            end
+            else if (spi_cs_rising) begin
+                spi_selected <= 'b0;
+            end
+
+            if (spi_cs_falling && !spi_reset_activated) begin
+                spi_select_count <= spi_select_count - 'b1;
+            end
+        end
+    end
+
+
+    // If SPI reset is activated after enough CS toggle, deseecting SPI will reset the whole SPI and core logic chain to flush everything
+    wire resn_spi_and_corelogic = !((spi_reset_activated & !spi_selected) || !clk_core_resn);
+    wire resn_spi_and_egree = !((spi_reset_activated & !spi_selected) || !clk_core_resn);
+
+
     // IGRESS
-    spi_slave_axis_igress #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(1)) spi_igress(
-        .spi_clk(spi_clk),
-        .spi_csn(spi_csn),
-        .spi_mosi(spi_mosi),
+    spi_slave_axis_igress_sampled #(.AXIS_DEST(0),.AXIS_SOURCE(2),.MSB_FIRST(1)) spi_igress(
+
+        .clk(clk_core),
+        .resn(resn_spi_and_corelogic),
+        
+        .spi_clk(spi_clk_falling),
+        .spi_selected(spi_selected),
+        
+        .spi_mosi(spi_mosi_sync),
 
         .m_axis_tdata(spi_igress_m_axis_tdata),
         .m_axis_tdest(spi_igress_m_axis_tdest),
@@ -234,8 +296,8 @@ module sw_ftdi245_spi_uart(
 
     fifo_axis_2clk_sw_io_16e  spi_igress_fifo(
 
-        .s_axis_aclk(spi_clk),
-        .s_axis_aresetn(!spi_csn),
+        .s_axis_aclk(clk_core),
+        .s_axis_aresetn(resn_spi_and_corelogic),
         .s_axis_tdata(spi_igress_m_axis_tdata),
         .s_axis_tdest(spi_igress_m_axis_tdest),
         .s_axis_tid(spi_igress_m_axis_tid),
@@ -258,7 +320,7 @@ module sw_ftdi245_spi_uart(
     fifo_axis_2clk_sw_io_16e  spi_egress_fifo(
 
         .s_axis_aclk(clk_core),
-        .s_axis_aresetn(clk_core_resn),
+        .s_axis_aresetn(resn_spi_and_corelogic),
         .s_axis_tvalid(switch_m_tvalid[2]),
         .s_axis_tready(switch_m_tready[2]),
         .s_axis_tdata(switch_m_tdata[23:16]),
@@ -398,9 +460,12 @@ module sw_ftdi245_spi_uart(
      //-----------------------------
     // RFG
     //------------------------------
+    // 
+
+
     rfg_axis_protocol  rfg_protocol(
         .clk(clk_core),
-        .resn(clk_core_resn),
+        .resn(resn_spi_and_corelogic),
 
         .m_axis_tdata(switch_s_tdata[7:0]),
         .m_axis_tdest(switch_s_tdest[7:0]),

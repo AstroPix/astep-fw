@@ -58,6 +58,15 @@ if {$::IC_BOARD == "astropix-nexys"} {
 ## Exclude Secondary and Primary clock paths from each other to avoid multiple clocked analyses and common timing of independent clock sources
 ##########
 
+## SPI Host Slave, sampling into clk core 
+set_clock_groups -asynchronous -group {
+    sw_spi_clk
+} -group {
+    clk_80_clk_core_extorint_40
+    clk_80_clk_core_extorint_40_1
+} 
+#-allow_paths
+
 ## First case are boards with both SE and DIFF ext clock
 if {$::IC_BOARD=="astropix-nexys"} {
 
@@ -156,6 +165,8 @@ if {$::IC_BOARD=="astropix-nexys"} {
             clk_10_clk_core_extorint_40_1
 
     }
+    
+    
 
     set_clock_groups -physically_exclusive -group {
         ext_clk_se
