@@ -2,7 +2,7 @@
 <system_config>
   <fpga_config value="astep.xml"/>
   <HV_set value="0"/>
-  <chipconfig layer0="allOff" layer1="allOff" layer2="allOff"/>
+  <chipconfig layer0="quadchip_allOff" layer1="quadchip_allOff" layer2="quadchip_allOff"/>
   <configupdate value=""/> <!--commands to be interpreted, arbitrary length-->
   <chipsPerRow layer0="4" layer1="4" layer2="4"/>
   <autoread layer0="False" layer1="False" layer2="False"/>

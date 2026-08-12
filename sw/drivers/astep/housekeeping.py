@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_EVEN
 import rfg.io
 import rfg.core
 import asyncio
-from deprecated import deprecated
+#from deprecated import deprecated
 
 
 class Housekeeping():
@@ -63,7 +63,7 @@ class Housekeeping():
         return await self.rfg.read_hk_xadc_vccint_raw()
 
 
-    @deprecated("Use Method in Board Driver")
+    #@deprecated("Use Method in Board Driver")
     async def configureHKSPIFrequency(self, targetFrequencyHz : int , flush = False):
         """Calculated required divider to reach the provided target SPI clock frequency"""
         coreFrequency = self.driver.getFPGACoreFrequency()
@@ -71,7 +71,7 @@ class Housekeeping():
         assert divider >=1 and divider <=255 , (f"Divider {divider} is too high, min. clock frequency: {int(coreFrequency/2/255)}")
         await self.configureHKSPIDivider(divider,flush)
 
-    @deprecated("Use Method in Board Driver")
+    #@deprecated("Use Method in Board Driver")
     async def configureHKSPIDivider(self, divider:int , flush = False):
         await self.rfg.spi_hk_ckdivider(divider,flush)
 

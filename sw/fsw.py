@@ -43,7 +43,7 @@ def parseFSW(fname):
     cfg["hkPeriod"] = float(cfgroot.find("housekeeping_period").attrib["value"])
     cfg["loglevel"] = cfgroot.find("loglevel").attrib["value"]
     cfg["bookkeeping"] = cfgroot.find("bookkeeping").attrib
-    cfg["limits"] = cfgroot.find("limits").attrib
+    cfg["limits"] = cfgroot.find("watcher").attrib
     return cfg
 
 
@@ -99,10 +99,11 @@ def getxmlcfg():
             goodfsw = False
         for y in cfg["yaml"]:
             if y+".yml" not in ymlfiles:
-                logger.error(f"{y}.yml not found"); goodfsw=True
-        if goodfsw: continue
-        else: break
+                logger.error(f"{y}.yml not found")
+                goodfsw = False
+        if goodfsw: break
     if not(goodfsw):
+        logger.error("No valid fsw config file found")
         raise RuntimeError("No valid fsw config file found")
     logger.info(f"Setting log level to {cfg["loglevel"]}")
     if cfg["loglevel"] == "I": logger.setLevel(logging.INFO)
@@ -124,6 +125,7 @@ def getxmlcfg():
         cfg["limits"]["maxframes"] = 1e9
         cfg["limits"]["maxwrong"] = 1e9
         cfg["limits"]["period"] = 5
+    logger.info(f"Loaded: fsw{fswn:03d}.xml")
     return cfg
 
 
@@ -147,7 +149,9 @@ def getxmlcfg():
 
 async def main():
     args = getxmlcfg()
+    print(1)
     datan, hkn, logn = args["bookkeeping"].getNewAll()
+    print(2)
     logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
     args["bookkeeping"].markRTSall(datan-1, hkn-1, logn-1)
     os.system(f"mv test.log data/log{logn:05d}.log")
@@ -212,12 +216,12 @@ async def main():
 
 if __name__ == "__main__":
     formatter = logging.Formatter(
-        "%(asctime)s:%(msecs)d.%(name)s.%(levelname)s:%(message)s"
+        "%(asctime)s:%(name)s.%(lineno)d.%(levelname)s:%(message)s"
     )
     fh = logging.FileHandler("run.log")
     fh.setFormatter(formatter)
     logging.getLogger().addHandler(fh)
-    logging.getLogger().setLevel(logging.info)
+    logging.getLogger().setLevel(logging.INFO)
     global logger
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")

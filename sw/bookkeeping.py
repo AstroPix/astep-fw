@@ -59,7 +59,7 @@ class Bookkeeping:
         r = self.__get(self.fnew)
         s = [e+1 for e in r]
         with open(self.fnew) as f:
-            f.write("{},{},{}".format(s))
+            f.write("{},{},{}".format(*s))
         return r
 
     def getNewData(self):
