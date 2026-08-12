@@ -43,6 +43,7 @@ def parseFSW(fname):
     cfg["hkPeriod"] = float(cfgroot.find("housekeeping_period").attrib["value"])
     cfg["loglevel"] = cfgroot.find("loglevel").attrib["value"]
     cfg["bookkeeping"] = cfgroot.find("bookkeeping").attrib
+    cfg["limits"] = cfgroot.find("limits").attrib
     return cfg
 
 
@@ -114,6 +115,15 @@ def getxmlcfg():
             cfg["inject"][2] < 0 or cfg["inject"][2] > 34 or cfg["inject"][3] < 0 or cfg["inject"][3] > 34):
         logger.error(f"One-pixel parameters {cfg["inject"]} invalid. All pixels are deactivated with no injection.")
         cfg["inject"] = None
+    try:
+        cfg["limits"]["maxframes"] = int(cfg["limits"]["maxframes"])
+        cfg["limits"]["maxwrong"] = int(cfg["limits"]["maxwrong"])
+        cfg["limits"]["period"] = int(cfg["limits"]["period"])
+    except Exception as e:
+        logger.error(f"While converting limits to int (defaults to 1e9, period=5): {e}")
+        cfg["limits"]["maxframes"] = 1e9
+        cfg["limits"]["maxwrong"] = 1e9
+        cfg["limits"]["period"] = 5
     return cfg
 
 
@@ -174,6 +184,7 @@ async def main():
     # Start data acquisition
     ofile = open("data/data{:05d}.bin".format(datan), "wb")
     data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
+    watcher_task = asyncio.create_task(arun.watcher(args["limits"]))
 
     # # Runtime
     try:
@@ -185,6 +196,7 @@ async def main():
     # # Finish data collection
     hk_task.cancel()
     data_task.cancel()
+    watcher_task.cancel()
 
     # Closeout
     await arun.chips_disable_readout()

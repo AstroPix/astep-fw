@@ -44,6 +44,7 @@ class AstropixRun:
         self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI.
         self.lastHVset = 0.
         self.lock = asyncio.Lock()
+        self.counterBytes = bytes(42)
 
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
@@ -768,9 +769,9 @@ class AstropixRun:
 
             # FPGA Counter Housekeeping: Frames, Idles, Wrong
             ########################################################
-            counterBytes = bytearray()
+            self.counterBytes = bytearray()
             for layer in self.boardDriver.asics.keys():
-                counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
+                self.counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
             
             # ADC Housekeeping:
             ########################################################
@@ -788,9 +789,9 @@ class AstropixRun:
             ########################################################
             fpga_time = bytearray(await self.boardDriver.getFPGATimestampRaw())
             fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
-        return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes
+        return fsw_time, fpga_time, fpgaBytes, adcBytes
 
-    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount):
+    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount):
         # Terminal Output Formatting: Can likely move elsewhere
         header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}"
         subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}"
@@ -809,24 +810,24 @@ class AstropixRun:
         fpgaVCCInt = float(sum([self.boardDriver.houseKeeping.convertBytesToVCCInt(fpgaBytes[8:][i : i + 2]) for i in range(0, 6, 2)])/3)
         ADCVals = [self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[2:][i : i + 2]) for i in range(0,16,2)]
 
-        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
+        layerinfo = [self.counterBytes[i:i+14] for i in range(0,len(self.counterBytes),14)]
         L0Frames = L0Idle = L0Wrong = 'x'
         L1Frames = L1Idle = L1Wrong = 'x'
         L2Frames = L2Idle = L2Wrong = 'x'
 
         for l in layerinfo:
             if l[0] == 0:
-                L0Frames = int.from_bytes(l[2:5],'little')
-                L0Idle = int.from_bytes(l[6:9],'little')
-                L0Wrong = int.from_bytes(l[10:13],'little')
+                L0Frames = int.from_bytes(l[2:6],'little')
+                L0Idle = int.from_bytes(l[6:10],'little')
+                L0Wrong = int.from_bytes(l[10:14],'little')
             elif l[0] == 1:
-                L1Frames = int.from_bytes(l[2:5],'little')
-                L1Idle = int.from_bytes(l[6:9],'little')
-                L1Wrong = int.from_bytes(l[10:13],'little')
+                L1Frames = int.from_bytes(l[2:6],'little')
+                L1Idle = int.from_bytes(l[6:10],'little')
+                L1Wrong = int.from_bytes(l[10:14],'little')
             elif l[0] == 2:
-                L2Frames = int.from_bytes(l[2:5],'little')
-                L2Idle = int.from_bytes(l[6:9],'little')
-                L2Wrong = int.from_bytes(l[10:13],'little')
+                L2Frames = int.from_bytes(l[2:6],'little')
+                L2Idle = int.from_bytes(l[6:10],'little')
+                L2Wrong = int.from_bytes(l[10:14],'little')
         
         values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
                     ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong]
@@ -846,12 +847,12 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
                 # Measure data
-                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes = await self.getHKdata()
+                fsw_time, fpga_time, fpgaBytes, adcBytes = await self.getHKdata()
                 # Terminal Output:
                 if terminalPrint:
-                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, outputCount)
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount)
                 # Write to file
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + counterBytes)
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)
                 ofile.flush()
                 # Sleep
                 await asyncio.sleep(hk_period)
@@ -859,6 +860,21 @@ class AstropixRun:
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
         finally:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
+
+    async def watcher(self, params):
+        try:
+            while True:
+                async with self.lock:
+                    for l in range(3):
+                        if int.from_bytes(self.counterBytes[10+14*l:14+14*l], 'little') > params["maxwrong"]:
+                            logger.warning(f"Layer {l} has too many wrong frames - layer disabled.")
+                            await self.boardDriver.setLayerConfig(l, hold=True, reset=False, autoread=False, chipSelect=True, disableMISO=True, flush=True)
+                        elif int.from_bytes(self.counterBytes[2+14*l:6+14*l], 'little') > params["maxframes"]:
+                            logger.warning(f"Layer {l} has too many frames - layer disabled.")
+                            await self.boardDriver.setLayerConfig(l, hold=True, reset=False, autoread=False, chipSelect=True, disableMISO=True, flush=True)
+                await asyncio.sleed(params["period"])
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] or task cancelled while in watcher loop - exiting.")
     
     async def setDAC(self, voltage: float):
         """
