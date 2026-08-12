@@ -21,11 +21,12 @@ logger.setLevel(logging.INFO)
 def debug():
     logger.setLevel(logging.DEBUG)
 
-
+#debug()
 
 ## Main UART Class
 class SPIDEVIO(rfg.core.RFGIO):
-    """"""
+    """
+    """
 
     readout_timeout = 2
 
@@ -57,8 +58,9 @@ class SPIDEVIO(rfg.core.RFGIO):
         self.spiDev.open_path(self.devicePath)
         self.spiDev.max_speed_hz = 5000000
         self.spiDev.lsbfirst = False
-        #self.spiDev.mode = 0b01
-
+        self.spiDev.mode = 0b01
+        #print(self.spiDev.bits_per_word)
+        self.spiDev.bits_per_word=8
         ## Perform Reset 
         self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
         await asyncio.sleep(0.05)
@@ -67,7 +69,11 @@ class SPIDEVIO(rfg.core.RFGIO):
         self.gpio.set_value(self.csGpioLine, Value.INACTIVE)
         await asyncio.sleep(0.05)
         self.spiDev.xfer([0x00]*16)
-        
+        for ind in range(0):
+          self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
+          await asyncio.sleep(0.05)
+          self.gpio.set_value(self.csGpioLine, Value.INACTIVE)
+          await asyncio.sleep(0.05)
         ## Now SPI Open and Chip Select active
         atexit.register(exit_close,self)
 

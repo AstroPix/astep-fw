@@ -19,6 +19,7 @@ def warning():
     logger.setLevel(logging.WARNING)
 
 info()
+#debug()
 
 ## This decoder is used to transform low level bytes into payload bytes following RFG spi framing
 class SPIBytesDecoder():
