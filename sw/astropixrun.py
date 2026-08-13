@@ -783,7 +783,7 @@ class AstropixRun:
             statusBytes = bytearray()
             for layer in self.boardDriver.asics.keys():
                 counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
-                statusBytes.extend(await self.boardDriver.getLayerStatus(layer))
+                statusBytes.extend(await self.boardDriver.getLayerStatusRaw(layer))
             
             # ADC Housekeeping:
             ########################################################
