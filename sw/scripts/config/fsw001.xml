@@ -2,10 +2,10 @@
 <system_config>
   <fpga_config value="astep.xml"/>
   <HV_set value="164"/>
-  <chipconfig layer0="w000q00" layer1="w000q00" layer2="w000q00"/>
+  <chipconfig layer0="quadhip_allOff" layer1="quadchip_allOff" layer2="quadchip_allOff"/>
   <configupdate value=""/> <!--commands to be interpreted, arbitrary length-->
   <chipsPerRow layer0="4" layer1="4" layer2="4"/>
-  <uselayer layer0="True" layer1="True" layer2="True"/>
+  <uselayer layer0="True" layer1="False" layer2="False"/>
   <readout value="None"/>
   <onepixelonly value="True"/> <!--Worst case scenario, check a single pixel operates...-->
   <onepixellocation layer="0" chip="0" row="10" col="10"/> 

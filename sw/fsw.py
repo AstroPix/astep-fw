@@ -33,7 +33,7 @@ def parseFSW(fname):
     cfg["uselayer"] = [cfgroot.find("uselayer").attrib["layer0"] != "False", cfgroot.find("uselayer").attrib["layer1"] != "False", cfgroot.find("uselayer").attrib["layer2"] != "False"]
     cfg["readout"] = cfgroot.find("readout").attrib["value"]
     if cfgroot.find("onepixelonly").attrib["value"] == "True":
-        cfg["yaml"] = ["allOff", "allOff", "allOff"]
+        cfg["yaml"] = ["quadchip_allOff", "quadchip_allOff", "quadchip_allOff"]
         cfg["inject"] = [int(cfgroot.find("onepixellocation").attrib["layer"]), int(cfgroot.find("onepixellocation").attrib["chip"]), int(cfgroot.find("onepixellocation").attrib["row"]), int(cfgroot.find("onepixellocation").attrib["col"])]
     else:
         cfg["inject"] = None
@@ -168,6 +168,7 @@ async def main():
     arun.layerlst = []
     for i, layer in enumerate(args["uselayer"]):
         if layer: arun.layerlst.append(i)
+        else: arun.boardDriver.asics.pop(i, None)
     logger.info(f"Enabled layers: {arun.layerlst}")
     #arun.applyCommands(args["cfgcommands"])
     await arun.fpga_configure_autoread_keepalive()
@@ -186,7 +187,7 @@ async def main():
     await arun.config_adchk()
     await arun.config_fpgahk()
     ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
-    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=False))
+    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=True))
     # Start data acquisition
     ofile = open("data/data{:05d}.bin".format(datan), "wb")
     data_task = asyncio.create_task(arun.readout_loop(args["readout"], ofile))

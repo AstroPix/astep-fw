@@ -864,16 +864,21 @@ class AstropixRun:
 
     async def watcher(self, params):
         try:
+            print("DEBUG", params)
             while True:
+                print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
                 async with self.lock:
-                    for l in range(3):
+                    print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
+                    for l in self.layerlst:
                         if int.from_bytes(self.counterBytes[10+14*l:14+14*l], 'little') > params["maxwrong"]:
-                            logger.warning(f"Layer {l} has too many wrong frames - layer disabled.")
+                            logger.warning(f"Layer {l} has too many wrong frames - disabled.")
                             await self.boardDriver.setLayerConfig(l, hold=True, reset=False, autoread=False, chipSelect=True, disableMISO=True, flush=True)
+                            self.layerlst.remove(l)
                         elif int.from_bytes(self.counterBytes[2+14*l:6+14*l], 'little') > params["maxframes"]:
-                            logger.warning(f"Layer {l} has too many frames - layer disabled.")
+                            logger.warning(f"Layer {l} has too many frames - disabled.")
                             await self.boardDriver.setLayerConfig(l, hold=True, reset=False, autoread=False, chipSelect=True, disableMISO=True, flush=True)
-                await asyncio.sleed(params["period"])
+                            self.layerlst.remove(l)
+                await asyncio.sleep(params["period"])
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in watcher loop - exiting.")
     
