@@ -8,6 +8,7 @@ import asyncio
 import os
 import time
 import xml.etree.ElementTree as ET
+import socket
 
 # Logging stuff
 import logging
@@ -142,6 +143,30 @@ def getxmlcfg():
     return cfg
 
 
+def TCPlistener(port: int = 1025):
+    """
+    Instantiate TCP/IP socket and 
+    """
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('::', port))
+    sock.listen(1)
+    logger.info('TCP listener: Waiting for connection...')
+    conn, addr = sock.accept()
+    logger.info(f'TCPlistener: Connected by {addr}')
+    listen = True
+    while listen:
+        data = conn.recv(1024)
+        if not data:
+            break
+        logger.info('TCP listener recieved:', data.decode('ascii'))
+        if data=='shutdown'.encode('ascii'):
+            listen = False
+    conn.close()
+    return
+    #if not listen: raise KeyboardInterrupt
+
+
 #######################################################
 #################### MAIN FUNCTION ####################
 
@@ -192,18 +217,24 @@ async def main():
     ofile = open("data/data{:05d}.bin".format(datan), "wb")
     data_task = asyncio.create_task(arun.readout_loop(args["readout"], ofile))
     watcher_task = asyncio.create_task(arun.watcher(args["limits"]))
+    listen_task = asyncio.create_task(TCPlistener())
 
     # # Runtime
     try:
         print("Running, Ctrl+C to stop.")
-        await asyncio.Event().wait()
+        #await asyncio.Event().wait()
+        await listen_task
     except (KeyboardInterrupt, asyncio.CancelledError):
-            logger.info("[Ctrl+C] while collecting data - exiting.")
+        logger.info("[Ctrl+C] while collecting data - exiting.")
+    except Exception as e:
+        logger.info(f"Unexpected error while colleting data: {e}")
     
     # # Finish data collection
+    listen_task.cancel()
     hk_task.cancel()
     data_task.cancel()
     watcher_task.cancel()
+    logger.info("Finished data collection")
 
     # Closeout
     await arun.chips_disable_readout()
@@ -213,6 +244,10 @@ async def main():
     ofile_hk.close()
     await hvdown_task
     await arun.fpga_close_connection()
+    logger.info("Flight software completed. Shutting down ...")
+    os.system("systemctl poweroff")
+    #subprocess.run(["shutdown"])
+
 
 #######################################################
 #################### TOP LEVEL ########################
