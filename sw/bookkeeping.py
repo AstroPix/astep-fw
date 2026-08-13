@@ -58,7 +58,7 @@ class Bookkeeping:
     def getNewAll(self):
         r = self.__get(self.fnew)
         s = [e+1 for e in r]
-        with open(self.fnew) as f:
+        with open(self.fnew, "w") as f:
             f.write("{},{},{}".format(*s))
         return r
 
@@ -76,7 +76,7 @@ class Bookkeeping:
             f.write("{},{},{}".format(*r))
 
     def markRTSAll(self, datan, hkn, logn):
-        with open(self.frts) as f:
+        with open(self.frts, "w") as f:
             f.write("{},{},{}".format(int(datan), int(hkn), int(logn)))
 
     def markRTS(self, i, run):
