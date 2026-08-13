@@ -30,7 +30,7 @@ def parseFSW(fname):
     cfg["yaml"] = [cfgroot.find("chipconfig").attrib["layer0"], cfgroot.find("chipconfig").attrib["layer1"], cfgroot.find("chipconfig").attrib["layer2"]]
     cfg["chipsPerRow"] = [cfgroot.find("chipsPerRow").attrib["layer0"], cfgroot.find("chipsPerRow").attrib["layer1"], cfgroot.find("chipsPerRow").attrib["layer2"]]
     #cfg["cfgcommands"] = cfgroot.find("configupdate").attrib["value"]
-    cfg["autoread"] = [cfgroot.find("autoread").attrib["layer0"] != "False", cfgroot.find("autoread").attrib["layer1"] != "False", cfgroot.find("autoread").attrib["layer2"] != "False"]
+    cfg["uselayer"] = [cfgroot.find("uselayer").attrib["layer0"] != "False", cfgroot.find("uselayer").attrib["layer1"] != "False", cfgroot.find("uselayer").attrib["layer2"] != "False"]
     cfg["readout"] = cfgroot.find("readout").attrib["value"]
     if cfgroot.find("onepixelonly").attrib["value"] == "True":
         cfg["yaml"] = ["allOff", "allOff", "allOff"]
@@ -164,6 +164,11 @@ async def main():
     # Configure detectors
     await arun.fpga_configure_clocks()
     arun.load_yaml(args["yaml"], args["chipsPerRow"])
+    logger.info("Chips configuration loaded.")
+    arun.layerlst = []
+    for i, layer in enumerate(args["uselayer"]):
+        if layer: arun.layerlst.append(i)
+    logger.info(f"Enabled layers: {arun.layerlst}")
     #arun.applyCommands(args["cfgcommands"])
     await arun.fpga_configure_autoread_keepalive()
     if args["inject"] is not None:
@@ -175,7 +180,7 @@ async def main():
     await arun.chips_reset_configure()
     await arun.buffer_flush()
 
-    await arun.chips_enable_readout()
+    await arun.chips_enable_readout() #By default uses fpgaxml and arun.layerlst
     if args["vinj"] is not None: await arun.start_injection()
     # Configure and start housekeeping
     await arun.config_adchk()

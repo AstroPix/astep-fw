@@ -5,7 +5,7 @@
   <chipconfig layer0="w000q00" layer1="w000q00" layer2="w000q00"/>
   <configupdate value=""/> <!--commands to be interpreted, arbitrary length-->
   <chipsPerRow layer0="4" layer1="4" layer2="4"/>
-  <autoread layer0="True" layer1="True" layer2="True"/>
+  <uselayer layer0="True" layer1="True" layer2="True"/>
   <readout value="None"/>
   <onepixelonly value="True"/> <!--Worst case scenario, check a single pixel operates...-->
   <onepixellocation layer="0" chip="0" row="10" col="10"/> 
