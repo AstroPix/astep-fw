@@ -31,6 +31,7 @@ def parseFSW(fname):
     cfg["chipsPerRow"] = [cfgroot.find("chipsPerRow").attrib["layer0"], cfgroot.find("chipsPerRow").attrib["layer1"], cfgroot.find("chipsPerRow").attrib["layer2"]]
     #cfg["cfgcommands"] = cfgroot.find("configupdate").attrib["value"]
     cfg["autoread"] = [cfgroot.find("autoread").attrib["layer0"] != "False", cfgroot.find("autoread").attrib["layer1"] != "False", cfgroot.find("autoread").attrib["layer2"] != "False"]
+    cfg["readout"] = cfgroot.find("readout").attrib["value"]
     if cfgroot.find("onepixelonly").attrib["value"] == "True":
         cfg["yaml"] = ["allOff", "allOff", "allOff"]
         cfg["inject"] = [int(cfgroot.find("onepixellocation").attrib["layer"]), int(cfgroot.find("onepixellocation").attrib["chip"]), int(cfgroot.find("onepixellocation").attrib["row"]), int(cfgroot.find("onepixellocation").attrib["col"])]
@@ -102,10 +103,12 @@ def getxmlcfg():
         if cfg["fpgaxml"] not in xmlfiles:
             logger.error(f"{cfg['fpgaxml']} not found")
             goodfsw = False
-        for y in cfg["yaml"]:
+        for i, y in enumerate(cfg["yaml"]):
             if y+".yml" not in ymlfiles:
                 logger.error(f"{y}.yml not found")
                 goodfsw = False
+            else:
+                cfg["yaml"][i] = f"scripts/config/{y}.yml"
         if goodfsw: break
     if not(goodfsw):
         logger.error("No valid fsw config file found")
@@ -116,6 +119,11 @@ def getxmlcfg():
     elif cfg["loglevel"] == "E": logger.setLevel(logging.ERROR)
     elif cfg["loglevel"] == "C": logger.setLevel(logging.CRITICAL)
     else: logger.warning(f"Invalid log level: {cfg["loglevel"]}")
+    if cfg["readout"] == "None": cfg["readout"] = None
+    elif cfg["readout"].isdigit(): cfg["readout"] = int(cfg["readout"])
+    else:
+        logger.warning(f"{cfg["readout"]} is not int or None - defaults to None")
+        cfg["readout"] = None
     if cfg["inject"] is not None and (len(cfg["inject"]) != 4 or 
             cfg["inject"][0] < 0 or cfg["inject"][0] > 2 or cfg["inject"][1] < 0 or cfg["inject"][1] > 3 or 
             cfg["inject"][2] < 0 or cfg["inject"][2] > 34 or cfg["inject"][3] < 0 or cfg["inject"][3] > 34):
@@ -134,21 +142,6 @@ def getxmlcfg():
     return cfg
 
 
-#def getOutputName():
-    #"""
-    #Checks output file location and bookkeeping files to determine the name of the next data, hk and log files to be generated.
-    #"""
-    #datalist = os.listdir("data")
-    #dataf = []
-    #hkf = []
-    #logf = []
-    #for f in datalist:
-        #if f.startswith("data_") and f.endswith(".bin") and os.path.isfile(f): dataf.append(f)
-        #if f.startswith("hk_") and f.endswith(".bin") and os.path.isfile(f): hkf.append(f)
-        #if f.endswith(".log") and os.path.isfile(f): logf.append(f)
-    
-
-
 #######################################################
 #################### MAIN FUNCTION ####################
 
@@ -156,14 +149,15 @@ async def main():
     args = getxmlcfg()
     datan, hkn, logn = args["bookkeeping"].getNewAll()
     logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
-    args["bookkeeping"].markRTSall(datan-1, hkn-1, logn-1)
+    args["bookkeeping"].markRTSAll(datan-1, hkn-1, logn-1)
     os.rename("run.log", f"data/log{logn:05d}.log")
-    if args["bookkeeping"].checkDisk("data/", 100):
+    if bookkeeping.checkDisk("data/", 100):
         logger.critical("Less than 100 MB available in data folder - aborting run.")
         raise RuntimeError("Not enough disk space left.")
     arun = AstropixRun(f"scripts/config/{args['fpgaxml']}")
     # Open connexion to FPGA board
     await arun.open_fpga() # Gecco or CMOD selected from the fpgaxml config file
+    #arun.boardDriver.rfg.io.spi.warning()
     # Ramp up HV
     hvup_task = asyncio.create_task(arun.rampHV(args["HVup"], timeout = 5))
     await hvup_task
@@ -187,16 +181,16 @@ async def main():
     await arun.config_adchk()
     await arun.config_fpgahk()
     ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
-    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hk_period"], terminalPrint=False))
+    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=False))
     # Start data acquisition
     ofile = open("data/data{:05d}.bin".format(datan), "wb")
-    data_task = asyncio.create_task(arun.readout_loop(args.readout,ofile))
+    data_task = asyncio.create_task(arun.readout_loop(args["readout"], ofile))
     watcher_task = asyncio.create_task(arun.watcher(args["limits"]))
 
     # # Runtime
     try:
-        if args.runTime: await asyncio.sleep(args.runTime)
-        else: await asyncio.Event().wait()
+        print("Running, Ctrl+C to stop.")
+        await asyncio.Event().wait()
     except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] while collecting data - exiting.")
     
@@ -207,11 +201,11 @@ async def main():
 
     # Closeout
     await arun.chips_disable_readout()
-    if args.vinj: await arun.stop_injection()
-    if args.HVdown: hvdown_task = asyncio.create_task(arun.rampHV(0.))
+    if args["vinj"]: await arun.stop_injection()
+    hvdown_task = asyncio.create_task(arun.rampHV(0.))
     ofile.close()
     ofile_hk.close()
-    if args.HVdown: await hvdown_task
+    await hvdown_task
     await arun.fpga_close_connection()
 
 #######################################################

@@ -274,7 +274,7 @@ class BoardDriver:
         asic.num_chips = chipsPerLane
 
         if configFile is not None:
-            print(configFile)
+            #print(configFile)
             asic.load_conf_from_yaml(configFile)
 
     def getAsic(self, lane=0):

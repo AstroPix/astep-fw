@@ -29,6 +29,7 @@ from drivers.gecco import GeccoCarrierBoard
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 
 class AstropixRun:
@@ -182,7 +183,7 @@ class AstropixRun:
                 )
         except FileNotFoundError as e:
             logger.error(
-                "Config File %s was not found, pass the name of a config file from the scripts/config folder", ymlpath
+                "Config File %s was not found, pass the name of a config file from the scripts/config folder", y
             )
             raise e
         self.layerlst = self.boardDriver.asics.keys()
