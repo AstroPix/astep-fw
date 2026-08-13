@@ -187,7 +187,7 @@ async def main():
     await arun.config_adchk()
     await arun.config_fpgahk()
     ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
-    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=True))
+    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=False))
     # Start data acquisition
     ofile = open("data/data{:05d}.bin".format(datan), "wb")
     data_task = asyncio.create_task(arun.readout_loop(args["readout"], ofile))
@@ -219,7 +219,7 @@ async def main():
 
 if __name__ == "__main__":
     formatter = logging.Formatter(
-        "%(asctime)s:%(name)s.%(lineno)d.%(levelname)s:%(message)s"
+        "%(created)s:%(name)s.%(lineno)d.%(levelname)s:%(message)s"
     )
     fh = logging.FileHandler("run.log")
     fh.setFormatter(formatter)

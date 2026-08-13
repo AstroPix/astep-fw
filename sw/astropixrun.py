@@ -203,9 +203,11 @@ class AstropixRun:
         """
         Returns the maximum number of chips of all daisy chains
         """
-        return max(
-            map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())
-        )  # dict
+        if len(self.boardDriver.asics) > 0:
+            return max(
+                map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics.values())
+            )  # dict
+        else: return 0
         # return max(map(lambda x: getattr(x, "_num_chips"), self.boardDriver.asics)) # list
 
     # Interface with asic.py
@@ -864,11 +866,10 @@ class AstropixRun:
 
     async def watcher(self, params):
         try:
-            print("DEBUG", params)
             while True:
-                print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
+                #print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
                 async with self.lock:
-                    print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
+                    #print("DEBUG", int.from_bytes(self.counterBytes[2:6], "little"), int.from_bytes(self.counterBytes[10:14],'little'))
                     for l in self.layerlst:
                         if int.from_bytes(self.counterBytes[10+14*l:14+14*l], 'little') > params["maxwrong"]:
                             logger.warning(f"Layer {l} has too many wrong frames - disabled.")
@@ -939,7 +940,7 @@ class AstropixRun:
         try:  # Attempts to write to and read from a register
             ## Try to read the firmware ID and or Version
             fwId = await self.boardDriver.readFirmwareID()
-            logger.info("Reading FWID successful: %s", fwId)
+            logger.info("Reading FWID successful: %x", fwId)
             # self.nexys.write_register(0x09, 0x55, True)
             # self.nexys.read_register(0x09)
             # self.nexys.spi_reset()
