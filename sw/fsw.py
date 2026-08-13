@@ -65,13 +65,18 @@ def getxmlcfg():
     # Attempt loading FSW configs in reverse order
     fswnlist = sorted([int(f[3:6]) for f in fswfiles], reverse=True)
     for fswn in fswnlist:
+        goodfsw = True
         logger.info(f"Loading fsw{fswn:03d}.xml")
         try:
             cfg = parseFSW("scripts/config/fsw{:03d}.xml".format(fswn))
         except Exception as e:
             logger.error(f"While parsing fsw: {e}")
+            goodfsw = False
+        if fswn >= 900:
+            logger.info(f"fsw{fswn:03d}.xml is single-use - deleting")
+            os.remove(f"scripts/config/fsw{fswn:03d}.xml")
+        if not goodfsw:
             continue
-        goodfsw = True
         # Attempt loading bookkeeping mechanism
         bookkeepingKeys = cfg["bookkeeping"].keys()
         if "new" not in bookkeepingKeys or "rts" not in bookkeepingKeys or "mfd" not in bookkeepingKeys:
@@ -149,12 +154,10 @@ def getxmlcfg():
 
 async def main():
     args = getxmlcfg()
-    print(1)
     datan, hkn, logn = args["bookkeeping"].getNewAll()
-    print(2)
     logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
     args["bookkeeping"].markRTSall(datan-1, hkn-1, logn-1)
-    os.system(f"mv test.log data/log{logn:05d}.log")
+    os.rename("run.log", f"data/log{logn:05d}.log")
     if args["bookkeeping"].checkDisk("data/", 100):
         logger.critical("Less than 100 MB available in data folder - aborting run.")
         raise RuntimeError("Not enough disk space left.")
