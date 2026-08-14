@@ -96,7 +96,7 @@ def getxmlcfg():
         if goodfsw:
             logger.info("Instanciating Bookkeeping")
             try:
-                cfg["bookkeeping"] = bookkeeping.Bookkeeping(**cfg["bookkeeping"])
+                cfg["bookkeeper"] = bookkeeping.Bookkeeping(**cfg["bookkeeping"])
             except Exception as e:
                 logger.error(f"While instanciating Bookkeeping: {e}")
                 goodfsw = False
@@ -169,10 +169,13 @@ async def TCPlistener(port: int = 1025):
     #if not listen: raise KeyboardInterrupt
 
 
-def poweroff():
+def poweroff(error):
     """
     Powers off the BB.
     """
+    if error:
+        logger.info("Flight software errored. Waiting 20 s. to give filesender time.")
+        time.sleep(20)
     logger.info("Flight software completed. Shutting down ...")
     print("I'm not running the shutdown command for dev pruposes, but it works.")
     #os.system("sudo systemctl poweroff")
@@ -186,9 +189,12 @@ def poweroff():
 
 async def main():
     args = getxmlcfg()
-    datan, hkn, logn = args["bookkeeping"].getNewAll()
+    datan, hkn, logn = args["bookkeeper"].getNewAll() #FSW gets its log number first
+    bookkeeperlog = args["bookkeeper"].getNewLog()
+    with open("/tmp/bookkeeping.txt", "w") as f:
+        f.write("{new};{rts};{mfd};{bookkeeperlog}".format(bookkeeperlog=bookkeeperlog, **args["bookkeeping"])) #Now filesender can get moving
     logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
-    args["bookkeeping"].markRTSAll(datan-1, hkn-1, logn-1)
+    args["bookkeeper"].markRTSAll(datan-1, hkn-1, logn-1)
     os.rename("run.log", f"data/log{logn:05d}.log")
     if bookkeeping.checkDisk("data/", 100):
         logger.critical("Less than 100 MB available in data folder - aborting run.")
@@ -274,13 +280,15 @@ if __name__ == "__main__":
     global logger
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
+    error = False
 
     try:
         asyncio.run(main())
         logger.info("Finished Main")
-
     except KeyboardInterrupt:
         logger.info("SIGINT received")
+        error = True
     except Exception as e:
         logger.error(f"Error during main: {e}")
-    poweroff()
+        error = True
+    poweroff(error)
