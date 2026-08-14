@@ -9,6 +9,7 @@ import os
 import time
 import xml.etree.ElementTree as ET
 import socket
+from pydbus import SystemBus
 
 # Logging stuff
 import logging
@@ -167,6 +168,16 @@ def TCPlistener(port: int = 1025):
     #if not listen: raise KeyboardInterrupt
 
 
+def poweroff():
+    """
+    """
+    logger.info("Flight software completed. Shutting down ...")
+    bus = SystemBus()
+    proxy = bus.get('org.freedesktop.login1', '/org/freedesktop/login1')
+    if proxy.CanPowerOff() == 'yes':
+        proxy.PowerOff(False)  # False for 'NOT interactive'
+
+
 #######################################################
 #################### MAIN FUNCTION ####################
 
@@ -244,9 +255,6 @@ async def main():
     ofile_hk.close()
     await hvdown_task
     await arun.fpga_close_connection()
-    logger.info("Flight software completed. Shutting down ...")
-    os.system("systemctl poweroff")
-    #subprocess.run(["shutdown"])
 
 
 #######################################################
@@ -272,3 +280,4 @@ if __name__ == "__main__":
         logger.info("SIGINT received")
     except Exception as e:
         logger.error(f"Error during main: {e}")
+    poweroff()
