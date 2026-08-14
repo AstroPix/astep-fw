@@ -28,8 +28,11 @@ def waitForFSW(timeout):
         os.remove("/tmp/bookkeeping.txt")
         try:
             bookkeeper = bookkeeping.Bookkeeping(new=data[0], rts=data[1], mfd=data[2])
-            logn = int(data[4])
-        except: 
+            logger.info("Bookkeper initialized.")
+            logn = int(data[3])
+            logger.info(f"Recovered log number {logn}")
+        except Exception as e:
+            logger.error(e)
             return False, None, None
         return True, bookkeeper, logn
     else: return False, None, None
@@ -49,16 +52,20 @@ def main(timeout):
             datan = [int(f[4:9]) for f in datafiles]
             hkn = [int(f[2:7]) for f in hkfiles]
             logn = [int(f[3:8]) for f in logfiles]
+            print(logn, hkn, datan)
             # Send logs
             if len(logn) > 0 and (number := min(logn)) <= bookkeeper.getRTSLog():
+                logger.info(f"Attempting to send log{number:05d}.log")
                 rsync(f"data/log{number:05d}.log")
                 bookkeeper.markfordelLog(number)
             # Send housekeeping
             if len(hkn) > 0 and (number := min(hkn)) <= bookkeeper.getRTSHK():
+                logger.info(f"Attempting to send hk{number:05d}.bin")
                 rsync(f"data/hk{number:05d}.bin")
                 bookkeeper.markfordelHK(number)
             # Send data
             if len(datan) > 0 and (number := min(datan)) <= bookkeeper.getRTSData():
+                logger.info(f"Attempting to send data{number:05d}.bin")
                 rsync(f"data/data{number:05d}.bin")
                 bookkeeper.markfordelData(number)
             # Del log
