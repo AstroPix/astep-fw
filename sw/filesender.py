@@ -46,9 +46,9 @@ def main(timeout):
             filelist = os.listdir("data/")
             datafiles, hkfiles, logfiles = [], [], []
             for f in filelist:
-                if f.startswith("data") and f.endswith(".bin") and os.path.isfile(f) and len(f) == 13 and f[4:9].isdigit(): datafiles.append(f)
-                elif f.startswith("hk") and f.endswith(".bin") and os.path.isfile(f) and len(f) == 11 and f[2:7].isdigit(): hkfiles.append(f)
-                elif f.startswith("log") and f.endswith(".log") and os.path.isfile(f) and len(f) == 12 and f[3:8].isdigit(): logfiles.append(f)
+                if f.startswith("data") and f.endswith(".bin") and os.path.isfile("data/"+f) and len(f) == 13 and f[4:9].isdigit(): datafiles.append(f)
+                elif f.startswith("hk") and f.endswith(".bin") and os.path.isfile("data/"+f) and len(f) == 11 and f[2:7].isdigit(): hkfiles.append(f)
+                elif f.startswith("log") and f.endswith(".log") and os.path.isfile("data/"+f) and len(f) == 12 and f[3:8].isdigit(): logfiles.append(f)
             datan = [int(f[4:9]) for f in datafiles]
             hkn = [int(f[2:7]) for f in hkfiles]
             logn = [int(f[3:8]) for f in logfiles]
