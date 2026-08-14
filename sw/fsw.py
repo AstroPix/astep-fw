@@ -9,7 +9,6 @@ import os
 import time
 import xml.etree.ElementTree as ET
 import socket
-from pydbus import SystemBus
 
 # Logging stuff
 import logging
@@ -144,10 +143,12 @@ def getxmlcfg():
     return cfg
 
 
-def TCPlistener(port: int = 1025):
+async def TCPlistener(port: int = 1025):
     """
     Instantiate TCP/IP socket and 
     """
+    await asyncio.Event().wait()
+    return # Placeholder while I figure out this part
     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('::', port))
@@ -170,12 +171,14 @@ def TCPlistener(port: int = 1025):
 
 def poweroff():
     """
+    Powers off the BB.
     """
     logger.info("Flight software completed. Shutting down ...")
-    bus = SystemBus()
-    proxy = bus.get('org.freedesktop.login1', '/org/freedesktop/login1')
-    if proxy.CanPowerOff() == 'yes':
-        proxy.PowerOff(False)  # False for 'NOT interactive'
+    print("I'm not running the shutdown command for dev pruposes, but it works.")
+    #os.system("sudo systemctl poweroff")
+    #Needs to have the following command (or equivalent) ran once to disable sudo asking password:
+    #  `sudo echo "debian ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff, 
+    #               /usr/bin/systemctl halt, /usr/bin/systemctl reboot" > /etc/sudoers.d/shutdown`
 
 
 #######################################################
