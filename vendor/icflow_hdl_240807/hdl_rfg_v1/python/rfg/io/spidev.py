@@ -70,10 +70,10 @@ class SPIDEVIO(rfg.core.RFGIO):
         await asyncio.sleep(0.05)
         self.spiDev.xfer([0x00]*16)
         for ind in range(0):
-          self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
-          await asyncio.sleep(0.05)
-          self.gpio.set_value(self.csGpioLine, Value.INACTIVE)
-          await asyncio.sleep(0.05)
+            self.gpio.set_value(self.csGpioLine, Value.ACTIVE)
+            await asyncio.sleep(0.05)
+            self.gpio.set_value(self.csGpioLine, Value.INACTIVE)
+            await asyncio.sleep(0.05)
         ## Now SPI Open and Chip Select active
         atexit.register(exit_close,self)
 
