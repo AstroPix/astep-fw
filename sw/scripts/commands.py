@@ -1,104 +1,144 @@
+import logging
 
-def isbyte(s):
-    """
-    Check if str s can be converted into a byte (int between 0-255)
-    Supports decimal, hex and binary
-    """
-    return (s.isdigit() and int(s)>=0 and int(s)<=255) \
-        or (s.startswith("0x") and int(s, 16)>=0 and int(s, 16)<=255) \
-        or (s.startswith("0b") and int(s, 2)>=0 and int(s, 2)<=255)
+#from drivers.boards.board_driver import BoardDriver
 
-def tonum(s):
-    if not isbyte(s):
-        raise ValueError("{} is not a positive int.".format(data[j]))
-    if s.isdigit(): return int(s)
-    elif s.startswith("0x"): return int(s, 16)
-    elif s.startswith("0b"): return int(s, 2)
-    else: raise ValueError("{} is not a positive int.".format(data[j]))
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-class ComsInterpreter:
+
+def getNumber(s):
+    return True, int(s)
+
+
+class CmdsInterpreter:
     """
-    Member dict: (static const) Contains all commands with the corresponding codes
     Member args: (static const) Contains the number of arguments for all cmds
-    Member cargs:(static const, automatically generated) number of arguments for all codes
-    Member prog: Byte array, contains current compiled program
-    Method setStr: Compiles str into a byte array
-    Method getStr: Decompiles byte array into a str
-    Method setBytes: set member prog
-    Method getBytes: returns current program
+    Member limits: (static const) dict of list of couples (min, max) for allowed values in cmd arguments
     """
     def __init__(self):
-        self.dict = {"nop":0xc5, "rod":0xca, "hkd":0xcc, "shv":0xcf, "saf":0xd1, 
-                     "lrc":0xd7, "lfc":0xd8, "loc":0xdb, 
-                     "pix":0xdd, "row":0xde, "col":0xe1, "sth":0xe2, 
-                     "icm":0xe8, 
-                     "sip":0xf3, "siv":0xf5, "inj":0xf6, "jni":0xf9}
-        self.args = {"nop":0, "rod":1, "hkd":1, "shv":1, "saf":1, 
-                     "lrc":1, "lfc":1, "loc":1, 
-                     "pix":4, "row":3, "col":3, "sth":2, 
-                     "icm":2, 
-                     "sip":4, "siv":2, "inj":0, "jni":0}
-        self.cargs={}
-        for k, v in self.dict.items():
-            self.cargs[v] = self.args[k]
-        self.prog = bytes([])
+        self.args = {"nop":0,
+                     "loc":2,
+                     "pix":5, "row":4, "col":4, "sth":3,
+                     "ccm":3}
+        self.limits = {"nop":[],
+                     "loc":[(0, 2), (0, 3)],
+                     "pix":[(0,2), (0,3), (0, 34), (0,34)], "row":[(0,2), (0,3), (0, 34)], "col":[(0,2), (0,3), (0, 34)], "sth":[(0,2), (0,3), (0, 1800)],
+                     "ccm":[(0, 2), (0, 3)]}
 
-    def checkCodes(self):
-        ok = self.dict.keys()==self.args.keys()# Same keys in both 
-        ok &= len(self.dict)==len(set(self.dict.values()))# No two commands have the same code
-        return ok
-    def printCodes(self):
-        print(self.dict.keys())
+    def checkArg(self, cmd, arg, i):
+        """
+        Checks if an argument is within bounds
+        :param arg: number
+        :param i: argument number
+        :returns: bool
+        """
+        if i >= len(self.limits[cmd]): return True
+        mini, maxi = self.limits[cmd][i]
+        return arg >= mini and arg <= maxi
 
-    def setStr(self, s):
-        if not self.checkCodes():
-            raise ValueError("Dictionaries for compilation are invalid.")
+    def checkStr(self, s):
+        """
+        Compiles str into a program
+        :param s: str, list of commands
+        :returns: list of str and int, a valid sequence of instructions to update AstroPix configuration
+        """
         prog = []
         i = 0
+        s.replace(" "," ") # Replace non-breaking space with normal space
+        s.replace("\t"," ") # Replace tabs with normal space
+        s.replace("\n"," ") # Replace newlines with normal space
         data = s.split(" ")
+        data = [e for e in data if e != ""] # Remove empty strings
+        logger.info(f"Obtained {len(data)} non-empty tokens.")
         while i < len(data):
-            c = data[i]
-            if c in self.dict:
-                if len(data) <= i + self.args[c]:
-                    raise ValueError("Not enough arguments after {}: Needed {} but got {}".format(\
-                                      c, self.args[c], len(data)))
-                for j in range(i+1, i+1+self.args[c]):
-                    if data[j] in self.dict:
-                        raise ValueError("{} is a command, but {} needs {} arguments".format(\
-                                          data[j], c, self.args[c]))
-                    if not isbyte(data[j]):
-                        raise ValueError("{} is not a positive int.".format(data[j]))
-                prog.append(self.dict[c])
-                for j in range(i+1, i+1+self.args[c]):
-                    prog.append( tonum(data[j]) )
-                i += self.args[c]+1
+            token = data[i]
+            if token in self.args:
+                if len(data) <= i + self.args[token]:
+                    logger.error(f"Not enough tokens after {token}: Needed {self.args[token]} but got {len(data)-i-1}")
+                    i += 1; continue
+                cmd = [token]; cmdok = True
+                for j in range(i+1, i+1+self.args[token]):
+                    if data[j] in self.args:
+                        logger.error(f"{data[j]} is a command, but {token} needs {self.args[token]} arguments")
+                        cmdok = False; i=j; break
+                    status, number = getNumber(data[j])
+                    if not status:
+                        logger.error(f"{data[j]} could not be converted to a number")
+                        cmdok = False; i = j+1; break
+                    if not self.checkArg(token, number, j-i-1):
+                        logger.error(f"{number} is out of bounds {self.limits[token][j-i-1]} (cmd={token})")
+                        cmdok = False; i = j+1; break
+                    cmd.append(number)
+                if cmdok:
+                    logger.info(f"Accepted command {cmd}")
+                    prog.append(cmd)
+                    i += self.args[token]+1
             else:
-                raise ValueError("{} is not a command, but a command was expected".format(c))
-        self.prog = bytes(prog)
+                logger.error(f"{token} is not a command, but a command was expected")
+                i += 1
+        logger.info(f"Decoded {len(prog)} valid commands.")
+        return prog
 
-    def getStr(self):
-        clist = []
-        for b in self.prog:
-            if b in self.dict.values():
-              for it in self.dict.items():
-                  if b == it[1]:
-                      clist.append(it[0])
-            else: clist.append(str(int(b)))
-        return " ".join(clist)
+    def execute(self, prog, boardDriver):
+        for cmd in prog:
+            if cmd[0] == "nop":
+                logger.info("Found nop")
+            elif cmd[0] == "loc" and len(cmd) == self.args[cmd[0]]+1:
+                boardDriver.getAsic(cmd[1]).reset_recconfig(cmd[2])
+                logger.info(f"Layer {cmd[1]} chip {cmd[2]} OFF")
+            elif cmd[0] == "pix" and len(cmd) == self.args[cmd[0]]+1:
+                if cmd[5]:
+                    boardDriver.getAsic(cmd[1]).enable_pixel(chip=cmd[2], row=cmd[3], col=cmd[4])
+                    logger.info(f"Pixel of layer {cmd[1]} chip {cmd[2]} row {cmd[3]} col {cmd[4]} Acivated")
+                else:
+                    boardDriver.getAsic(cmd[1]).disable_pixel(chip=cmd[2], row=cmd[3], col=cmd[4])
+                    logger.info(f"Pixel of layer {cmd[1]} chip {cmd[2]} row {cmd[3]} col {cmd[4]} Deactivated")
+            elif cmd[0] == "row" and len(cmd) == self.args[cmd[0]]+1:
+                if cmd[4]:
+                    for i in range(boardDriver.getAsic(cmd[1])._num_cols):
+                        boardDriver.getAsic(cmd[1]).enable_pixel(chip=cmd[2], row=cmd[3], col=i)
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} row {cmd[3]} Activated")
+                else:
+                    for i in range(boardDriver.getAsic(cmd[1])._num_cols):
+                        boardDriver.getAsic(cmd[1]).disable_pixel(chip=cmd[2], row=cmd[3], col=i)
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} row {cmd[3]} Deactivated")
+            elif cmd[0] == "col" and len(cmd) == self.args[cmd[0]]+1:
+                if cmd[4]:
+                    for i in range(boardDriver.getAsic(cmd[1])._num_cols):
+                        boardDriver.getAsic(cmd[1]).enable_pixel(chip=cmd[2], col=cmd[3], row=i)
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} col {cmd[3]} Activated")
+                else:
+                    for i in range(boardDriver.getAsic(cmd[1])._num_cols):
+                        boardDriver.getAsic(cmd[1]).disable_pixel(chip=cmd[2], col=cmd[3], row=i)
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} col {cmd[3]} Deactivated")
+            elif cmd[0] == "sth" and len(cmd) == self.args[cmd[0]]+1:
+                dacBL = boardDriver.asics[cmd[1]].asic_config[f"config_{cmd[2]}"]["vdacs"]["blpix"][1]
+                boardDriver.asics[cmd[1]].asic_config[f"config_{cmd[2]}"]["vdacs"]["thpix"][1] = dacBL + cmd[3]
+                logger.info(f"Layer {cmd[1]} chip {cmd[2]}")
+            elif cmd[0] == "ccm" and len(cmd) == self.args[cmd[0]]+1:
+                checksum = boardDriver.getAsic(cmd[1]).computeChecksum(cmd[2])
+                if checksum == cmd[3]:
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {checksum} Valid")
+                else:
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {checksum} Invalid (expected {cmd[3]})")
+            else:
+                logger.error(f"Command not found: {cmd}")
 
-    def setBytes(self, b):
-        self.prog = b
 
-    def getBytes(self):
-        return self.prog
 
 
 if __name__ == "__main__":
-    I = ComsInterpreter()
+    formatter = logging.Formatter("%(levelname)s:%(message)s")
+    sh = logging.StreamHandler()
+    sh.setFormatter(formatter)
+    logging.getLogger().addHandler(sh)
+    logging.getLogger().setLevel(logging.INFO)
+    logger = logging.getLogger(__name__)
+    logger.info("Setup logger")
+    I = CmdsInterpreter()
     while True:
         cmdstr = input("> ")
-        I.setStr(cmdstr)
-        with open("upcmds.bin", "wb") as f:
-            f.write(I.getBytes())
-            f.flush()
+        if cmdstr == "exit": break
+        prog = I.checkStr(cmdstr)
+        print(prog)
 

@@ -18,7 +18,7 @@ from astropixrun import AstropixRun
 import bookkeeping
 
 #async def interpretCommands(boardDriver, cmds):
-#    CI = ComsInterpreter()#To access the dictionaries
+#    CI = CmdsInterpreter()#To access the dictionaries
 #    if not CI.checkCodes():
 #        logger.error("Interpreter dictionaries invalid.")
 #        return
