@@ -9,7 +9,6 @@ import os
 import time
 import xml.etree.ElementTree as ET
 import socket
-from pydbus import SystemBus
 
 # Logging stuff
 import logging
@@ -35,7 +34,7 @@ def parseFSW(fname):
     cfg["uselayer"] = [cfgroot.find("uselayer").attrib["layer0"] != "False", cfgroot.find("uselayer").attrib["layer1"] != "False", cfgroot.find("uselayer").attrib["layer2"] != "False"]
     cfg["readout"] = cfgroot.find("readout").attrib["value"]
     if cfgroot.find("onepixelonly").attrib["value"] == "True":
-        cfg["yaml"] = ["allOff", "allOff", "allOff"]
+        cfg["yaml"] = ["quadchip_allOff", "quadchip_allOff", "quadchip_allOff"]
         cfg["inject"] = [int(cfgroot.find("onepixellocation").attrib["layer"]), int(cfgroot.find("onepixellocation").attrib["chip"]), int(cfgroot.find("onepixellocation").attrib["row"]), int(cfgroot.find("onepixellocation").attrib["col"])]
     else:
         cfg["inject"] = None
@@ -97,7 +96,7 @@ def getxmlcfg():
         if goodfsw:
             logger.info("Instanciating Bookkeeping")
             try:
-                cfg["bookkeeping"] = bookkeeping.Bookkeeping(**cfg["bookkeeping"])
+                cfg["bookkeeper"] = bookkeeping.Bookkeeping(**cfg["bookkeeping"])
             except Exception as e:
                 logger.error(f"While instanciating Bookkeeping: {e}")
                 goodfsw = False
@@ -144,10 +143,12 @@ def getxmlcfg():
     return cfg
 
 
-def TCPlistener(port: int = 1025):
+async def TCPlistener(port: int = 1025):
     """
     Instantiate TCP/IP socket and 
     """
+    await asyncio.Event().wait()
+    return # Placeholder while I figure out this part
     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('::', port))
@@ -168,14 +169,19 @@ def TCPlistener(port: int = 1025):
     #if not listen: raise KeyboardInterrupt
 
 
-def poweroff():
+def poweroff(error):
     """
+    Powers off the BB.
     """
+    if error:
+        logger.info("Flight software errored. Waiting 20 s. to give filesender time.")
+        time.sleep(20)
     logger.info("Flight software completed. Shutting down ...")
-    bus = SystemBus()
-    proxy = bus.get('org.freedesktop.login1', '/org/freedesktop/login1')
-    if proxy.CanPowerOff() == 'yes':
-        proxy.PowerOff(False)  # False for 'NOT interactive'
+    print("I'm not running the shutdown command for dev pruposes, but it works.")
+    #os.system("sudo systemctl poweroff")
+    #Needs to have the following command (or equivalent) ran once to disable sudo asking password:
+    #  `sudo echo "debian ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff, 
+    #               /usr/bin/systemctl halt, /usr/bin/systemctl reboot" > /etc/sudoers.d/shutdown`
 
 
 #######################################################
@@ -183,9 +189,12 @@ def poweroff():
 
 async def main():
     args = getxmlcfg()
-    datan, hkn, logn = args["bookkeeping"].getNewAll()
+    datan, hkn, logn = args["bookkeeper"].getNewAll() #FSW gets its log number first
+    bookkeeperlog = args["bookkeeper"].getNewLog()
+    with open("/tmp/bookkeeping.txt", "w") as f:
+        f.write("{new};{rts};{mfd};{bookkeeperlog}".format(bookkeeperlog=bookkeeperlog, **args["bookkeeping"])) #Now filesender can get moving
     logger.info(f"File numbers data={datan} hk={hkn} log={logn}")
-    args["bookkeeping"].markRTSAll(datan-1, hkn-1, logn-1)
+    args["bookkeeper"].markRTSAll(datan-1, hkn-1, logn-1)
     os.rename("run.log", f"data/log{logn:05d}.log")
     if bookkeeping.checkDisk("data/", 100):
         logger.critical("Less than 100 MB available in data folder - aborting run.")
@@ -204,6 +213,7 @@ async def main():
     arun.layerlst = []
     for i, layer in enumerate(args["uselayer"]):
         if layer: arun.layerlst.append(i)
+        else: arun.boardDriver.asics.pop(i, None)
     logger.info(f"Enabled layers: {arun.layerlst}")
     #arun.applyCommands(args["cfgcommands"])
     await arun.fpga_configure_autoread_keepalive()
@@ -261,7 +271,7 @@ async def main():
 
 if __name__ == "__main__":
     formatter = logging.Formatter(
-        "%(asctime)s:%(name)s.%(lineno)d.%(levelname)s:%(message)s"
+        "%(created)s:%(name)s.%(lineno)d.%(levelname)s:%(message)s"
     )
     fh = logging.FileHandler("run.log")
     fh.setFormatter(formatter)
@@ -270,13 +280,15 @@ if __name__ == "__main__":
     global logger
     logger = logging.getLogger(__name__)
     logger.info("Setup logger")
+    error = False
 
     try:
         asyncio.run(main())
         logger.info("Finished Main")
-
     except KeyboardInterrupt:
         logger.info("SIGINT received")
+        error = True
     except Exception as e:
         logger.error(f"Error during main: {e}")
-    poweroff()
+        error = True
+    poweroff(error)
