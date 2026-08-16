@@ -125,9 +125,9 @@ class CmdsInterpreter:
             elif cmd[0] == "ccm" and len(cmd) == self.args[cmd[0]]+1:
                 checksum = boardDriver.getAsic(cmd[1]).computeChecksum(cmd[2])
                 if checksum == cmd[3]:
-                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {checksum} Valid")
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {hex(checksum)} Valid")
                 else:
-                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {checksum} Invalid (expected {cmd[3]})")
+                    logger.info(f"Layer {cmd[1]} chip {cmd[2]} checksum {hex(checksum)} Invalid (expected {hex(cmd[3])})")
             else:
                 logger.error(f"Command not found: {cmd}")
 

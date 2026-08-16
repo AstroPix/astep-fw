@@ -322,18 +322,18 @@ class Asic:
 
     def getChecksum(self, chip):
         """
-        Computed an Adler-32 checksum of the config dictionary
+        Computes an Adler-32 checksum of the config dictionary
         :param chip: chip number in config file
         :returns: 32-bit int
         """
         if f"config_{chip}" in self.asic_config:
             a = 1
             b = 0
-            for item in self.asic_config[f"config_{chip}"]["recconfig"].values():
-                for e in item:
-                    a += e
+            for field in self.asic_config[f"config_{chip}"].values():
+                for item in field.values():
+                    a += item[1]
                     b += a
-            return (a & 0xffff << 16) & (b & 0xffff)
+            return (b % 65521)*2**16+(a % 65521)
         else:
             logger.error("Chip {chip} not found!")
             raise KeyError(f"Chip {chip} not found!")
