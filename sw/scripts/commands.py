@@ -7,7 +7,14 @@ logger.setLevel(logging.INFO)
 
 
 def getNumber(s):
-    return True, int(s)
+    if s.isdigit():
+        return True, int(s)
+    elif s.startswith("0x") and all(c in "0123456789abcdefABCDEF" for c in s[2:]):
+        return True, int(s, 16)
+    elif s.startswith("0b") and all(c in "01" for c in s[2:]):
+        return True, int(s, 2)
+    else:
+        return False, None
 
 
 class CmdsInterpreter:
@@ -42,7 +49,7 @@ class CmdsInterpreter:
         :param s: str, list of commands
         :returns: list of str and int, a valid sequence of instructions to update AstroPix configuration
         """
-        prog = []
+        self.prog = []
         i = 0
         s.replace(" "," ") # Replace non-breaking space with normal space
         s.replace("\t"," ") # Replace tabs with normal space
@@ -71,16 +78,16 @@ class CmdsInterpreter:
                     cmd.append(number)
                 if cmdok:
                     logger.info(f"Accepted command {cmd}")
-                    prog.append(cmd)
+                    self.prog.append(cmd)
                     i += self.args[token]+1
             else:
                 logger.error(f"{token} is not a command, but a command was expected")
                 i += 1
-        logger.info(f"Decoded {len(prog)} valid commands.")
-        return prog
+        logger.info(f"Decoded {len(self.prog)} valid commands.")
+        #return prog
 
-    def execute(self, prog, boardDriver):
-        for cmd in prog:
+    def execute(self, boardDriver):
+        for cmd in self.prog:
             if cmd[0] == "nop":
                 logger.info("Found nop")
             elif cmd[0] == "loc" and len(cmd) == self.args[cmd[0]]+1:
@@ -139,6 +146,6 @@ if __name__ == "__main__":
     while True:
         cmdstr = input("> ")
         if cmdstr == "exit": break
-        prog = I.checkStr(cmdstr)
-        print(prog)
+        I.checkStr(cmdstr)
+        print(I.prog)
 

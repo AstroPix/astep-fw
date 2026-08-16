@@ -16,6 +16,7 @@ import logging
 # AstroPix drivers
 from astropixrun import AstropixRun
 import bookkeeping
+import scripts.commands
 
 #async def interpretCommands(boardDriver, cmds):
 #    CI = CmdsInterpreter()#To access the dictionaries
@@ -42,7 +43,7 @@ def parseFSW(fname):
     cfg["HVup"] = float(cfgroot.find("HV_set").attrib["value"])
     cfg["yaml"] = [cfgroot.find("chipconfig").attrib["layer0"], cfgroot.find("chipconfig").attrib["layer1"], cfgroot.find("chipconfig").attrib["layer2"]]
     cfg["chipsPerRow"] = [cfgroot.find("chipsPerRow").attrib["layer0"], cfgroot.find("chipsPerRow").attrib["layer1"], cfgroot.find("chipsPerRow").attrib["layer2"]]
-    #cfg["cfgcommands"] = cfgroot.find("configupdate").attrib["value"]
+    cfg["cfgcommands"] = cfgroot.find("configupdate").attrib["value"]
     cfg["uselayer"] = [cfgroot.find("uselayer").attrib["layer0"] != "False", cfgroot.find("uselayer").attrib["layer1"] != "False", cfgroot.find("uselayer").attrib["layer2"] != "False"]
     cfg["readout"] = cfgroot.find("readout").attrib["value"]
     if cfgroot.find("onepixelonly").attrib["value"] == "True":
@@ -222,12 +223,14 @@ async def main():
     await arun.fpga_configure_clocks()
     arun.load_yaml(args["yaml"], args["chipsPerRow"])
     logger.info("Chips configuration loaded.")
+    CI = scripts.commands.CmdsInterpreter()
+    CI.checkStr(args["cfgcommands"])
+    CI.execute(arun.boardDriver)
     arun.layerlst = []
     for i, layer in enumerate(args["uselayer"]):
         if layer: arun.layerlst.append(i)
         else: arun.boardDriver.asics.pop(i, None)
     logger.info(f"Enabled layers: {arun.layerlst}")
-    #arun.applyCommands(args["cfgcommands"])
     await arun.fpga_configure_autoread_keepalive()
     if args["inject"] is not None:
         arun.cfg_enable_pixel(*args["inject"])
