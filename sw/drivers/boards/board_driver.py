@@ -925,9 +925,13 @@ class BoardDriver:
         """Returns the actual size of buffer"""
         return await self.rfg.read_layers_readout_read_size()
 
-    async def readoutReadBytes(self, count: int):
+    async def readoutReadBytes(self, count: int, spiDecoder: bool = True):
         ## Using the _raw version returns an array of bytes, while the normal method converts to int based on the number of bytes
-        return await self.rfg.read_layers_readout_raw(count=count) if count > 0 else []
+        #return await self.rfg.read_layers_readout_raw(count=count) if count > 0 else []
+        self.rfg.io.useDecoder = spiDecoder
+        result = await self.rfg.read_layers_readout_raw(count=count) if count > 0 else []
+        self.rfg.io.useDecoder = True
+        return result
 
     ## FPGA Timestamp config
     ############

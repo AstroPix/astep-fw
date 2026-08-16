@@ -674,17 +674,17 @@ class AstropixRun:
         )
 
     # Read FPGA buffer and return buffer length and data stored within it
-    async def get_readout(self, counts: int|None = None):
+    async def get_readout(self, counts: int|None = None, decodeBuffer: bool = True):
         if self.config.find("autoread").attrib["value"] != "True":
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         if counts is None:
             bufferSize = await self.boardDriver.readoutGetBufferSize()
             if bufferSize > 10:
-                readout = await self.boardDriver.readoutReadBytes(bufferSize)
+                readout = await self.boardDriver.readoutReadBytes(bufferSize, decodeBuffer)
             else: readout = []
         else:
-            readout = await self.boardDriver.readoutReadBytes(counts)
+            readout = await self.boardDriver.readoutReadBytes(counts, decodeBuffer)
         return bufferSize, readout
     
     async def get_buffer(self):
@@ -697,10 +697,11 @@ class AstropixRun:
             while True:
                 await asyncio.sleep(0.05)
                 async with self.lock:
-                    buff, readout = await self.get_readout(counts)
+                    buff, readout = await self.get_readout(counts, False)
                 #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
+                    ofile.flush()
                 print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
