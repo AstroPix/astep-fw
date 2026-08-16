@@ -698,12 +698,33 @@ class AstropixRun:
                 await asyncio.sleep(0.05)
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
-                #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
                 print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
+
+    async def readout_splitter(self, counts, bookkeeper, datan, maxfiletime, maxfilesize):
+        try:
+            ofile = open("data/data{:05d}.bin".format(datan), "wb")
+            file_time = time.time()
+            while True:
+                await asyncio.sleep(0.05)
+                async with self.lock:
+                    buff, readout = await self.get_readout(counts)
+                if len(readout) > 0:
+                    ofile.write(bytes(readout))
+                    ofile.flush()
+                if time.time() - file_time > maxfiletime or os.path.getsize("data/data{:05d}.bin".format(datan)) > maxfilesize*2**20:
+                    ofile.close()
+                    bookkeeper.markRTSData(datan)
+                    datan = bookkeeper.getNewData()
+                    ofile = open("data/data{:05d}.bin".format(datan),"wb")
+                    file_time = time.time()
+                #print(f"  {buff:04d}  ", end="\r")
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
+        ofile.close()
 
     # Print status register
     async def print_status_reg(self):
@@ -863,6 +884,36 @@ class AstropixRun:
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
         finally:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
+
+    async def housekeeping_splitter(self, bookkeeper, hkn, hk_period: int = 1, maxfiletime=60, maxfilesize=1, terminalPrint: bool = False):
+        try:
+            ofile = open("data/hk{:05d}.bin".format(hkn),"wb")
+            file_time = time.time()
+            outputCount = 0
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
+            while True:
+                # Measure data
+                fsw_time, fpga_time, fpgaBytes, adcBytes = await self.getHKdata()
+                # Terminal Output:
+                if terminalPrint:
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount)
+                # Write to file
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)
+                ofile.flush()
+                if time.time() - file_time > maxfiletime or os.path.getsize("data/hk{:05d}.bin".format(hkn)) > maxfilesize*2**20:
+                    ofile.close()
+                    bookkeeper.markRTSHK(hkn)
+                    hkn = bookkeeper.getNewHK()
+                    ofile = open("data/hk{:05d}.bin".format(hkn),"wb")
+                    file_time = time.time()
+                # Sleep
+                await asyncio.sleep(hk_period)
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
+        finally:
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
+        ofile.close()
+
 
     async def watcher(self, params):
         try:

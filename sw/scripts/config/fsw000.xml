@@ -14,11 +14,11 @@
   <loglevel value="I"/>
   <bookkeeping new="bookkeeping_new.csv" rts="bookkeeping_rts.csv" mfd="bookkeeping_mfd.csv"/>
   <watcher maxframes="12000" maxwrong="1000" period="5"/>
-  <!--Not implemented below that point-->
   <data_maxfilesize value="5"/> <!--In MB, if larger than ths it closes itself and starts writing the next-->
   <data_filesizecadence value="60"/> <!--In seconds-->
   <hk_maxfilesize value="1"/> <!--In MB, if larger than ths it closes itself and starts writing the next-->
   <hk_filesizecadence value="60"/> <!--In seconds-->
+  <!--Not implemented below that point-->
   <stuff_0 value="XXX"/>
   <stuff_1 value="XXX"/>
   <stuff_2 value="XXX"/>

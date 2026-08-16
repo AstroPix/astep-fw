@@ -9,6 +9,7 @@ import os
 import time
 import xml.etree.ElementTree as ET
 import socket
+import threading
 
 # Logging stuff
 import logging
@@ -46,6 +47,10 @@ def parseFSW(fname):
     cfg["loglevel"] = cfgroot.find("loglevel").attrib["value"]
     cfg["bookkeeping"] = cfgroot.find("bookkeeping").attrib
     cfg["limits"] = cfgroot.find("watcher").attrib
+    cfg["hk_maxfilesize"] = float(cfgroot.find("hk_maxfilesize").attrib["value"])
+    cfg["hk_filesizecadence"] = float(cfgroot.find("hk_filesizecadence").attrib["value"])
+    cfg["data_maxfilesize"] = float(cfgroot.find("data_maxfilesize").attrib["value"])
+    cfg["data_filesizecadence"] = float(cfgroot.find("data_filesizecadence").attrib["value"])
     return cfg
 
 
@@ -231,11 +236,11 @@ async def main():
     # Configure and start housekeeping
     await arun.config_adchk()
     await arun.config_fpgahk()
-    ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
-    hk_task = asyncio.create_task(arun.housekeeping(ofile=ofile_hk, hk_period=args["hkPeriod"], terminalPrint=False))
+    #ofile_hk = open("data/hk{:05d}.bin".format(hkn),"wb")
+    hk_task = asyncio.create_task(arun.housekeeping(bookkeeper=args["bookkeeper"], hkn=hkn, hk_period=args["hkPeriod"], maxfiletime=args["hk_filesizecadence"], maxfilesize=args["hk_maxfilesize"], terminalPrint=False))
     # Start data acquisition
-    ofile = open("data/data{:05d}.bin".format(datan), "wb")
-    data_task = asyncio.create_task(arun.readout_loop(args["readout"], ofile))
+    #ofile = open("data/data{:05d}.bin".format(datan), "wb")
+    data_task = asyncio.create_task(arun.readout_loop(args["readout"], bookkeeper=args["bookkeeper"], datan=datan, maxfiletime=args["data_filesizecadence"], maxfilesize=args["data_maxfilesize"]))
     watcher_task = asyncio.create_task(arun.watcher(args["limits"]))
     listen_task = asyncio.create_task(TCPlistener())
 
