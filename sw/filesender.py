@@ -80,8 +80,12 @@ def main(timeout):
             time.sleep(2)
     else:
         logger.error("Problem during filesender initialization. Sending logs.")
-        rsync("bookkeeper.log")
-        rsync("run.log")
+        if os.path.isfile("run.log"):
+            logger.info("Found run.log - sending.")
+            rsync("run.log")
+        if os.path.isfile("bookkeeper.log"):
+            logger.info("Found bookkeeper.log - sending.")
+            rsync("bookkeeper.log")
 
 
 if __name__ == "__main__":

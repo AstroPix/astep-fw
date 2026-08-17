@@ -713,7 +713,6 @@ class AstropixRun:
                 async with self.lock:
                     buff, readout = await self.get_readout(counts)
                 if len(readout) > 0:
-                    ofile.write(bytes(readout))
                     ofile.flush()
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/data{:05d}.bin".format(datan)) > maxfilesize*2**20:
                     ofile.close()
@@ -721,7 +720,7 @@ class AstropixRun:
                     datan = bookkeeper.getNewData()
                     ofile = open("data/data{:05d}.bin".format(datan),"wb")
                     file_time = time.time()
-                #print(f"  {buff:04d}  ", end="\r")
+                #print(f"r {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
         ofile.close()
@@ -898,6 +897,7 @@ class AstropixRun:
                 if terminalPrint:
                     self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount)
                 # Write to file
+                #print(f"hk write size={ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)} ", end="", flush=True)
                 ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)
                 ofile.flush()
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/hk{:05d}.bin".format(hkn)) > maxfilesize*2**20:

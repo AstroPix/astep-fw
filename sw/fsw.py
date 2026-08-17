@@ -148,28 +148,11 @@ def getxmlcfg():
     return cfg
 
 
-class TCPlistener(threading.Thread):
-    def __init__(self, port: int = 1025, *args, **kwargs):
-        self.port = port
-        super(TCPlistener, self).__init__(*args, **kwargs)
-        self._stop = threading.Event()
-        #self.deamon = True
-
-    def stop(self):
-        self._stop.set()
-
-    def stopped(self):
-        return self._stop.is_set()
-
-    def run(self):
-        """
-        Instantiate TCP/IP socket and listen for shutdown command
-        """
-        #await asyncio.Event().wait()
-        #return # Placeholder while I figure out this part
+def TCPlistener(port: int=1025):
+    try:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('::', self.port))
+        sock.bind(('::', port))
         sock.listen(1)
         logger.info('TCP listener: Waiting for connection...')
         conn, addr = sock.accept()
@@ -177,24 +160,71 @@ class TCPlistener(threading.Thread):
         listen = True
         while listen:
             data = conn.recv(1024)
-            if not data or self.is_stopped(): # Connection closed by client or thread stopped by main
+            if not data: # Connection closed by client or thread stopped by main
+                logger.info("TCP listener: No message received.")
                 break
-            print(f"Received {len(data)} {type(data)}")
-            print(data)
-            try:
-                logger.info('TCP listener recieved:', data.decode('ascii'))
-            except: pass
             if data=='shutdown'.encode('ascii'):
+                logger.info("TCP listener received shutdown")
                 listen = False
         conn.close()
-        return
-        #if not listen: raise KeyboardInterrupt
+    except KeyboardInterrupt:
+        logger.info("TCP listener received Ctrl+C.")
+    except Exception as e:
+        logger.error(f"TCPlistener: {e}")
+    return
+
+
+# class TCPlistener(threading.Thread):
+#     def __init__(self, port: int = 1025, *args, **kwargs):
+#         self.port = port
+#         super(TCPlistener, self).__init__(*args, **kwargs)
+#         #self._stop = threading.Event()
+#         #self.deamon = True
+
+#     def run(self):
+#         """
+#         Instantiate TCP/IP socket and listen for shutdown command
+#         """
+#         #await asyncio.Event().wait()
+#         #return # Placeholder while I figure out this part
+#         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+#         sock.bind(('::', self.port))
+#         sock.listen(1)
+#         logger.info('TCP listener: Waiting for connection...')
+#         conn, addr = sock.accept()
+#         logger.info(f'TCPlistener: Connected by {addr}')
+#         listen = True
+#         while listen:
+#             data = conn.recv(1024)
+#             if not data: # Connection closed by client or thread stopped by main
+#                 print("TCP listener: No data")
+#                 break
+#             print(f"Received {len(data)} {type(data)}")
+#             print(data)
+#             try:
+#                 logger.info('TCP listener recieved:', data.decode('ascii'))
+#             except: pass
+#             if data=='shutdown'.encode('ascii'):
+#                 listen = False
+#         conn.close()
+#         return
+#         #if not listen: raise KeyboardInterrupt
+    
+    # def stop(self):
+    #     """
+    #     Privides a dummy connection to the listening socket to get it to stop
+    #     """
+    #     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    #     sock.connect(('::1', self.port, 0, "eth0"))
+    #     sock.close()
 
 
 def poweroff(error):
     """
     Powers off the BB.
     """
+    print(f"Powering OFF with error={error}")
     if error:
         logger.info("Flight software errored. Waiting 20 s. to give filesender time.")
         time.sleep(20)
@@ -210,6 +240,7 @@ def poweroff(error):
 #################### MAIN FUNCTION ####################
 
 async def main():
+    error = False
     args = getxmlcfg()
     datan, hkn, logn = args["bookkeeper"].getNewAll() #FSW gets its log number first
     bookkeeperlog = args["bookkeeper"].getNewLog()
@@ -235,7 +266,7 @@ async def main():
     arun.layerlst = []
     for i, layer in enumerate(args["uselayer"]):
         if layer: arun.layerlst.append(i)
-        else: arun.boardDriver.asics.pop(i, None)
+        #else: arun.boardDriver.asics.pop(i, None)
     logger.info(f"Enabled layers: {arun.layerlst}")
     #arun.applyCommands(args["cfgcommands"])
     await arun.fpga_configure_autoread_keepalive()
@@ -257,11 +288,9 @@ async def main():
     hk_task = asyncio.create_task(arun.housekeeping_splitter(bookkeeper=args["bookkeeper"], hkn=hkn, hk_period=args["hkPeriod"], maxfiletime=args["hk_filesizecadence"], maxfilesize=args["hk_maxfilesize"], terminalPrint=False))
     # Start data acquisition
     #ofile = open("data/data{:05d}.bin".format(datan), "wb")
-    data_task = asyncio.create_task(arun.readout_splitter(args["readout"], bookkeeper=args["bookkeeper"], datan=datan, maxfiletime=args["data_filesizecadence"], maxfilesize=args["data_maxfilesize"]))
+    data_task = asyncio.create_task(arun.readout_splitter(counts=args["readout"], bookkeeper=args["bookkeeper"], datan=datan, maxfiletime=args["data_filesizecadence"], maxfilesize=args["data_maxfilesize"]))
     watcher_task = asyncio.create_task(arun.watcher(args["limits"]))
-    #listen_task = asyncio.create_task(TCPlistener())
-    #listener = threading.Thread(target=TCPlistener)
-    listener = TCPlistener(port = 1025)
+    listener = threading.Thread(target=TCPlistener, args=(1025,), daemon=True)
     listener.start()
 
 
@@ -269,17 +298,16 @@ async def main():
     try:
         print("Running, Ctrl+C to stop.")
         while listener.is_alive():
-            time.sleep(.5)
+            await asyncio.sleep(1)
+            #print("In main loop")
         #await asyncio.Event().wait()
         #await listen_task
     except (KeyboardInterrupt, asyncio.CancelledError):
         logger.info("[Ctrl+C] while collecting data - exiting.")
     except Exception as e:
         logger.info(f"Unexpected error while colleting data: {e}")
-    
+        error = True
     # # Finish data collection
-    #listen_task.cancel()
-    listener.stop()#Remove if deamon
     hk_task.cancel()
     data_task.cancel()
     watcher_task.cancel()
@@ -293,6 +321,7 @@ async def main():
     #ofile_hk.close()
     await hvdown_task
     await arun.fpga_close_connection()
+    return error
 
 
 #######################################################
@@ -312,7 +341,7 @@ if __name__ == "__main__":
     error = False
 
     try:
-        asyncio.run(main())
+        error = asyncio.run(main())
         logger.info("Finished Main")
     except KeyboardInterrupt:
         logger.info("SIGINT received")
