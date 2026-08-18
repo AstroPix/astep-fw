@@ -38,6 +38,7 @@ class SPIDEVIO(rfg.core.RFGIO):
         ## Init Bytes decoder on receiving queue
         self.spiReadQueue = Queue()
         self.spiDecoder = SPIBytesDecoder(self.spiReadQueue)
+        self.useDecoder = True
 
     async def open(self):
         
@@ -126,6 +127,8 @@ class SPIDEVIO(rfg.core.RFGIO):
         #print("Reading")
         try:
             result = await asyncio.get_running_loop().run_in_executor(None, partial(self.readBytesIO,count=count))
+            if not self.useDecoder:
+                return int.to_bytes(count, 4) + result
             for b in result:
                 await self.spiReadQueue.put(b)
             logger.debug(f"Reading expected {count} bytes, got {len(result)}.")

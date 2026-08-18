@@ -683,17 +683,17 @@ class AstropixRun:
         )
 
     # Read FPGA buffer and return buffer length and data stored within it
-    async def get_readout(self, counts: int|None = None):
+    async def get_readout(self, counts: int|None = None, decodeBuffer: bool = True):
         if self.config.find("autoread").attrib["value"] != "True":
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
         self.bufferSize = await self.boardDriver.readoutGetBufferSize()
         if counts is None:
             if self.bufferSize > 10:
-                readout = await self.boardDriver.readoutReadBytes(self.bufferSize)
+                readout = await self.boardDriver.readoutReadBytes(self.bufferSize, decodeBuffer)
             else: readout = []
         else:
-            readout = await self.boardDriver.readoutReadBytes(counts)
+            readout = await self.boardDriver.readoutReadBytes(counts, decodeBuffer)
         return readout
     
     async def get_buffer(self):
@@ -706,11 +706,11 @@ class AstropixRun:
             while True:
                 await asyncio.sleep(0.05)
                 async with self.lock:
-                    buff, readout = await self.get_readout(counts)
+                    readout = await self.get_readout(counts, decodeBuffer = False)
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
                     ofile.flush()
-                print(f"  {buff:04d}  ", end="\r")
+                print(f"  {self.bufferSize:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
 
@@ -721,8 +721,9 @@ class AstropixRun:
             while True:
                 await asyncio.sleep(0.05)
                 async with self.lock:
-                    buff, readout = await self.get_readout(counts)
+                    readout = await self.get_readout(counts, decodeBuffer = False)
                 if len(readout) > 0:
+                    ofile.write(bytes(readout))
                     ofile.flush()
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/data{:05d}.bin".format(datan)) > maxfilesize*2**20:
                     ofile.close()
