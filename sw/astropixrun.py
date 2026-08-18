@@ -697,7 +697,7 @@ class AstropixRun:
             while True:
                 await asyncio.sleep(0.05)
                 async with self.lock:
-                    buff, readout = await self.get_readout(counts, False)
+                    buff, readout = await self.get_readout(counts, decodeBuffer = False)
                 #print(f"buff={buff}")
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
