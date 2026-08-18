@@ -717,6 +717,9 @@ class AstropixRun:
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/data{:05d}.bin".format(datan)) > maxfilesize*2**20:
                     ofile.close()
                     bookkeeper.markRTSData(datan)
+                    if bookkeeper.checkDisk() < 100*2**20:
+                        logger.error("Less than 100 MB available on disk - finishing data readout.")
+                        return
                     datan = bookkeeper.getNewData()
                     ofile = open("data/data{:05d}.bin".format(datan),"wb")
                     file_time = time.time()
@@ -903,6 +906,9 @@ class AstropixRun:
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/hk{:05d}.bin".format(hkn)) > maxfilesize*2**20:
                     ofile.close()
                     bookkeeper.markRTSHK(hkn)
+                    if bookkeeper.checkDisk() < 100*2**20:
+                        logger.error("Less than 100 MB available on disk - finishing housekeeping loop.")
+                        return
                     hkn = bookkeeper.getNewHK()
                     ofile = open("data/hk{:05d}.bin".format(hkn),"wb")
                     file_time = time.time()
