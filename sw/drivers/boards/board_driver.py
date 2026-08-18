@@ -1036,9 +1036,9 @@ class BoardDriver:
         await self.rfg.write_layers_tlu_busy_duration(clockCycles, flush)
 
     async def getFPGATimestamp(self) -> int:
-        return await self.rfg.read_layers_fpga_timestamp_counter(count = self.fpgaTimeStampBytesCount)
         """Reads the Timestamp value as integer"""
+        return await self.rfg.read_layers_fpga_timestamp_counter(count = self.fpgaTimeStampBytesCount)
 
     async def getFPGATimestampRaw(self) -> bytes:
-        return await self.rfg.read_layers_fpga_timestamp_counter_raw(count = self.fpgaTimeStampBytesCount)
         """Reads the Timestamp value"""
+        return await self.rfg.read_layers_fpga_timestamp_counter_raw(count = self.fpgaTimeStampBytesCount)
