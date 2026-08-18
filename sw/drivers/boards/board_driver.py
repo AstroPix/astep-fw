@@ -878,6 +878,9 @@ class BoardDriver:
     async def getLayerStatus(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_status")()
 
+    async def getLayerStatusRaw(self, layer: int):
+        return await getattr(self.rfg, f"read_layer_{layer}_status_raw")()
+    
     async def getLayerControl(self, layer: int):
         return await getattr(self.rfg, f"read_layer_{layer}_cfg_ctrl")()
 

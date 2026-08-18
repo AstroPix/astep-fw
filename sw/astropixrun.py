@@ -40,12 +40,21 @@ class AstropixRun:
         """
         Initalizes AstropixRun object from xml config file
         """
+        #General fields
         self.config = ET.parse(fpgaxml).getroot()
         self.config.find("chipversion").attrib["value"] = int(self.config.find("chipversion").attrib["value"])
         self.config.find("SR").attrib["value"] = self.config.find("SR").attrib["value"]=="True"  # define how to configure. If True, shift registers. If False, SPI.
-        self.lastHVset = 0.
         self.lock = asyncio.Lock()
+        #Housekeeping fields
         self.counterBytes = bytes(42)
+        if "BBADC" in self.config.find("housekeeping").attrib:
+            self.hk_BBADC = [int(e) for e in self.config.find("housekeeping").attrib["BBADC"]]
+            if True in map(lambda x:x>6, self.hk_BBADC):
+                self.hk_BBADC=[]
+                logger.error("BB ADC channels can only be between 0 and 6.")
+        else: self.hk_BBADC = []
+        self.bufferSize = 0
+        self.lastHVset = 0.
 
     ##################### FPGA INTERACTIONS #########################
     async def open_fpga(self, cmod: bool|None=None, uart: bool|None=None):
@@ -678,19 +687,19 @@ class AstropixRun:
         if self.config.find("autoread").attrib["value"] != "True":
             for layer in self.layerlst:
                 await self.boardDriver.writeSPIBytesToLane(lane=layer, bytes=[0x00] * 50)
+        self.bufferSize = await self.boardDriver.readoutGetBufferSize()
         if counts is None:
-            bufferSize = await self.boardDriver.readoutGetBufferSize()
-            if bufferSize > 10:
-                readout = await self.boardDriver.readoutReadBytes(bufferSize)
+            if self.bufferSize > 10:
+                readout = await self.boardDriver.readoutReadBytes(self.bufferSize)
             else: readout = []
         else:
             readout = await self.boardDriver.readoutReadBytes(counts)
-        return bufferSize, readout
+        return readout
     
     async def get_buffer(self):
-        bufferSize = await self.boardDriver.readoutGetBufferSize()
-        readout = await self.boardDriver.readoutReadBytes(bufferSize)
-        return bufferSize, readout
+        self.bufferSize = await self.boardDriver.readoutGetBufferSize()
+        readout = await self.boardDriver.readoutReadBytes(self.bufferSize)
+        return readout
     
     async def readout_loop(self,counts,ofile):
         try:
@@ -700,6 +709,7 @@ class AstropixRun:
                     buff, readout = await self.get_readout(counts)
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
+                    ofile.flush()
                 print(f"  {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
@@ -793,11 +803,13 @@ class AstropixRun:
             for _ in range(3):
                 fpgaBytes.extend(await self.boardDriver.houseKeeping.readVCCIntRaw())
 
-            # FPGA Counter Housekeeping: Frames, Idles, Wrong
+            # FPGA Counter Housekeeping: Frames, Idles, Wrong and layer status
             ########################################################
             self.counterBytes = bytearray()
+            statusBytes = bytearray()
             for layer in self.boardDriver.asics.keys():
                 self.counterBytes.extend(await self.boardDriver.getLayerStatCounters(layer))
+                statusBytes.extend(await self.boardDriver.getLayerStatusRaw(layer))
             
             # ADC Housekeeping:
             ########################################################
@@ -814,20 +826,25 @@ class AstropixRun:
             # Time Information
             ########################################################
             fpga_time = bytearray(await self.boardDriver.getFPGATimestampRaw())
-            fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
-        return fsw_time, fpga_time, fpgaBytes, adcBytes
+        fsw_time = bytearray(struct.pack('d', datetime.now(timezone.utc).timestamp()))
 
-    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount):
+        # BeagleBone ADC Housekeeping:
+        ########################################################
+        bbadc_bytes = bytearray()
+        for channel in self.hk_BBADC:
+            with open("/sys/bus/iio/devices/iio:device0/in_voltage{}_raw".format(channel), "r") as f:
+                adc_value = int(f.read().strip())
+            bbadc_bytes.extend(adc_value.to_bytes(2, byteorder='little'))
+
+        return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes
+
+    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount):
         # Terminal Output Formatting: Can likely move elsewhere
-        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:>40}"
-        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}"
-        headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Status']
-        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W']
-        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}"
-
-        if outputCount == 0:
-            print(header_format.format(*headers))
-            print(subheader_format.format(*subheaders))
+        header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:^100}{:^10}{}"
+        subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>6}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:^1}{:>3}{:>3}{:>3}"
+        headers = ['Time(UTC)','FPGA Counter','Temperature (C)', 'Voltage (V)','Current (A)', 'Layer Statistics', 'Status', 'BB ADC']
+        subheaders = ['|','FPGA','Layer0','Layer1','Layer2','|','SecVolt','VCCInt','HV','|','Layer0','Layer1','Layer2','|','Buffer','L0:','F','I','W','L1:','F','I','W','L2:','F','I','W','|','L0','L1','L2']
+        value_format = "{:<21}{:<13}{:<1}{:>6.2f}{:>7.3f}{:>7.3f}{:>7.3f}{:>2}{:>7.2f}{:>7.2f}{:>8.2f}{:>2}{:>7.3f}{:>7.3f}{:>7.3f}{:>2} {:>05d}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:^1}{:>3}{:>3}{:>3} {}"
 
         # Convert raw to values
         fsw = datetime.fromtimestamp(struct.unpack('d',fsw_time)[0],tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -835,31 +852,40 @@ class AstropixRun:
         fpgaTemp = float(sum([self.boardDriver.houseKeeping.convertBytesToFPGATemperature(fpgaBytes[2:8][i : i + 2]) for i in range(0, 6, 2)])/3)
         fpgaVCCInt = float(sum([self.boardDriver.houseKeeping.convertBytesToVCCInt(fpgaBytes[8:][i : i + 2]) for i in range(0, 6, 2)])/3)
         ADCVals = [self.boardDriver.houseKeeping.convertBytesToADCVal(adcBytes[2:][i : i + 2]) for i in range(0,16,2)]
+        bbadc = []
+        if len(bbadc_bytes) == 2:
+            bbadc.append(self.boardDriver.houseKeeping.convertBytesToHVTemperature(bbadc_bytes[:2]))
+        bbadc = list(map(float, bbadc))
 
-        layerinfo = [self.counterBytes[i:i+14] for i in range(0,len(self.counterBytes),14)]
-        L0Frames = L0Idle = L0Wrong = 'x'
-        L1Frames = L1Idle = L1Wrong = 'x'
-        L2Frames = L2Idle = L2Wrong = 'x'
+        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
+        L0Frames = L0Idle = L0Wrong = L0Status = 'x'
+        L1Frames = L1Idle = L1Wrong = L1Status = 'x'
+        L2Frames = L2Idle = L2Wrong = L2Status = 'x'
 
         for l in layerinfo:
             if l[0] == 0:
-                L0Frames = int.from_bytes(l[2:6],'little')
-                L0Idle = int.from_bytes(l[6:10],'little')
-                L0Wrong = int.from_bytes(l[10:14],'little')
+                L0Frames = int.from_bytes(l[2:5],'little')
+                L0Idle = int.from_bytes(l[6:9],'little')
+                L0Wrong = int.from_bytes(l[10:13],'little')
+                L0Status = f"{statusBytes[0]:02b}"
             elif l[0] == 1:
-                L1Frames = int.from_bytes(l[2:6],'little')
-                L1Idle = int.from_bytes(l[6:10],'little')
-                L1Wrong = int.from_bytes(l[10:14],'little')
+                L1Frames = int.from_bytes(l[2:5],'little')
+                L1Idle = int.from_bytes(l[6:9],'little')
+                L1Wrong = int.from_bytes(l[10:13],'little')
+                L1Status = f"{statusBytes[1]:02b}"
             elif l[0] == 2:
-                L2Frames = int.from_bytes(l[2:6],'little')
-                L2Idle = int.from_bytes(l[6:10],'little')
-                L2Wrong = int.from_bytes(l[10:14],'little')
-        
-        values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,
-                    ADCVals[6]/10.,'|',L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong]
-        
+                L2Frames = int.from_bytes(l[2:5],'little')
+                L2Idle = int.from_bytes(l[6:9],'little')
+                L2Wrong = int.from_bytes(l[10:13],'little')
+                L2Status = f"{statusBytes[2]:02b}"
+
+        values = [fsw,fpgacnt,'|',fpgaTemp,ADCVals[3],ADCVals[2],ADCVals[1],'|',ADCVals[0]*2.,fpgaVCCInt,ADCVals[7]/0.0125,'|',ADCVals[4]/10.,ADCVals[5]/10.,ADCVals[6]/10.,'|',self.bufferSize,L0Frames,L0Idle,L0Wrong,L1Frames,L1Idle,L1Wrong,L2Frames,L2Idle,L2Wrong,'|',L0Status,L1Status,L2Status,bbadc]
+
+        if outputCount == 0:
+            print(header_format.format(*headers))
+            print(subheader_format.format(*subheaders))
+      
         print(value_format.format(*values))
-        outputCount = (outputCount + 1) % 31
 
         # old print statements
         #print(f"FPGA:  Temperature {fpgaTemp:.2f} C | VCCInt {fpgaVCCInt:.2f} V")
@@ -873,17 +899,21 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
                 # Measure data
-                fsw_time, fpga_time, fpgaBytes, adcBytes = await self.getHKdata()
+                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes = await self.getHKdata()
                 # Terminal Output:
                 if terminalPrint:
-                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount)
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount)
+                    outputCount = (outputCount + 1) % 31
                 # Write to file
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.bufferSize.to_bytes(2, "little") + counterBytes + statusBytes + bbadc_bytes)
                 ofile.flush()
                 # Sleep
                 await asyncio.sleep(hk_period)
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
+        except Exception as e:
+            logger.error(f"Unexpected error in housekeeping: {e}")
+            raise e
         finally:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
 
