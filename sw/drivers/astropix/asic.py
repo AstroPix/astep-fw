@@ -320,7 +320,7 @@ class Asic:
             # return None
             sys.exit(1)
 
-    def getChecksum(self, chip):
+    def computeChecksum(self, chip):
         """
         Computes an Adler-32 checksum of the config dictionary
         :param chip: chip number in config file

@@ -121,7 +121,7 @@ class CmdsInterpreter:
             elif cmd[0] == "sth" and len(cmd) == self.args[cmd[0]]+1:
                 dacBL = boardDriver.asics[cmd[1]].asic_config[f"config_{cmd[2]}"]["vdacs"]["blpix"][1]
                 boardDriver.asics[cmd[1]].asic_config[f"config_{cmd[2]}"]["vdacs"]["thpix"][1] = dacBL + cmd[3]
-                logger.info(f"Layer {cmd[1]} chip {cmd[2]}")
+                logger.info(f"Layer {cmd[1]} chip {cmd[2]} threshold={cmd[3]} mV")
             elif cmd[0] == "ccm" and len(cmd) == self.args[cmd[0]]+1:
                 checksum = boardDriver.getAsic(cmd[1]).computeChecksum(cmd[2])
                 if checksum == cmd[3]:
