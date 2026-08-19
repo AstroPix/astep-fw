@@ -19,18 +19,22 @@ from astropixrun import AstropixRun
 import bookkeeping
 import scripts.commands
 
-#async def interpretCommands(boardDriver, cmds):
-#    CI = CmdsInterpreter()#To access the dictionaries
-#    if not CI.checkCodes():
-#        logger.error("Interpreter dictionaries invalid.")
-#        return
-#    CI.setBytes(cmds)
-#    #while (cmd:=CI.getCmd()):
-#    #    if cmd[0] == "DRO":
-#    #        pass
-#    #    elif cmd[0] == "HKD":
-#    #        pass
-#    #    #elif cmd[0]
+
+def poweroff(error):
+    """
+    Powers off the BB.
+    """
+    logger.info(f"Powering OFF with error={error}")
+    if error:
+        logger.info("Flight software errored. Waiting 20 s. to give filesender time.")
+        time.sleep(20)
+    logger.info("Flight software completed. Shutting down ...")
+    print("I'm not running the shutdown command for dev pruposes, but it works.")
+    #os.system("sudo systemctl poweroff")
+    #Needs to have the following command (or equivalent) ran once to disable sudo asking password:
+    #  `sudo echo "debian ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff, 
+    #               /usr/bin/systemctl halt, /usr/bin/systemctl reboot" > /etc/sudoers.d/shutdown`
+
 
 def parseFSW(fname):
     """
@@ -185,68 +189,6 @@ def TCPlistener(port: int=1025):
     except Exception as e:
         logger.error(f"TCPlistener: {e}")
     return
-
-
-# class TCPlistener(threading.Thread):
-#     def __init__(self, port: int = 1025, *args, **kwargs):
-#         self.port = port
-#         super(TCPlistener, self).__init__(*args, **kwargs)
-#         #self._stop = threading.Event()
-#         #self.deamon = True
-
-#     def run(self):
-#         """
-#         Instantiate TCP/IP socket and listen for shutdown command
-#         """
-#         #await asyncio.Event().wait()
-#         #return # Placeholder while I figure out this part
-#         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-#         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-#         sock.bind(('::', self.port))
-#         sock.listen(1)
-#         logger.info('TCP listener: Waiting for connection...')
-#         conn, addr = sock.accept()
-#         logger.info(f'TCPlistener: Connected by {addr}')
-#         listen = True
-#         while listen:
-#             data = conn.recv(1024)
-#             if not data: # Connection closed by client or thread stopped by main
-#                 print("TCP listener: No data")
-#                 break
-#             print(f"Received {len(data)} {type(data)}")
-#             print(data)
-#             try:
-#                 logger.info('TCP listener recieved:', data.decode('ascii'))
-#             except: pass
-#             if data=='shutdown'.encode('ascii'):
-#                 listen = False
-#         conn.close()
-#         return
-#         #if not listen: raise KeyboardInterrupt
-    
-    # def stop(self):
-    #     """
-    #     Privides a dummy connection to the listening socket to get it to stop
-    #     """
-    #     sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-    #     sock.connect(('::1', self.port, 0, "eth0"))
-    #     sock.close()
-
-
-def poweroff(error):
-    """
-    Powers off the BB.
-    """
-    print(f"Powering OFF with error={error}")
-    if error:
-        logger.info("Flight software errored. Waiting 20 s. to give filesender time.")
-        time.sleep(20)
-    logger.info("Flight software completed. Shutting down ...")
-    print("I'm not running the shutdown command for dev pruposes, but it works.")
-    #os.system("sudo systemctl poweroff")
-    #Needs to have the following command (or equivalent) ran once to disable sudo asking password:
-    #  `sudo echo "debian ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff, 
-    #               /usr/bin/systemctl halt, /usr/bin/systemctl reboot" > /etc/sudoers.d/shutdown`
 
 
 #######################################################

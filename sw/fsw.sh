@@ -2,4 +2,4 @@
 
 . .venv/bin/activate
 . ../load.sh
-python scripts/debug/beagle/read_fw_id.py
+python fsw.py

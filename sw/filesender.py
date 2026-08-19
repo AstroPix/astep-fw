@@ -52,7 +52,7 @@ def main(timeout):
             datan = [int(f[4:9]) for f in datafiles]
             hkn = [int(f[2:7]) for f in hkfiles]
             logn = [int(f[3:8]) for f in logfiles]
-            print(logn, hkn, datan)
+            #print(logn, hkn, datan)
             # Send logs
             if len(logn) > 0 and (number := min(logn)) <= bookkeeper.getRTSLog():
                 logger.info(f"Attempting to send log{number:05d}.log")

@@ -26,6 +26,7 @@ import drivers.astep.serial
 import drivers.boards
 from drivers.cmod import CMODBoard
 from drivers.gecco import GeccoCarrierBoard
+import bookkeeping
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
@@ -725,19 +726,28 @@ class AstropixRun:
                 if len(readout) > 0:
                     ofile.write(bytes(readout))
                     ofile.flush()
+                #print(f"data size={os.path.getsize("data/data{:05d}.bin".format(datan))}")
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/data{:05d}.bin".format(datan)) > maxfilesize*2**20:
+                 #   print(f"Closing data/data{datan:05d}.bin")
                     ofile.close()
                     bookkeeper.markRTSData(datan)
-                    if bookkeeper.checkDisk() < 100*2**20:
+                  #  print(f"data/data{datan:05d}.bin marked RTS")
+                    if bookkeeping.checkDisk():
                         logger.error("Less than 100 MB available on disk - finishing data readout.")
                         return
                     datan = bookkeeper.getNewData()
+                   # print(f"Opening data/data{datan:05d}.bin")
                     ofile = open("data/data{:05d}.bin".format(datan),"wb")
                     file_time = time.time()
                 #print(f"r {buff:04d}  ", end="\r")
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
-        ofile.close()
+            ofile.close()
+            raise KeyboardInterrupt
+        except Exception as e:
+            logger.error(f"Unexpected error in readout_splitter: {e}")
+            ofile.close()
+            raise e
 
     # Print status register
     async def print_status_reg(self):
@@ -837,9 +847,9 @@ class AstropixRun:
                 adc_value = int(f.read().strip())
             bbadc_bytes.extend(adc_value.to_bytes(2, byteorder='little'))
 
-        return fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes
+        return fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes
 
-    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount):
+    def printHK(self, fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes, outputCount):
         # Terminal Output Formatting: Can likely move elsewhere
         header_format = "{:<21}{:<14}{:^28}{:^28}{:^20}{:^100}{:^10}{}"
         subheader_format = "{:>35}{:^7}{:^7}{:^7}{:^7}{:^1}{:^9}{:^7}{:^7}{:^1}{:^8}{:^7}{:^7}{:^1}{:>6}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:>5}{:>5}{:>10}{:>10}{:^1}{:>3}{:>3}{:>3}"
@@ -858,7 +868,7 @@ class AstropixRun:
             bbadc.append(self.boardDriver.houseKeeping.convertBytesToHVTemperature(bbadc_bytes[:2]))
         bbadc = list(map(float, bbadc))
 
-        layerinfo = [counterBytes[i:i+14] for i in range(0,len(counterBytes),14)]
+        layerinfo = [self.counterBytes[i:i+14] for i in range(0,len(self.counterBytes),14)]
         L0Frames = L0Idle = L0Wrong = L0Status = 'x'
         L1Frames = L1Idle = L1Wrong = L1Status = 'x'
         L2Frames = L2Idle = L2Wrong = L2Status = 'x'
@@ -900,13 +910,13 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
                 # Measure data
-                fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes = await self.getHKdata()
+                fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes = await self.getHKdata()
                 # Terminal Output:
                 if terminalPrint:
-                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, counterBytes, statusBytes, bbadc_bytes, outputCount)
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes, outputCount)
                     outputCount = (outputCount + 1) % 31
                 # Write to file
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.bufferSize.to_bytes(2, "little") + counterBytes + statusBytes + bbadc_bytes)
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.bufferSize.to_bytes(2, "little") + self.counterBytes + statusBytes + bbadc_bytes)
                 ofile.flush()
                 # Sleep
                 await asyncio.sleep(hk_period)
@@ -926,18 +936,18 @@ class AstropixRun:
             await self.boardDriver.houseKeeping.selectHKSPI(adc=1,dac=0)
             while True:
                 # Measure data
-                fsw_time, fpga_time, fpgaBytes, adcBytes = await self.getHKdata()
+                fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes = await self.getHKdata()
                 # Terminal Output:
                 if terminalPrint:
-                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, outputCount)
+                    self.printHK(fsw_time, fpga_time, fpgaBytes, adcBytes, statusBytes, bbadc_bytes, outputCount)
                 # Write to file
                 #print(f"hk write size={ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)} ", end="", flush=True)
-                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.counterBytes)
+                ofile.write(fsw_time + fpga_time + adcBytes + fpgaBytes + self.bufferSize.to_bytes(2, "little") + self.counterBytes + statusBytes + bbadc_bytes)
                 ofile.flush()
                 if time.time() - file_time > maxfiletime or os.path.getsize("data/hk{:05d}.bin".format(hkn)) > maxfilesize*2**20:
                     ofile.close()
                     bookkeeper.markRTSHK(hkn)
-                    if bookkeeper.checkDisk() < 100*2**20:
+                    if bookkeeping.checkDisk():
                         logger.error("Less than 100 MB available on disk - finishing housekeeping loop.")
                         return
                     hkn = bookkeeper.getNewHK()
@@ -947,9 +957,14 @@ class AstropixRun:
                 await asyncio.sleep(hk_period)
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
-        finally:
+            ofile.close()
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
-        ofile.close()
+            raise KeyboardInterrupt
+        except Exception as e:
+            logger.error(f"Unexpected error in housekeeping_splitter: {e}")
+            ofile.close()
+            await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
+            raise e
 
 
     async def watcher(self, params):
