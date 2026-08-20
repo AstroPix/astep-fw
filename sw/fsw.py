@@ -274,8 +274,6 @@ async def main():
     await arun.chips_disable_readout()
     if args["vinj"]: await arun.stop_injection()
     hvdown_task = asyncio.create_task(arun.rampHV(0.))
-    #ofile.close()
-    #ofile_hk.close()
     await hvdown_task
     await arun.fpga_close_connection()
     return error

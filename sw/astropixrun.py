@@ -743,7 +743,6 @@ class AstropixRun:
         except (KeyboardInterrupt, asyncio.CancelledError):
             logger.info("[Ctrl+C] or task cancelled while in data loop - exiting.")
             ofile.close()
-            raise KeyboardInterrupt
         except Exception as e:
             logger.error(f"Unexpected error in readout_splitter: {e}")
             ofile.close()
@@ -959,7 +958,6 @@ class AstropixRun:
             logger.info("[Ctrl+C] or task cancelled while in housekeeping loop - exiting.")
             ofile.close()
             await self.boardDriver.houseKeeping.selectHKSPI(adc=0,dac=0)
-            raise KeyboardInterrupt
         except Exception as e:
             logger.error(f"Unexpected error in housekeeping_splitter: {e}")
             ofile.close()
@@ -1027,8 +1025,9 @@ class AstropixRun:
                 break
             logger.info(f"T={endtime-time.time()}: setting DAC to {hvset}")
             await self.setDAC(hvset)
+            self.lastHVset = hvset
             await asyncio.sleep(1)
-        self.lastHVset = hv*0.0125
+        #self.lastHVset = hv*0.0125
 
 
     ###################### INTERNAL METHODS ###########################
