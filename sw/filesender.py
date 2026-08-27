@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import subprocess
 
 import bookkeeping
 
@@ -8,14 +9,44 @@ user = "bbdebian"
 ip = "[fe80::df62:1759:93d4:cc23%eth0]"
 dest = "ASTEP_networking/data/"
 key = "~/.ssh/id_ed25519"
+password="redacted"
 
-def rsync(fname):
+def basic_rsync(fname):
     """
     Send a file to FFR via rsync
-    :param fname: str, filename in sw/
+    :param fname: str, filename in sw/data/
     """
     os.system(f"rsync --rsh='ssh -i {key}' /home/debian/astep-fw/sw/{fname} {user}@{ip}:{dest}")
     return True
+
+def setuprsync():
+    """
+    Creates bash script to bypass password requirement
+    """
+    askpass_script_name='/tmp/askssh.sh'
+    if os.path.isfile(askpass_script_name) and os.access(askpass_script_name, os.X_OK):
+        logger.info(f"{askpass_script_name} script found.")
+    else:
+        with open(askpass_script_name, 'w') as file:
+            file.write(f"#!/bin/sh\necho '{password}'\n")
+        os.chmod(askpass_script_name, 0o700)
+    env = os.environ.copy()
+    env["SSH_ASKPASS"] = askpass_script_name
+    env["SSH_ASKPASS_REQUIRE"] = "force"
+    env["DISPLAY"] = ":0"
+    return env
+
+
+def secure_rsync(fname, env):
+    """
+    Send a file to FFR via rsync
+    :param fname: str, filename in sw/data/
+    :param env: Environment configured for rsync without password
+    """
+    rsync_result=subprocess.run(["rsync", "-v",  f"/home/debian/astep-fw/sw/{fname}", f"{user}@{ip}:{dest}"], # -v verbose tag is important to get stdout describing the files transfered
+                                env=env, start_new_session=True,
+                                capture_output=True, text=True)
+    return rsync_result.stdout
 
 def waitForFSW(timeout):
     elapsed = 0
@@ -38,6 +69,13 @@ def waitForFSW(timeout):
     else: return False, None, None
 
 def main(timeout):
+    try:
+        sshenv = setuprsync()
+        rsync = lambda fname: secure_rsync(fname, sshenv)
+        logger.info("Secure rsync configured.")
+    except Exception as e:
+        logger.error(f"While configuring safe rsync: {e}\nDefaulting to basic rsync")
+        rsync = basic_rsync
     fswok, bookkeeper, mylog = waitForFSW(timeout)
     if fswok:
         os.rename("bookkeeper.log", f"data/log{mylog:05d}.log")
@@ -56,27 +94,33 @@ def main(timeout):
             # Send logs
             if len(logn) > 0 and (number := min(logn)) <= bookkeeper.getRTSLog():
                 logger.info(f"Attempting to send log{number:05d}.log")
-                rsync(f"data/log{number:05d}.log")
-                bookkeeper.markfordelLog(number)
+                if rsync(f"data/log{number:05d}.log"):
+                    logger.info(f"Marking log{number:05d}.log for deletion.")
+                    bookkeeper.markfordelLog(number)
             # Send housekeeping
             if len(hkn) > 0 and (number := min(hkn)) <= bookkeeper.getRTSHK():
                 logger.info(f"Attempting to send hk{number:05d}.bin")
-                rsync(f"data/hk{number:05d}.bin")
-                bookkeeper.markfordelHK(number)
+                if rsync(f"data/hk{number:05d}.bin"):
+                    logger.info(f"Marking hk{number:05d}.bin for deletion.")
+                    bookkeeper.markfordelHK(number)
             # Send data
             if len(datan) > 0 and (number := min(datan)) <= bookkeeper.getRTSData():
                 logger.info(f"Attempting to send data{number:05d}.bin")
-                rsync(f"data/data{number:05d}.bin")
-                bookkeeper.markfordelData(number)
+                if rsync(f"data/data{number:05d}.bin"):
+                    logger.info(f"Marking data{number:05d}.bin for deletion.")
+                    bookkeeper.markfordelData(number)
             # Del log
             if len(logn) > 0 and (number := min(logn)) <= bookkeeper.getMFDDLog():
                 os.remove(f"data/log{number:05d}.log")
+                logger.info(f"log{number:05d}.log deleted.")
             # Del hk
             if len(hkn) > 0 and (number := min(hkn)) <= bookkeeper.getMFDHK():
                 os.remove(f"data/hk{number:05d}.bin")
+                logger.info(f"hk{number:05d}.bin deleted.")
             # Del data
             if len(datan) > 0 and (number := min(datan)) <= bookkeeper.getMFDData():
                 os.remove(f"data/data{number:05d}.bin")
+                logger.info(f"data{number:05d}.bin deleted.")
             time.sleep(2)
     else:
         logger.error("Problem during filesender initialization. Sending logs.")
