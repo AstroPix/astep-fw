@@ -145,6 +145,14 @@ if {[llength [get_ports -quiet ext_spi*]]>0} {
     set_input_delay  -min -clock hk_spi_divided  -1                     [get_ports ext_spi_adc_miso ] -clock_fall
 }
 
+## ToT and ToA Divider 
+#####################
+
+## Generated Clock for SPI divided clock output
+create_generated_clock -name layers_toa_divided -source [get_pins -hierarchical *layers_toa_divider_divided_clk_reg/C] -divide_by 2 [get_pins -hierarchical *layers_toa_divider_divided_clk_reg/Q]
+create_generated_clock -name layers_tot_divided -source [get_pins -hierarchical *layers_tot_divider_divided_clk_reg/C] -divide_by 2 [get_pins -hierarchical *layers_tot_divider_divided_clk_reg/Q]
+
+
 ## TLU
 ###############
 

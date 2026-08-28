@@ -51,30 +51,32 @@
 |0x6d | [layer_1_loopback_mosi_read_size](#layer_1_loopback_mosi_read_size) | 32 |  | Number of entries in layer_1_loopback_mosi fifo |
 |0x71 | [layer_2_loopback_mosi](#layer_2_loopback_mosi) | 8 | AXIS FIFO Slave (read) | FIFO to read bytes received by internal slave loopback |
 |0x72 | [layer_2_loopback_mosi_read_size](#layer_2_loopback_mosi_read_size) | 32 |  | Number of entries in layer_2_loopback_mosi fifo |
-|0x76 | [layers_fpga_timestamp_ctrl](#layers_fpga_timestamp_ctrl) | 16 |  | Register to control the FPGA Timestamp Behavior |
-|0x78 | [layers_fpga_timestamp_divider](#layers_fpga_timestamp_divider) | 32 | Counter w/ Interrupt | This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock) |
-|0x7c | [layers_fpga_timestamp_counter](#layers_fpga_timestamp_counter) | 64 |  | FPGA Timestamp Counter added to data frames - reads the counter output of the TLU |
-|0x84 | [layers_fpga_timestamp_forced](#layers_fpga_timestamp_forced) | 64 |  | FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS |
-|0x8c | [layers_tlu_trigger_delay](#layers_tlu_trigger_delay) | 16 |  | Delay to freeze counter after Trigger  |
-|0x8e | [layers_tlu_busy_duration](#layers_tlu_busy_duration) | 16 |  | Number of clock cycle busy is active when a trigger comes in |
-|0x90 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout |
-|0x91 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register |
-|0x92 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs) |
-|0x93 | [layers_sr_rb_ctrl](#layers_sr_rb_ctrl) | 8 |  | Shift Register CRC and bits Readback control |
-|0x94 | [layers_sr_crc](#layers_sr_crc) | 48 |  | CRC Output of readback module |
-|0x9a | [layers_sr_bytes](#layers_sr_bytes) | 8 | AXIS FIFO Slave (read) | Readback SR bits packed as bytes |
-|0x9b | [layers_sr_bytes_read_size](#layers_sr_bytes_read_size) | 32 |  | Number of entries in layers_sr_bytes fifo |
-|0x9f | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
-|0xa0 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
-|0xa1 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
-|0xa2 | [layers_readout_ctrl](#layers_readout_ctrl) | 8 |  |  |
-|0xa3 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
-|0xa4 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
-|0xa8 | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
-|0xa9 | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
-|0xaa | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
-|0xab | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
-|0xaf | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
+|0x76 | [layers_toa_divider](#layers_toa_divider) | 8 |  | Clcok Divider for Astropix ToA |
+|0x77 | [layers_tot_divider](#layers_tot_divider) | 8 |  | Clcok Divider for Astropix ToT |
+|0x78 | [layers_fpga_timestamp_ctrl](#layers_fpga_timestamp_ctrl) | 16 |  | Register to control the FPGA Timestamp Behavior |
+|0x7a | [layers_fpga_timestamp_divider](#layers_fpga_timestamp_divider) | 32 | Counter w/ Interrupt | This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock) |
+|0x7e | [layers_fpga_timestamp_counter](#layers_fpga_timestamp_counter) | 64 |  | FPGA Timestamp Counter added to data frames - reads the counter output of the TLU |
+|0x86 | [layers_fpga_timestamp_forced](#layers_fpga_timestamp_forced) | 64 |  | FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS |
+|0x8e | [layers_tlu_trigger_delay](#layers_tlu_trigger_delay) | 16 |  | Delay to freeze counter after Trigger  |
+|0x90 | [layers_tlu_busy_duration](#layers_tlu_busy_duration) | 16 |  | Number of clock cycle busy is active when a trigger comes in |
+|0x92 | [layers_cfg_nodata_continue](#layers_cfg_nodata_continue) | 8 |  | Number of IDLE Bytes until stopping readout |
+|0x93 | [layers_sr_out](#layers_sr_out) | 8 |  | Shift Register Configuration I/O Control register |
+|0x94 | [layers_sr_in](#layers_sr_in) | 8 |  | Shift Register Configuration Input control (Readback enable and layers inputs) |
+|0x95 | [layers_sr_rb_ctrl](#layers_sr_rb_ctrl) | 8 |  | Shift Register CRC and bits Readback control |
+|0x96 | [layers_sr_crc](#layers_sr_crc) | 48 |  | CRC Output of readback module |
+|0x9c | [layers_sr_bytes](#layers_sr_bytes) | 8 | AXIS FIFO Slave (read) | Readback SR bits packed as bytes |
+|0x9d | [layers_sr_bytes_read_size](#layers_sr_bytes_read_size) | 32 |  | Number of entries in layers_sr_bytes fifo |
+|0xa1 | [layers_inj_ctrl](#layers_inj_ctrl) | 8 |  | Control bits for the Injection Pattern Generator |
+|0xa2 | [layers_inj_waddr](#layers_inj_waddr) | 4 |  | Address for register to write in Injection Pattern Generator |
+|0xa3 | [layers_inj_wdata](#layers_inj_wdata) | 8 |  | Data for register to write in Injection Pattern Generator |
+|0xa4 | [layers_readout_ctrl](#layers_readout_ctrl) | 8 |  |  |
+|0xa5 | [layers_readout](#layers_readout) | 8 | AXIS FIFO Slave (read) | Reads from the readout data fifo |
+|0xa6 | [layers_readout_read_size](#layers_readout_read_size) | 32 |  | Number of entries in layers_readout fifo |
+|0xaa | [io_ctrl](#io_ctrl) | 8 |  | Configuration register for I/O multiplexers and gating. |
+|0xab | [io_led](#io_led) | 8 |  | This register is connected to the Board's LED. See target documentation for detailed connection information. |
+|0xac | [gecco_sr_ctrl](#gecco_sr_ctrl) | 8 |  | Shift Register Control for Gecco Cards |
+|0xad | [hk_conversion_trigger_match](#hk_conversion_trigger_match) | 32 |  |  |
+|0xb1 | [layers_fpga_timestamp_divider_match](#layers_fpga_timestamp_divider_match) | 32 |  |  |
 
 
 ## <a id='hk_firmware_id'></a>hk_firmware_id
@@ -767,13 +769,41 @@
 
 
 
+## <a id='layers_toa_divider'></a>layers_toa_divider
+
+
+> Clcok Divider for Astropix ToA
+
+
+**Address**: 0x76
+
+
+**Reset Value**: 8'h3
+
+
+
+
+## <a id='layers_tot_divider'></a>layers_tot_divider
+
+
+> Clcok Divider for Astropix ToT
+
+
+**Address**: 0x77
+
+
+**Reset Value**: 8'h2
+
+
+
+
 ## <a id='layers_fpga_timestamp_ctrl'></a>layers_fpga_timestamp_ctrl
 
 
 > Register to control the FPGA Timestamp Behavior
 
 
-**Address**: 0x76
+**Address**: 0x78
 
 
 **Reset Value**: 16'h0010
@@ -798,7 +828,7 @@
 > This Counter interrupts on match, the interrupt output can be used to increment the FPGA Timestamp counter (dividing core clock)
 
 
-**Address**: 0x78
+**Address**: 0x7a
 
 
 
@@ -811,7 +841,7 @@
 > FPGA Timestamp Counter added to data frames - reads the counter output of the TLU
 
 
-**Address**: 0x7c
+**Address**: 0x7e
 
 
 
@@ -824,7 +854,7 @@
 > FPGA Timestamp Counter added to data frames - forced value used if force_value is true in control register. Useful for debugging or software based TS
 
 
-**Address**: 0x84
+**Address**: 0x86
 
 
 
@@ -837,7 +867,7 @@
 > Delay to freeze counter after Trigger 
 
 
-**Address**: 0x8c
+**Address**: 0x8e
 
 
 **Reset Value**: 16'd2
@@ -851,7 +881,7 @@
 > Number of clock cycle busy is active when a trigger comes in
 
 
-**Address**: 0x8e
+**Address**: 0x90
 
 
 **Reset Value**: 16'd16
@@ -865,7 +895,7 @@
 > Number of IDLE Bytes until stopping readout
 
 
-**Address**: 0x90
+**Address**: 0x92
 
 
 **Reset Value**: 8'd5
@@ -879,7 +909,7 @@
 > Shift Register Configuration I/O Control register
 
 
-**Address**: 0x91
+**Address**: 0x93
 
 
 
@@ -905,7 +935,7 @@
 > Shift Register Configuration Input control (Readback enable and layers inputs)
 
 
-**Address**: 0x92
+**Address**: 0x94
 
 
 
@@ -925,7 +955,7 @@
 > Shift Register CRC and bits Readback control
 
 
-**Address**: 0x93
+**Address**: 0x95
 
 
 
@@ -945,7 +975,7 @@
 > CRC Output of readback module
 
 
-**Address**: 0x94
+**Address**: 0x96
 
 
 
@@ -958,7 +988,7 @@
 > Readback SR bits packed as bytes
 
 
-**Address**: 0x9a
+**Address**: 0x9c
 
 
 
@@ -971,7 +1001,7 @@
 > Number of entries in layers_sr_bytes fifo
 
 
-**Address**: 0x9b
+**Address**: 0x9d
 
 
 
@@ -984,7 +1014,7 @@
 > Control bits for the Injection Pattern Generator
 
 
-**Address**: 0x9f
+**Address**: 0xa1
 
 
 **Reset Value**: 8'b00000110
@@ -1009,7 +1039,7 @@
 > Address for register to write in Injection Pattern Generator
 
 
-**Address**: 0xa0
+**Address**: 0xa2
 
 
 
@@ -1022,7 +1052,7 @@
 > Data for register to write in Injection Pattern Generator
 
 
-**Address**: 0xa1
+**Address**: 0xa3
 
 
 
@@ -1035,7 +1065,7 @@
 > 
 
 
-**Address**: 0xa2
+**Address**: 0xa4
 
 
 **Reset Value**: 8'h01
@@ -1055,7 +1085,7 @@
 > Reads from the readout data fifo
 
 
-**Address**: 0xa3
+**Address**: 0xa5
 
 
 
@@ -1068,7 +1098,7 @@
 > Number of entries in layers_readout fifo
 
 
-**Address**: 0xa4
+**Address**: 0xa6
 
 
 
@@ -1081,7 +1111,7 @@
 > Configuration register for I/O multiplexers and gating.
 
 
-**Address**: 0xa8
+**Address**: 0xaa
 
 
 **Reset Value**: 8'b00011000
@@ -1105,7 +1135,7 @@
 > This register is connected to the Board's LED. See target documentation for detailed connection information.
 
 
-**Address**: 0xa9
+**Address**: 0xab
 
 
 
@@ -1118,7 +1148,7 @@
 > Shift Register Control for Gecco Cards
 
 
-**Address**: 0xaa
+**Address**: 0xac
 
 
 
@@ -1138,7 +1168,7 @@
 > 
 
 
-**Address**: 0xab
+**Address**: 0xad
 
 
 **Reset Value**: 32'd10
@@ -1152,7 +1182,7 @@
 > 
 
 
-**Address**: 0xaf
+**Address**: 0xb1
 
 
 **Reset Value**: 32'd4

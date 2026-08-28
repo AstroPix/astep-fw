@@ -134,7 +134,7 @@ module astep24_3l_top(
 
     wire global_resn_o;
 
-    assign clk_sample = clk_100;
+    //assign clk_sample = clk_100;
     
     wire layers_fpga_timestamp_ctrl_use_tlu,clock_ctrl_ext_clk_enable;
     
@@ -154,7 +154,7 @@ module astep24_3l_top(
         .clk_100(clk_100),
         .clk_100_resn(clk_100_resn),
 
-        .clk_10(clk_timestamp),
+        .clk_10(/*clk_timestamp*/),
         .clk_10_resn(),
 
         .clk_20(clk_sample_ap4),
@@ -519,6 +519,18 @@ module astep24_3l_top(
         .layer_2_loopback_mosi_read_size_write(1'b1),
 
 
+        // Astropix Clock Dividers
+        // ------------------------
+
+        .layers_toa_divider_source_clk(clk_core),
+        .layers_toa_divider_source_resn(clk_core_resn),
+        .layers_toa_divider_divided_clk(clk_timestamp),
+        .layers_toa_divider_divided_resn(),
+
+        .layers_tot_divider_source_clk(clk_core),
+        .layers_tot_divider_source_resn(clk_core_resn),
+        .layers_tot_divider_divided_clk(clk_sample),
+        .layers_tot_divider_divided_resn(),
 
         // Configs
         //---------------

@@ -57,30 +57,32 @@ LAYER_1_LOOPBACK_MOSI = 0x6c
 LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6d
 LAYER_2_LOOPBACK_MOSI = 0x71
 LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x72
-LAYERS_FPGA_TIMESTAMP_CTRL = 0x76
-LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x78
-LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7c
-LAYERS_FPGA_TIMESTAMP_FORCED = 0x84
-LAYERS_TLU_TRIGGER_DELAY = 0x8c
-LAYERS_TLU_BUSY_DURATION = 0x8e
-LAYERS_CFG_NODATA_CONTINUE = 0x90
-LAYERS_SR_OUT = 0x91
-LAYERS_SR_IN = 0x92
-LAYERS_SR_RB_CTRL = 0x93
-LAYERS_SR_CRC = 0x94
-LAYERS_SR_BYTES = 0x9a
-LAYERS_SR_BYTES_READ_SIZE = 0x9b
-LAYERS_INJ_CTRL = 0x9f
-LAYERS_INJ_WADDR = 0xa0
-LAYERS_INJ_WDATA = 0xa1
-LAYERS_READOUT_CTRL = 0xa2
-LAYERS_READOUT = 0xa3
-LAYERS_READOUT_READ_SIZE = 0xa4
-IO_CTRL = 0xa8
-IO_LED = 0xa9
-GECCO_SR_CTRL = 0xaa
-HK_CONVERSION_TRIGGER_MATCH = 0xab
-LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xaf
+LAYERS_TOA_DIVIDER = 0x76
+LAYERS_TOT_DIVIDER = 0x77
+LAYERS_FPGA_TIMESTAMP_CTRL = 0x78
+LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x7a
+LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7e
+LAYERS_FPGA_TIMESTAMP_FORCED = 0x86
+LAYERS_TLU_TRIGGER_DELAY = 0x8e
+LAYERS_TLU_BUSY_DURATION = 0x90
+LAYERS_CFG_NODATA_CONTINUE = 0x92
+LAYERS_SR_OUT = 0x93
+LAYERS_SR_IN = 0x94
+LAYERS_SR_RB_CTRL = 0x95
+LAYERS_SR_CRC = 0x96
+LAYERS_SR_BYTES = 0x9c
+LAYERS_SR_BYTES_READ_SIZE = 0x9d
+LAYERS_INJ_CTRL = 0xa1
+LAYERS_INJ_WADDR = 0xa2
+LAYERS_INJ_WDATA = 0xa3
+LAYERS_READOUT_CTRL = 0xa4
+LAYERS_READOUT = 0xa5
+LAYERS_READOUT_READ_SIZE = 0xa6
+IO_CTRL = 0xaa
+IO_LED = 0xab
+GECCO_SR_CTRL = 0xac
+HK_CONVERSION_TRIGGER_MATCH = 0xad
+LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xb1
 
 
 
@@ -137,30 +139,32 @@ class main_rfg(AbstractRFG):
         LAYER_1_LOOPBACK_MOSI_READ_SIZE = 0x6d
         LAYER_2_LOOPBACK_MOSI = 0x71
         LAYER_2_LOOPBACK_MOSI_READ_SIZE = 0x72
-        LAYERS_FPGA_TIMESTAMP_CTRL = 0x76
-        LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x78
-        LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7c
-        LAYERS_FPGA_TIMESTAMP_FORCED = 0x84
-        LAYERS_TLU_TRIGGER_DELAY = 0x8c
-        LAYERS_TLU_BUSY_DURATION = 0x8e
-        LAYERS_CFG_NODATA_CONTINUE = 0x90
-        LAYERS_SR_OUT = 0x91
-        LAYERS_SR_IN = 0x92
-        LAYERS_SR_RB_CTRL = 0x93
-        LAYERS_SR_CRC = 0x94
-        LAYERS_SR_BYTES = 0x9a
-        LAYERS_SR_BYTES_READ_SIZE = 0x9b
-        LAYERS_INJ_CTRL = 0x9f
-        LAYERS_INJ_WADDR = 0xa0
-        LAYERS_INJ_WDATA = 0xa1
-        LAYERS_READOUT_CTRL = 0xa2
-        LAYERS_READOUT = 0xa3
-        LAYERS_READOUT_READ_SIZE = 0xa4
-        IO_CTRL = 0xa8
-        IO_LED = 0xa9
-        GECCO_SR_CTRL = 0xaa
-        HK_CONVERSION_TRIGGER_MATCH = 0xab
-        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xaf
+        LAYERS_TOA_DIVIDER = 0x76
+        LAYERS_TOT_DIVIDER = 0x77
+        LAYERS_FPGA_TIMESTAMP_CTRL = 0x78
+        LAYERS_FPGA_TIMESTAMP_DIVIDER = 0x7a
+        LAYERS_FPGA_TIMESTAMP_COUNTER = 0x7e
+        LAYERS_FPGA_TIMESTAMP_FORCED = 0x86
+        LAYERS_TLU_TRIGGER_DELAY = 0x8e
+        LAYERS_TLU_BUSY_DURATION = 0x90
+        LAYERS_CFG_NODATA_CONTINUE = 0x92
+        LAYERS_SR_OUT = 0x93
+        LAYERS_SR_IN = 0x94
+        LAYERS_SR_RB_CTRL = 0x95
+        LAYERS_SR_CRC = 0x96
+        LAYERS_SR_BYTES = 0x9c
+        LAYERS_SR_BYTES_READ_SIZE = 0x9d
+        LAYERS_INJ_CTRL = 0xa1
+        LAYERS_INJ_WADDR = 0xa2
+        LAYERS_INJ_WDATA = 0xa3
+        LAYERS_READOUT_CTRL = 0xa4
+        LAYERS_READOUT = 0xa5
+        LAYERS_READOUT_READ_SIZE = 0xa6
+        IO_CTRL = 0xaa
+        IO_LED = 0xab
+        GECCO_SR_CTRL = 0xac
+        HK_CONVERSION_TRIGGER_MATCH = 0xad
+        LAYERS_FPGA_TIMESTAMP_DIVIDER_MATCH = 0xb1
     
     
     
@@ -782,6 +786,38 @@ class main_rfg(AbstractRFG):
     
     async def read_layer_2_loopback_mosi_read_size_raw(self, count : int = 4 ) -> bytes: 
         return  await self.syncRead(register = self.Registers['LAYER_2_LOOPBACK_MOSI_READ_SIZE'],count = count, increment = True)
+        
+    
+    
+    
+    async def write_layers_toa_divider(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_TOA_DIVIDER'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_toa_divider(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_TOA_DIVIDER'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_toa_divider_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_TOA_DIVIDER'],count = count, increment = False)
+        
+    
+    
+    
+    async def write_layers_tot_divider(self,value : int,flush = False):
+        self.addWrite(register = self.Registers['LAYERS_TOT_DIVIDER'],value = value,increment = False,valueLength=1)
+        if flush == True:
+            await self.flush()
+        
+    
+    async def read_layers_tot_divider(self, count : int = 1 , targetQueue: str | None = None) -> int: 
+        return  int.from_bytes(await self.syncRead(register = self.Registers['LAYERS_TOT_DIVIDER'],count = count, increment = False , targetQueue = targetQueue), 'little') 
+        
+    
+    async def read_layers_tot_divider_raw(self, count : int = 1 ) -> bytes: 
+        return  await self.syncRead(register = self.Registers['LAYERS_TOT_DIVIDER'],count = count, increment = False)
         
     
     

@@ -513,6 +513,12 @@ class BoardDriver:
     async def configureHKSPIDivider(self, divider: int, flush=True):
         await self.rfg.write_spi_hk_ckdivider(divider, flush)
 
+    async def configureLayersToTDivider(self, divider: int, flush=True):
+        await self.rfg.write_layers_tot_divider(divider, flush)
+
+    async def configureLayersToADivider(self, divider: int, flush=True):
+        await self.rfg.write_layers_toa_divider(divider, flush)
+
     ## Layers
     ##################
 

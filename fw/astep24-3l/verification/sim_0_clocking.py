@@ -256,3 +256,26 @@ async def test_spi_divider_api(dut):
     assert edge2 - edge1 == 100, "10Mhz SPI Frequency should show 100ns between edges"
 
     await Timer(100, units="us")
+
+
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def test_toa_clock_divider(dut):
+    # rfg.cocotb.cocotb_spi.debug()
+
+    ## Clock/Reset
+    await vip.cctb.common_clock_reset(dut)
+    await Timer(10, units="us")
+
+    ## Get Target Driver
+    boardDriver = await astep24_3l_sim.getDriver(dut)
+  
+    ## Set Clock divider for 2Mhz
+    await Timer(100, units="us")
+    await boardDriver.configureLayersToTDivider(16, flush=True)
+    await boardDriver.configureLayersToADivider(16, flush=True)
+ 
+    
+
+    await Timer(100, units="us")
+
+    

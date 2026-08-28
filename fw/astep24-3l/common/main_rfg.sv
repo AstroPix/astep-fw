@@ -163,6 +163,14 @@ module main_rfg(
     output logic                  layer_2_loopback_mosi_s_axis_tready,
     input  logic [31:0]            layer_2_loopback_mosi_read_size,
     input  logic                  layer_2_loopback_mosi_read_size_write,
+    input  logic            layers_toa_divider_source_clk,
+    input  logic            layers_toa_divider_source_resn,
+    output logic           layers_toa_divider_divided_clk,
+    output logic            layers_toa_divider_divided_resn,
+    input  logic            layers_tot_divider_source_clk,
+    input  logic            layers_tot_divider_source_resn,
+    output logic           layers_tot_divider_divided_clk,
+    output logic            layers_tot_divider_divided_resn,
     output logic [15:0]           layers_fpga_timestamp_ctrl,
     output logic                   layers_fpga_timestamp_ctrl_enable,
     output logic                   layers_fpga_timestamp_ctrl_use_divider,
@@ -262,6 +270,12 @@ module main_rfg(
     logic [31:0] layer_0_loopback_mosi_read_size_reg;
     logic [31:0] layer_1_loopback_mosi_read_size_reg;
     logic [31:0] layer_2_loopback_mosi_read_size_reg;
+    // Clock Divider layers_toa_divider
+    logic [7:0] layers_toa_divider_counter;
+    logic [7:0] layers_toa_divider_reg;
+    // Clock Divider layers_tot_divider
+    logic [7:0] layers_tot_divider_counter;
+    logic [7:0] layers_tot_divider_reg;
     logic layers_fpga_timestamp_divider_up;
     logic [47:0] layers_sr_crc_reg;
     logic [31:0] layers_sr_bytes_read_size_reg;
@@ -505,6 +519,8 @@ module main_rfg(
             layer_0_loopback_mosi_read_size_reg <= '0;
             layer_1_loopback_mosi_read_size_reg <= '0;
             layer_2_loopback_mosi_read_size_reg <= '0;
+            layers_toa_divider_reg <= 8'h3;
+            layers_tot_divider_reg <= 8'h2;
             layers_fpga_timestamp_ctrl_reg <= 16'h0010;
             layers_fpga_timestamp_divider_reg <= '0;
             layers_fpga_timestamp_divider_up <= 1'b1;
@@ -794,150 +810,158 @@ module main_rfg(
                         rfg_write_valid <= '1;
                     end
                     16'h76: begin
-                        layers_fpga_timestamp_ctrl_reg[7:0] <= rfg_write_value;
+                        layers_toa_divider_reg <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
                     16'h77: begin
-                        layers_fpga_timestamp_ctrl_reg[15:8] <= rfg_write_value;
+                        layers_tot_divider_reg <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
                     16'h78: begin
-                        layers_fpga_timestamp_divider_reg[7:0] <= rfg_write_value;
+                        layers_fpga_timestamp_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
                     16'h79: begin
-                        layers_fpga_timestamp_divider_reg[15:8] <= rfg_write_value;
+                        layers_fpga_timestamp_ctrl_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
                     16'h7a: begin
-                        layers_fpga_timestamp_divider_reg[23:16] <= rfg_write_value;
+                        layers_fpga_timestamp_divider_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
                     16'h7b: begin
+                        layers_fpga_timestamp_divider_reg[15:8] <= rfg_write_value;
+                        rfg_write_valid <= '1;
+                    end
+                    16'h7c: begin
+                        layers_fpga_timestamp_divider_reg[23:16] <= rfg_write_value;
+                        rfg_write_valid <= '1;
+                    end
+                    16'h7d: begin
                         layers_fpga_timestamp_divider_reg[31:24] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h84: begin
+                    16'h86: begin
                         layers_fpga_timestamp_forced_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h85: begin
+                    16'h87: begin
                         layers_fpga_timestamp_forced_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h86: begin
+                    16'h88: begin
                         layers_fpga_timestamp_forced_reg[23:16] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h87: begin
+                    16'h89: begin
                         layers_fpga_timestamp_forced_reg[31:24] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h88: begin
+                    16'h8a: begin
                         layers_fpga_timestamp_forced_reg[39:32] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h89: begin
+                    16'h8b: begin
                         layers_fpga_timestamp_forced_reg[47:40] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8a: begin
+                    16'h8c: begin
                         layers_fpga_timestamp_forced_reg[55:48] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8b: begin
+                    16'h8d: begin
                         layers_fpga_timestamp_forced_reg[63:56] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8c: begin
+                    16'h8e: begin
                         layers_tlu_trigger_delay_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8d: begin
+                    16'h8f: begin
                         layers_tlu_trigger_delay_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8e: begin
+                    16'h90: begin
                         layers_tlu_busy_duration_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h8f: begin
+                    16'h91: begin
                         layers_tlu_busy_duration_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h90: begin
+                    16'h92: begin
                         layers_cfg_nodata_continue_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h91: begin
+                    16'h93: begin
                         layers_sr_out_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h92: begin
+                    16'h94: begin
                         layers_sr_in_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h93: begin
+                    16'h95: begin
                         layers_sr_rb_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'h9f: begin
+                    16'ha1: begin
                         layers_inj_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'ha0: begin
+                    16'ha2: begin
                         layers_inj_waddr_reg[3:0] <= rfg_write_value[3:0];
                         rfg_write_valid <= '1;
                     end
-                    16'ha1: begin
+                    16'ha3: begin
                         layers_inj_wdata_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'ha2: begin
+                    16'ha4: begin
                         layers_readout_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'ha8: begin
+                    16'haa: begin
                         io_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'ha9: begin
+                    16'hab: begin
                         io_led_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'haa: begin
+                    16'hac: begin
                         gecco_sr_ctrl_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hab: begin
+                    16'had: begin
                         hk_conversion_trigger_match_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hac: begin
+                    16'hae: begin
                         hk_conversion_trigger_match_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'had: begin
+                    16'haf: begin
                         hk_conversion_trigger_match_reg[23:16] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hae: begin
+                    16'hb0: begin
                         hk_conversion_trigger_match_reg[31:24] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'haf: begin
+                    16'hb1: begin
                         layers_fpga_timestamp_divider_match_reg[7:0] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hb0: begin
+                    16'hb2: begin
                         layers_fpga_timestamp_divider_match_reg[15:8] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hb1: begin
+                    16'hb3: begin
                         layers_fpga_timestamp_divider_match_reg[23:16] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
-                    16'hb2: begin
+                    16'hb4: begin
                         layers_fpga_timestamp_divider_match_reg[31:24] <= rfg_write_value;
                         rfg_write_valid <= '1;
                     end
@@ -992,7 +1016,7 @@ module main_rfg(
             end
             // Writes for Counter
             // Counter with interrupt on matching register: If the match register is written, reset the counter
-            if((rfg_write && rfg_address==16'hab)) begin
+            if((rfg_write && rfg_address==16'had)) begin
                 hk_conversion_trigger_reg <= 'd0;
             end
             else if(!(rfg_write && rfg_address==16'he)) begin
@@ -1038,10 +1062,10 @@ module main_rfg(
                 layer_2_stat_wronglength_counter_reg <= layer_2_stat_wronglength_counter_reg + 'd1 ;
             end
             // Counter with interrupt on matching register: If the match register is written, reset the counter
-            if((rfg_write && rfg_address==16'haf)) begin
+            if((rfg_write && rfg_address==16'hb1)) begin
                 layers_fpga_timestamp_divider_reg <= 'd0;
             end
-            else if(!(rfg_write && rfg_address==16'h78) && layers_fpga_timestamp_divider_enable) begin
+            else if(!(rfg_write && rfg_address==16'h7a) && layers_fpga_timestamp_divider_enable) begin
                 layers_fpga_timestamp_divider_reg <= layers_fpga_timestamp_divider_up ? layers_fpga_timestamp_divider_reg + 'd1 : layers_fpga_timestamp_divider_reg - 'd1 ;
             end
             // Counter with interrupt on matching register: Enable counting when match counter is reached, and set up-down to change counting direction
@@ -1062,8 +1086,8 @@ module main_rfg(
     assign layer_0_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h67;
     assign layer_1_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h6c;
     assign layer_2_loopback_mosi_s_axis_tready = rfg_read && rfg_address==16'h71;
-    assign layers_sr_bytes_s_axis_tready = rfg_read && rfg_address==16'h9a;
-    assign layers_readout_s_axis_tready = rfg_read && rfg_address==16'ha3;
+    assign layers_sr_bytes_s_axis_tready = rfg_read && rfg_address==16'h9c;
+    assign layers_readout_s_axis_tready = rfg_read && rfg_address==16'ha5;
     
     
     // Register Read
@@ -1522,246 +1546,254 @@ module main_rfg(
                         rfg_read_valid <= '1 ;
                     end
                     16'h76: begin
-                        rfg_read_value <= layers_fpga_timestamp_ctrl_reg[7:0];
+                        rfg_read_value <= layers_toa_divider_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h77: begin
-                        rfg_read_value <= layers_fpga_timestamp_ctrl_reg[15:8];
+                        rfg_read_value <= layers_tot_divider_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h78: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_reg[7:0];
+                        rfg_read_value <= layers_fpga_timestamp_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h79: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_reg[15:8];
+                        rfg_read_value <= layers_fpga_timestamp_ctrl_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7a: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_reg[23:16];
+                        rfg_read_value <= layers_fpga_timestamp_divider_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7b: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_reg[31:24];
+                        rfg_read_value <= layers_fpga_timestamp_divider_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7c: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[7:0];
+                        rfg_read_value <= layers_fpga_timestamp_divider_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7d: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[15:8];
+                        rfg_read_value <= layers_fpga_timestamp_divider_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7e: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[23:16];
+                        rfg_read_value <= layers_fpga_timestamp_counter[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h7f: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[31:24];
+                        rfg_read_value <= layers_fpga_timestamp_counter[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h80: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[39:32];
+                        rfg_read_value <= layers_fpga_timestamp_counter[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'h81: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[47:40];
+                        rfg_read_value <= layers_fpga_timestamp_counter[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'h82: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[55:48];
+                        rfg_read_value <= layers_fpga_timestamp_counter[39:32];
                         rfg_read_valid <= '1 ;
                     end
                     16'h83: begin
-                        rfg_read_value <= layers_fpga_timestamp_counter[63:56];
+                        rfg_read_value <= layers_fpga_timestamp_counter[47:40];
                         rfg_read_valid <= '1 ;
                     end
                     16'h84: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[7:0];
+                        rfg_read_value <= layers_fpga_timestamp_counter[55:48];
                         rfg_read_valid <= '1 ;
                     end
                     16'h85: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[15:8];
+                        rfg_read_value <= layers_fpga_timestamp_counter[63:56];
                         rfg_read_valid <= '1 ;
                     end
                     16'h86: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[23:16];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h87: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[31:24];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h88: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[39:32];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'h89: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[47:40];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8a: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[55:48];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[39:32];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8b: begin
-                        rfg_read_value <= layers_fpga_timestamp_forced_reg[63:56];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[47:40];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8c: begin
-                        rfg_read_value <= layers_tlu_trigger_delay_reg[7:0];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[55:48];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8d: begin
-                        rfg_read_value <= layers_tlu_trigger_delay_reg[15:8];
+                        rfg_read_value <= layers_fpga_timestamp_forced_reg[63:56];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8e: begin
-                        rfg_read_value <= layers_tlu_busy_duration_reg[7:0];
+                        rfg_read_value <= layers_tlu_trigger_delay_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h8f: begin
-                        rfg_read_value <= layers_tlu_busy_duration_reg[15:8];
+                        rfg_read_value <= layers_tlu_trigger_delay_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h90: begin
-                        rfg_read_value <= layers_cfg_nodata_continue_reg[7:0];
+                        rfg_read_value <= layers_tlu_busy_duration_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h91: begin
-                        rfg_read_value <= layers_sr_out_reg[7:0];
+                        rfg_read_value <= layers_tlu_busy_duration_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h92: begin
-                        rfg_read_value <= layers_sr_in_reg[7:0];
+                        rfg_read_value <= layers_cfg_nodata_continue_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h93: begin
-                        rfg_read_value <= layers_sr_rb_ctrl_reg[7:0];
+                        rfg_read_value <= layers_sr_out_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h94: begin
-                        rfg_read_value <= layers_sr_crc_reg[7:0];
+                        rfg_read_value <= layers_sr_in_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h95: begin
-                        rfg_read_value <= layers_sr_crc_reg[15:8];
+                        rfg_read_value <= layers_sr_rb_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h96: begin
-                        rfg_read_value <= layers_sr_crc_reg[23:16];
+                        rfg_read_value <= layers_sr_crc_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h97: begin
-                        rfg_read_value <= layers_sr_crc_reg[31:24];
+                        rfg_read_value <= layers_sr_crc_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h98: begin
-                        rfg_read_value <= layers_sr_crc_reg[39:32];
+                        rfg_read_value <= layers_sr_crc_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'h99: begin
-                        rfg_read_value <= layers_sr_crc_reg[47:40];
+                        rfg_read_value <= layers_sr_crc_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'h9a: begin
-                        rfg_read_value <= layers_sr_bytes_s_axis_tvalid ? layers_sr_bytes_s_axis_tdata : '1;
-                        rfg_read_valid <= '1;
+                        rfg_read_value <= layers_sr_crc_reg[39:32];
+                        rfg_read_valid <= '1 ;
                     end
                     16'h9b: begin
-                        rfg_read_value <= layers_sr_bytes_read_size_reg[7:0];
+                        rfg_read_value <= layers_sr_crc_reg[47:40];
                         rfg_read_valid <= '1 ;
                     end
                     16'h9c: begin
-                        rfg_read_value <= layers_sr_bytes_read_size_reg[15:8];
-                        rfg_read_valid <= '1 ;
+                        rfg_read_value <= layers_sr_bytes_s_axis_tvalid ? layers_sr_bytes_s_axis_tdata : '1;
+                        rfg_read_valid <= '1;
                     end
                     16'h9d: begin
-                        rfg_read_value <= layers_sr_bytes_read_size_reg[23:16];
+                        rfg_read_value <= layers_sr_bytes_read_size_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'h9e: begin
-                        rfg_read_value <= layers_sr_bytes_read_size_reg[31:24];
+                        rfg_read_value <= layers_sr_bytes_read_size_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'h9f: begin
-                        rfg_read_value <= layers_inj_ctrl_reg[7:0];
+                        rfg_read_value <= layers_sr_bytes_read_size_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha0: begin
-                        rfg_read_value <= {4'd0,layers_inj_waddr_reg[3:0]};
+                        rfg_read_value <= layers_sr_bytes_read_size_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha1: begin
-                        rfg_read_value <= layers_inj_wdata_reg[7:0];
+                        rfg_read_value <= layers_inj_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha2: begin
-                        rfg_read_value <= layers_readout_ctrl_reg[7:0];
+                        rfg_read_value <= {4'd0,layers_inj_waddr_reg[3:0]};
                         rfg_read_valid <= '1 ;
                     end
                     16'ha3: begin
-                        rfg_read_value <= layers_readout_s_axis_tvalid ? layers_readout_s_axis_tdata : '1;
-                        rfg_read_valid <= '1;
+                        rfg_read_value <= layers_inj_wdata_reg[7:0];
+                        rfg_read_valid <= '1 ;
                     end
                     16'ha4: begin
-                        rfg_read_value <= layers_readout_read_size_reg[7:0];
+                        rfg_read_value <= layers_readout_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha5: begin
-                        rfg_read_value <= layers_readout_read_size_reg[15:8];
-                        rfg_read_valid <= '1 ;
+                        rfg_read_value <= layers_readout_s_axis_tvalid ? layers_readout_s_axis_tdata : '1;
+                        rfg_read_valid <= '1;
                     end
                     16'ha6: begin
-                        rfg_read_value <= layers_readout_read_size_reg[23:16];
+                        rfg_read_value <= layers_readout_read_size_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha7: begin
-                        rfg_read_value <= layers_readout_read_size_reg[31:24];
+                        rfg_read_value <= layers_readout_read_size_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha8: begin
-                        rfg_read_value <= io_ctrl_reg[7:0];
+                        rfg_read_value <= layers_readout_read_size_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'ha9: begin
-                        rfg_read_value <= io_led_reg[7:0];
+                        rfg_read_value <= layers_readout_read_size_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'haa: begin
-                        rfg_read_value <= gecco_sr_ctrl_reg[7:0];
+                        rfg_read_value <= io_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'hab: begin
-                        rfg_read_value <= hk_conversion_trigger_match_reg[7:0];
+                        rfg_read_value <= io_led_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'hac: begin
-                        rfg_read_value <= hk_conversion_trigger_match_reg[15:8];
+                        rfg_read_value <= gecco_sr_ctrl_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'had: begin
-                        rfg_read_value <= hk_conversion_trigger_match_reg[23:16];
+                        rfg_read_value <= hk_conversion_trigger_match_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'hae: begin
-                        rfg_read_value <= hk_conversion_trigger_match_reg[31:24];
+                        rfg_read_value <= hk_conversion_trigger_match_reg[15:8];
                         rfg_read_valid <= '1 ;
                     end
                     16'haf: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[7:0];
+                        rfg_read_value <= hk_conversion_trigger_match_reg[23:16];
                         rfg_read_valid <= '1 ;
                     end
                     16'hb0: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[15:8];
+                        rfg_read_value <= hk_conversion_trigger_match_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
                     16'hb1: begin
-                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[23:16];
+                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[7:0];
                         rfg_read_valid <= '1 ;
                     end
                     16'hb2: begin
+                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[15:8];
+                        rfg_read_valid <= '1 ;
+                    end
+                    16'hb3: begin
+                        rfg_read_value <= layers_fpga_timestamp_divider_match_reg[23:16];
+                        rfg_read_valid <= '1 ;
+                    end
+                    16'hb4: begin
                         rfg_read_value <= layers_fpga_timestamp_divider_match_reg[31:24];
                         rfg_read_valid <= '1 ;
                     end
@@ -1820,6 +1852,54 @@ module main_rfg(
     end
     
     
+    always_ff@(posedge layers_toa_divider_source_clk) begin
+        if (!layers_toa_divider_source_resn) begin
+            layers_toa_divider_divided_clk <= 1'b0;
+            layers_toa_divider_counter <= '0;
+        end else begin
+            if (layers_toa_divider_counter==layers_toa_divider_reg) begin
+                layers_toa_divider_divided_clk <= !layers_toa_divider_divided_clk;
+                layers_toa_divider_counter <= '0;
+            end else begin
+                layers_toa_divider_counter <= layers_toa_divider_counter+1;
+            end
+        end
+    end
+    reg [7:0] layers_toa_divider_divided_resn_delay;
+    assign layers_toa_divider_divided_resn = layers_toa_divider_divided_resn_delay[7];
+    always_ff@(posedge layers_toa_divider_divided_clk or negedge layers_toa_divider_source_resn) begin
+        if (!layers_toa_divider_source_resn) begin
+            layers_toa_divider_divided_resn_delay <= '0;
+        end else begin
+            layers_toa_divider_divided_resn_delay <= {layers_toa_divider_divided_resn_delay[6:0],1'b1};
+        end
+    end
+    
+    
+    always_ff@(posedge layers_tot_divider_source_clk) begin
+        if (!layers_tot_divider_source_resn) begin
+            layers_tot_divider_divided_clk <= 1'b0;
+            layers_tot_divider_counter <= '0;
+        end else begin
+            if (layers_tot_divider_counter==layers_tot_divider_reg) begin
+                layers_tot_divider_divided_clk <= !layers_tot_divider_divided_clk;
+                layers_tot_divider_counter <= '0;
+            end else begin
+                layers_tot_divider_counter <= layers_tot_divider_counter+1;
+            end
+        end
+    end
+    reg [7:0] layers_tot_divider_divided_resn_delay;
+    assign layers_tot_divider_divided_resn = layers_tot_divider_divided_resn_delay[7];
+    always_ff@(posedge layers_tot_divider_divided_clk or negedge layers_tot_divider_source_resn) begin
+        if (!layers_tot_divider_source_resn) begin
+            layers_tot_divider_divided_resn_delay <= '0;
+        end else begin
+            layers_tot_divider_divided_resn_delay <= {layers_tot_divider_divided_resn_delay[6:0],1'b1};
+        end
+    end
+    
+    
     
     
     // Simple Address valid bit out
@@ -1827,7 +1907,7 @@ module main_rfg(
         if (!resn) begin
             rfg_address_valid <= 'd0;
         end else begin
-            rfg_address_valid <= rfg_address >= 'd0 && rfg_address <= 'hb2;
+            rfg_address_valid <= rfg_address >= 'd0 && rfg_address <= 'hb4;
         end
     end
     

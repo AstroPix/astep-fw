@@ -104,6 +104,10 @@ set baseRegisters {
     [rrepeat 3 {LAYER_${i}_LOOPBACK_MISO            {-fifo_axis_master -write_count -doc "FIFO to send bytes to Layer $i Astropix throug internal slave loopback"}}]
     [rrepeat 3 {LAYER_${i}_LOOPBACK_MOSI            {-fifo_axis_slave -read_count -doc "FIFO to read bytes received by internal slave loopback"}}]
 
+    LAYERS_TOA_DIVIDER     { -clock_divider toa  -reset 8'h3 -async_reset -doc "Clcok Divider for Astropix ToA"}
+    LAYERS_TOT_DIVIDER     { -clock_divider tot  -reset 8'h2 -async_reset -doc "Clcok Divider for Astropix ToT"}
+
+    
     LAYERS_FPGA_TIMESTAMP_CTRL {
         -reset 16'h0010
         -size 16
