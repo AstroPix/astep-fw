@@ -85,7 +85,7 @@ class AstropixRun:
         """
         Configure FPGA TS clock (frequency and source), SPI clock frequency
         """
-        await self.boardDriver.setSampleClock(enable=True, flush=flush)
+        await self.boardDriver.setSampleClock(enable=True, flush=flush)#re-done in next command
         await self.boardDriver.setTimestampClock(enable=True, flush=flush)
         # Setup FPGA timestamps
         await self.boardDriver.layersConfigFPGATimestampFrequency(
