@@ -146,7 +146,7 @@ class Decode:
                     tot_total = ts2_dec - ts1_dec
                 else:
                     tot_total = 2**18 - 1 + ts2_dec - ts1_dec
-                tot_us      = (tot_total * sample_clock_period_ns)/1000.0
+                tot_us      = (tot_total * sample_clock_period_ns)/2.0/1000.0
                 fpga_ts     = int.from_bytes(hit[10:14], 'big')
                 print(bin(fpga_ts))
             except IndexError:  # hit cut off at end of stream
